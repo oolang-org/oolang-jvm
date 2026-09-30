@@ -233,6 +233,7 @@ public class OolangSemanticAnalyzerTest {
         assertThat(funCallParamPropAccess.type).isEqualTo(PROP_ACCESS);
         assertThat(funCallParamPropAccess.description()).isEqualTo("Expression(propAccess PROP)");
         assertThat(funCallParamPropAccess.ownerDescriptorString).isEqualTo("Lcom/example/Example;");
+        assertThat(funCallParamPropAccess.invocation).isEqualTo("getStatic");
         assertThat(funCallParamPropAccess.identifiers).hasSize(1);
         assertThat(funCallParamPropAccess.descriptorString()).isEqualTo("Ljava/lang/String;");
         assertThat(funCallParamPropAccess.children).isEmpty();

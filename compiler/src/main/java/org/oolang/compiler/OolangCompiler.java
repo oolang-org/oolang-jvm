@@ -16,7 +16,9 @@ import org.oolang.ast.expression.Expression;
 import org.oolang.ast.expression.LoadExpression;
 import org.oolang.ast.expression.RealExpression;
 import org.oolang.ast.statement.CodeBlock;
+import org.oolang.ast.statement.ConstructorCodeBlock;
 import org.oolang.ast.statement.RealStatement;
+import org.oolang.ast.statement.Statement;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -35,8 +37,7 @@ import java.util.Locale;
 import java.util.Objects;
 
 import static java.lang.System.Logger.Level.DEBUG;
-import static org.oolang.ast.element.RealElement.ElementType.PARAMETER;
-import static org.oolang.ast.element.RealElement.ElementType.PROPERTY_INITIALIZER;
+import static org.oolang.ast.element.RealElement.ElementType.*;
 import static org.oolang.ast.expression.JvmInvocationUtils.GET_STATIC;
 import static org.oolang.ast.expression.JvmInvocationUtils.INVOKE_VIRTUAL;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.PROP_ACCESS;
@@ -44,6 +45,9 @@ import static org.oolang.compiler.Descriptors.*;
 import static org.oolang.compiler.StringCompilationUtils.stringConcatenation;
 
 public final class OolangCompiler {
+    private static final String PUBLIC = "public";
+    private static final String FINAL = "final";
+
     // un-instantiable
     private OolangCompiler() {
     }
@@ -104,11 +108,11 @@ public final class OolangCompiler {
         var hasConstructor = false;
         for (final var child : classBody.children) {
             switch (child.elementType) {
-                case VAR, VAL -> visitProperty(child, classBuilder);
                 case CONSTRUCTOR -> {
                     hasConstructor = true;
-                    throw new UnsupportedOperationException();
+                    visitConstructor(child, classBuilder);
                 }
+                case VAR, VAL -> visitProperty(child, classBuilder);
                 case FUN -> visitFun(child, classBuilder);
                 case CLASS -> visitClass(child, classBuilder);
                 case INTERFACE -> throw new UnsupportedOperationException();
@@ -118,21 +122,59 @@ public final class OolangCompiler {
 
         // if no explicit constructor was found, add a public empty default constructor
         if (!hasConstructor) {
-            // todo use AST and call visitConstructor
-            classBuilder.withMethod(
-                    ConstantDescs.INIT_NAME,
-                    MethodTypeDesc.of(ConstantDescs.CD_void),
-                    ClassFile.ACC_PUBLIC | ClassFile.ACC_FINAL,
-                    methodBuilder -> methodBuilder.withCode(code ->
-                            code.aload(0)
-                                    .invokespecial(
-                                            ClassDesc.ofDescriptor(OBJECT),
-                                            ConstantDescs.INIT_NAME,
-                                            MethodTypeDesc.of(ConstantDescs.CD_void))
-                                    .return_()
-                    )
-            );
+            final var defaultConstructor = new RealElement(CONSTRUCTOR);
+            defaultConstructor.modifiers.addAll(
+                    List.of(new ElementModifier(ElementModifier.ModifierType.VISIBILITY, PUBLIC),
+                            new ElementModifier(ElementModifier.ModifierType.INHERITANCE, FINAL)));
+            defaultConstructor.children.add(new ConstructorCodeBlock());
+            visitConstructor(defaultConstructor, classBuilder);
         }
+    }
+
+    private static void visitConstructor(final @NonNull RealElement constructorElement,
+                                         final @NonNull ClassBuilder classBuilder) {
+        assert constructorElement != null;
+        assert classBuilder != null;
+
+        classBuilder.withMethodBody(
+                ConstantDescs.INIT_NAME,
+                MethodTypeDesc.of(ConstantDescs.CD_void),
+                computeModifiers(constructorElement.modifiers),
+                codeBuilder ->
+                        // constructor code block is the last child
+                        visitConstructorCodeBlock((ConstructorCodeBlock) constructorElement.children.getLast(),
+                                codeBuilder)
+        );
+    }
+
+    private static void visitConstructorCodeBlock(final @NonNull ConstructorCodeBlock constructorCodeBlock,
+                                                  final @NonNull CodeBuilder codeBuilder) {
+        assert constructorCodeBlock != null;
+        assert codeBuilder != null;
+
+        // 1) execute early-larval statements
+        for (final var earlyStatement : constructorCodeBlock.earlyLarvalStatements) {
+            visitStatement(earlyStatement, codeBuilder);
+        }
+
+        // 2) call another constructor in the current class or a super constructor.
+        codeBuilder.aload(0); // = this
+        if (constructorCodeBlock.initCall != null) {
+            visitRealExpression(constructorCodeBlock.initCall, codeBuilder);
+        } else {
+            // implicit call to no-arg super constructor
+            codeBuilder.invokespecial(
+                    ClassDesc.ofDescriptor(OBJECT),
+                    ConstantDescs.INIT_NAME,
+                    MethodTypeDesc.of(ConstantDescs.CD_void));
+        }
+
+        // 3) execute late-larval statements
+        for (final var lateStatement : constructorCodeBlock.lateLarvalStatements) {
+            visitStatement(lateStatement, codeBuilder);
+        }
+
+        codeBuilder.return_(); // 4) return
     }
 
     private static void visitProperty(final @NonNull RealElement propertyElement,
@@ -173,7 +215,7 @@ public final class OolangCompiler {
         classBuilder.withMethodBody(
                 funElement.identifier.identifier,
                 MethodTypeDesc.of(/* returnDesc */ computeType(funElement), paramDescs),
-                computeModifiers(funElement.modifiers),
+                modifiers,
                 codeBuilder -> {
                     if (!Modifier.isAbstract(modifiers)) {
                         // code block is the last child of a non-abstract function
@@ -187,23 +229,31 @@ public final class OolangCompiler {
         assert codeBuilder != null;
 
         for (final var statement : codeBlock.statements) {
-            switch (statement) {
-                case RealStatement realStatement -> visitStatement(realStatement, codeBuilder);
-                default -> throw new UnsupportedOperationException("Unsupported statement: " + statement);
-            }
+            visitStatement(statement, codeBuilder);
         }
         // add implicit return unless a previous explicit one was declared (todo).
         codeBuilder.return_();
     }
 
-    private static void visitStatement(final @NonNull RealStatement statement, @NonNull CodeBuilder codeBuilder) {
+    private static void visitStatement(final @NonNull Statement statement, final @NonNull CodeBuilder codeBuilder) {
         assert statement != null;
         assert codeBuilder != null;
 
-        for (final var child : statement.children) {
+        switch (statement) {
+            case RealStatement realStatement -> visitRealStatement(realStatement, codeBuilder);
+            default -> throw new UnsupportedOperationException("Unsupported statement: " + statement);
+        }
+    }
+
+    private static void visitRealStatement(final @NonNull RealStatement realStatement,
+                                           final @NonNull CodeBuilder codeBuilder) {
+        assert realStatement != null;
+        assert codeBuilder != null;
+
+        for (final var child : realStatement.children) {
             switch (child) {
                 case Expression expression -> visitExpression(expression, codeBuilder);
-                default -> throw new UnsupportedOperationException("Unsupported statement child: " + child);
+                default -> throw new UnsupportedOperationException("Unsupported realStatement child: " + child);
             }
         }
     }
@@ -414,8 +464,8 @@ public final class OolangCompiler {
     private static int computeModifiers(final @NonNull List<@NonNull ElementModifier> modifiers) {
         assert modifiers != null;
 
-        var visibility = "public";
-        var inheritance = "final";
+        var visibility = PUBLIC;
+        var inheritance = FINAL;
         var isStatic = false;
         for (final var modifier : modifiers) {
             switch (modifier.type) {

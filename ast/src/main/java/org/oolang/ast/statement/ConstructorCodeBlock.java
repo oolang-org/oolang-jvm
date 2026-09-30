@@ -6,16 +6,22 @@
 package org.oolang.ast.statement;
 
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.oolang.ast.AbstractAst;
 import org.oolang.ast.Ast;
-import org.oolang.ast.expression.Expression;
+import org.oolang.ast.expression.RealExpression;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public final class ConstructorBody extends AbstractAst implements StatementNode {
+public final class ConstructorCodeBlock extends AbstractAst implements StatementNode {
     public final @NonNull List<@NonNull Statement> earlyLarvalStatements = new ArrayList<>();
-    public /* lateinit */ Expression initCall;
+    /**
+     * Expression to another constructor in the current class or a super constructor.
+     * <p>
+     * If null, an implicit call to the no-arg super constructor is performed.
+     */
+    public @Nullable RealExpression initCall = null;
     public final @NonNull List<@NonNull Statement> lateLarvalStatements = new ArrayList<>();
 
     @Override
@@ -26,8 +32,9 @@ public final class ConstructorBody extends AbstractAst implements StatementNode 
     @Override
     public @NonNull List<? extends @NonNull Ast> content() {
         final var content = new ArrayList<@NonNull Ast>(earlyLarvalStatements);
-        assert initCall != null;
-        content.add(initCall);
+        if (initCall != null) {
+            content.add(initCall);
+        }
         content.addAll(lateLarvalStatements);
         return content;
     }
