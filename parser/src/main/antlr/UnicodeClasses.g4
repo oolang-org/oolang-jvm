@@ -1,5 +1,5 @@
 /**
- * Oolang lexical grammar in ANTLR4 notation (Unicode classes)
+ * Copyright (c) 2026-present, Oolang contributors. Use of this source code is governed by the Apache 2.0 license.
  *
  * Taken from http://www.antlr3.org/grammar/1345144569663/AntlrUnicode.txt
  */

@@ -1,6 +1,5 @@
 /**
- * Copyright (c) 2026-present, Oolang contributors.
- * Use of this source code is governed by the Apache 2.0 license.
+ * Copyright (c) 2026-present, Oolang contributors. Use of this source code is governed by the Apache 2.0 license.
  *
  * This Oolang parser grammar in ANTLR4 notation is derived from this Apache 2 file
  * https://github.com/kotlinx/ast/blob/master/grammar-kotlin-parser-common/src/commonAntlr/antlr/OolangParser.g4
