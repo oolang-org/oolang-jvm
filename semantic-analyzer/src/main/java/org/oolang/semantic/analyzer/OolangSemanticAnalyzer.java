@@ -66,14 +66,14 @@ public final class OolangSemanticAnalyzer {
         assert imports != null;
 
         final Scopes effectiveScopes = (klass.isStatic)
-                ? scopes.newScopes() // static class = start a new fresh Scopes
+                ? scopes.enterStatic() // static class = start a new fresh Scopes
                 : scopes;
 
         for (final var child : classElement.children) {
             if (child instanceof ClassBody classBody) {
-                effectiveScopes.push();
+                effectiveScopes.push(klass.isStatic, true);
                 visitClassBody(classBody, scopes, klass, imports);
-                effectiveScopes.pop();
+                effectiveScopes.pop(klass.isStatic);
             }
         }
     }
@@ -132,7 +132,7 @@ public final class OolangSemanticAnalyzer {
             propertyElement.setDescriptorString(TypeResolver.getKlassFromType(propertyType).descriptorString());
         }
 
-        scopes.current.putProperty(property);
+        scopes.putProperty(property);
     }
 
     private static void visitFunction(final @NonNull RealElement funElement,
@@ -151,23 +151,24 @@ public final class OolangSemanticAnalyzer {
         function.returnType(); // resolve function's return type
 
         final Scopes effectiveScopes = (function.isStatic)
-                ? scopes.newScopes() // static function = start a new fresh Scopes
+                ? scopes.enterStatic() // static function = start a new fresh Scopes
                 : scopes;
+
         if (!function.isAbstract) {
-            effectiveScopes.push();
+            effectiveScopes.push(function.isStatic, false);
         }
 
         for (final var parameter : function.parameters) {
             final var parameterType = parameter.type(); // resolve function param type
             if (!function.isAbstract) {
-                effectiveScopes.current.putVariable(parameter.name, parameterType, true);
+                effectiveScopes.putVariable(parameter.name, parameterType, true, function.isStatic);
             }
         }
 
         if (!function.isAbstract) {
             // code block is the last child of a non-abstract function
             visitCodeBlock((CodeBlock) funElement.children.getLast(), effectiveScopes, klass, imports);
-            effectiveScopes.pop();
+            effectiveScopes.pop(function.isStatic);
         }
     }
 
