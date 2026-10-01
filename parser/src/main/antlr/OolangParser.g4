@@ -149,14 +149,6 @@ anonymousInitializer
       (NL* classBody)?
     ; */
 
-functionValueParameters
-    : LPAREN NL* (functionValueParameter (NL* COMMA NL* functionValueParameter)* (NL* COMMA)?)? NL* RPAREN
-    ;
-
-functionValueParameter
-    : parameterModifiers? parameter (NL* ASSIGNMENT NL* expression)?
-    ;
-
 functionDeclaration
     : modifiers?
       FUN (NL* typeParameters)? (NL* receiverType NL* DOT)? NL* simpleIdentifier
@@ -164,6 +156,14 @@ functionDeclaration
       (NL* COLON NL* type)?
       (NL* typeConstraints)?
       (NL* functionBody)?
+    ;
+
+functionValueParameters
+    : LPAREN NL* (functionValueParameter (NL* COMMA NL* functionValueParameter)* (NL* COMMA)?)? NL* RPAREN
+    ;
+
+functionValueParameter
+    : parameterModifiers? parameter (NL* ASSIGNMENT NL* expression)?
     ;
 
 functionBody
@@ -311,7 +311,7 @@ parenthesizedUserType
     ;
 
 definitelyNonNullableType
-    : /* typeModifiers? */ annotations? (userType | parenthesizedUserType) NL* AMP NL* /* typeModifiers? */ annotations? (userType | parenthesizedUserType)
+    : /* typeModifiers? */ annotations? (userType | parenthesizedUserType) /* NL* AMP NL*  typeModifiers? annotations? (userType | parenthesizedUserType) */
     ;
 
 // SECTION: statements
@@ -345,7 +345,7 @@ loopStatement
 
 forStatement
     : FOR NL* LPAREN annotation* /*(variableDeclaration | multiVariableDeclaration)*/ variableDeclaration
-      IN expression RPAREN NL* controlStructureBody?
+      /* IN */ COLON expression RPAREN NL* controlStructureBody?
     ;
 
 whileStatement
@@ -391,28 +391,28 @@ comparison
     ;
 
 genericCallLikeComparison
-    : infixOperation callSuffix*
+    : isExpression callSuffix*
     ;
 
-infixOperation
-    : elvisExpression (inOperator NL* elvisExpression | isOperator NL* type)*
+isExpression // was 'infixOperation'
+    : elvisExpression (/* inOperator NL* elvisExpression |*/ NL* isOperator NL* type)*
     ;
 
 elvisExpression
-    : infixFunctionCall (NL* elvis NL* infixFunctionCall)*
+    : additiveExpression (NL* elvis NL* additiveExpression)*
     ;
 
 elvis
     : QUEST_NO_WS COLON
     ;
 
-infixFunctionCall
+ /* infixFunctionCall
     : rangeExpression (simpleIdentifier NL* rangeExpression)*
     ;
 
 rangeExpression
-    : additiveExpression (/* (RANGE | RANGE_UNTIL) */ NL* additiveExpression)*
-    ;
+    : additiveExpression (/* (RANGE | RANGE_UNTIL) NL* additiveExpression)*
+    ;*/
 
 additiveExpression
     : multiplicativeExpression (additiveOperator NL* multiplicativeExpression)*
@@ -637,13 +637,13 @@ whenEntry
 
 whenCondition
     : expression
-    | rangeTest
+    //| rangeTest
     | typeTest
     ;
 
-rangeTest
+/*rangeTest
     : inOperator NL* expression
-    ;
+    ;*/
 
 typeTest
     : isOperator NL* type
@@ -696,10 +696,10 @@ comparisonOperator
     | GE
     ;
 
-inOperator
+/*inOperator
     : IN
-//    | NOT_IN
-    ;
+    | NOT_IN
+    ;*/
 
 isOperator
     : IS

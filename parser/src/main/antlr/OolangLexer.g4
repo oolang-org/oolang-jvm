@@ -38,7 +38,7 @@ fragment Hidden: DelimitedComment | LineComment | WS;
 
 // SECTION: separatorsAndOperations
 
-RESERVED: '...';
+// RESERVED: '...';
 DOT: '.';
 COMMA: ',';
 LPAREN: '(' -> pushMode(Inside);
@@ -143,6 +143,7 @@ WHILE: 'while';
 THROW: 'throw';
 RETURN: 'return';
 CONTINUE: 'continue';
+YIELD: 'yield';
 // BREAK: 'break';
 AS: 'as';
 IS: 'is';
@@ -424,7 +425,7 @@ Inside_ARROW: ARROW  -> type(ARROW);
 // Inside_DOUBLE_ARROW: DOUBLE_ARROW  -> type(DOUBLE_ARROW);
 // Inside_RANGE: RANGE  -> type(RANGE);
 // Inside_RANGE_UNTIL: RANGE_UNTIL  -> type(RANGE_UNTIL);
-Inside_RESERVED: RESERVED -> type(RESERVED);
+// Inside_RESERVED: RESERVED -> type(RESERVED);
 Inside_COLONCOLON: COLONCOLON  -> type(COLONCOLON);
 // Inside_DOUBLE_SEMICOLON: DOUBLE_SEMICOLON  -> type(DOUBLE_SEMICOLON);
 // Inside_HASH: HASH  -> type(HASH);
@@ -472,6 +473,7 @@ Inside_DELEGATE: DELEGATE -> type(DELEGATE);
 Inside_THROW: THROW -> type(THROW);
 Inside_RETURN: RETURN -> type(RETURN);
 Inside_CONTINUE: CONTINUE -> type(CONTINUE);
+Inside_YIELD: YIELD -> type(YIELD);
 // Inside_BREAK: BREAK -> type(BREAK);
 // Inside_RETURN_AT: RETURN_AT -> type(RETURN_AT);
 // Inside_CONTINUE_AT: CONTINUE_AT -> type(CONTINUE_AT);

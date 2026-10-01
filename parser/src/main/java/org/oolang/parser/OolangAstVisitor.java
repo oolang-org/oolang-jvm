@@ -290,15 +290,10 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
             for (final var equalityCtx : conjunctionCtx.equality()) {
                 for (final var comparisonCtx : equalityCtx.comparison()) {
                     for (final var genericCallLikeComparisonCtx : comparisonCtx.genericCallLikeComparison()) {
-                        final var infixOperationCtx = genericCallLikeComparisonCtx.infixOperation();
-                        for (final var elvisExpressionCtx : infixOperationCtx.elvisExpression()) {
-                            for (final var infixFunctionCallCtx : elvisExpressionCtx.infixFunctionCall()) {
-                                for (final var rangeExpressionCtx : infixFunctionCallCtx.rangeExpression()) {
-                                    for (final var additiveExpressionCtx : rangeExpressionCtx.additiveExpression()) {
-                                        return visitAdditiveExpression(additiveExpressionCtx);
-                                    }
-                                }
-                            }
+                        final var isExpressionCtx = genericCallLikeComparisonCtx.isExpression();
+                        final var elvisExpressionCtx = isExpressionCtx.elvisExpression();
+                        for (final var additiveExpressionCtx : elvisExpressionCtx.additiveExpression()) {
+                            return visitAdditiveExpression(additiveExpressionCtx);
                         }
                     }
                 }

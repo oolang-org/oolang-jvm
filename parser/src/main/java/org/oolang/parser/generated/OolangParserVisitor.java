@@ -155,6 +155,12 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitAnonymousInitializer(OolangParser.AnonymousInitializerContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link OolangParser#functionDeclaration}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitFunctionDeclaration(OolangParser.FunctionDeclarationContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link OolangParser#functionValueParameters}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -166,12 +172,6 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitFunctionValueParameter(OolangParser.FunctionValueParameterContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#functionDeclaration}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitFunctionDeclaration(OolangParser.FunctionDeclarationContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link OolangParser#functionBody}.
 	 * @param ctx the parse tree
@@ -449,11 +449,11 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitGenericCallLikeComparison(OolangParser.GenericCallLikeComparisonContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link OolangParser#infixOperation}.
+	 * Visit a parse tree produced by {@link OolangParser#isExpression}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitInfixOperation(OolangParser.InfixOperationContext ctx);
+	T visitIsExpression(OolangParser.IsExpressionContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link OolangParser#elvisExpression}.
 	 * @param ctx the parse tree
@@ -466,18 +466,6 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitElvis(OolangParser.ElvisContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#infixFunctionCall}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitInfixFunctionCall(OolangParser.InfixFunctionCallContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#rangeExpression}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitRangeExpression(OolangParser.RangeExpressionContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link OolangParser#additiveExpression}.
 	 * @param ctx the parse tree
@@ -725,12 +713,6 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitWhenCondition(OolangParser.WhenConditionContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link OolangParser#rangeTest}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitRangeTest(OolangParser.RangeTestContext ctx);
-	/**
 	 * Visit a parse tree produced by {@link OolangParser#typeTest}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -784,12 +766,6 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitComparisonOperator(OolangParser.ComparisonOperatorContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#inOperator}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitInOperator(OolangParser.InOperatorContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link OolangParser#isOperator}.
 	 * @param ctx the parse tree
