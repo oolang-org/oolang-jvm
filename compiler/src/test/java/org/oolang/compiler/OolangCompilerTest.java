@@ -201,7 +201,7 @@ public class OolangCompilerTest {
     }
 
     @Test
-    public void parseClassWithMainFunctionAndPropertyUsage() {
+    public void parseClassWithMainFunctionAndStaticPropertyUsage() {
         var astFile = astForCode("""
                 package com.example
                 class Example {

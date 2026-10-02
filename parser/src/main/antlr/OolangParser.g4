@@ -12,7 +12,8 @@ options { tokenVocab = OolangLexer; }
 // SECTION: general
 
 oolangFile
-    : /*shebangLine? NL* fileAnnotation* */ packageHeader importList topLevelObject* EOF
+    /*: shebangLine? NL* fileAnnotation* packageHeader importList topLevelObject* EOF*/
+    : packageHeader? importList anysemi* classDeclaration (anysemi+ classDeclaration?)* EOF
     ;
 
 /* script
@@ -28,7 +29,7 @@ fileAnnotation
     ;*/
 
 packageHeader
-    : (PACKAGE identifier semi?)?
+    : PACKAGE identifier semi?
     ;
 
 importList
@@ -36,18 +37,18 @@ importList
     ;
 
 importHeader
-    : IMPORT identifier (DOT /* MULT */ | importAlias)? semi?
+    : IMPORT identifier importAlias? semi?
     ;
 
 importAlias
     : AS simpleIdentifier
     ;
 
-topLevelObject
-    : classDeclaration semis? // chaged from : declaration semis?
+/*topLevelObject
+    : declaration semis?
     ;
 
-/*typeAlias
+typeAlias
     : modifiers? TYPE_ALIAS NL* simpleIdentifier (NL* typeParameters)? NL* ASSIGNMENT NL* type
     ;*/
 
@@ -64,17 +65,12 @@ declaration
 classDeclaration
     : modifiers? (CLASS | (FUN NL*)? INTERFACE) NL* simpleIdentifier
       (NL* typeParameters)? (NL* primaryConstructor)?
-      (NL* COLON NL* delegationSpecifiers)?
-      (NL* typeConstraints)?
+      (NL* COLON NL* delegationSpecifiers)? (NL* typeConstraints)?
       (NL* classBody | NL* enumClassBody)?
     ;
 
 primaryConstructor
-    : (modifiers? CONSTRUCTOR NL*)? classParameters
-    ;
-
-classBody
-    : LBRACE NL* classMemberDeclarations NL* RBRACE
+    : modifiers? (CONSTRUCTOR NL*)? classParameters
     ;
 
 classParameters
@@ -89,6 +85,10 @@ delegationSpecifiers
     : annotatedDelegationSpecifier (NL* COMMA NL* annotatedDelegationSpecifier)*
     ;
 
+annotatedDelegationSpecifier
+    : singleAnnotation* NL* delegationSpecifier
+    ;
+
 delegationSpecifier
     : constructorInvocation
     | explicitDelegation
@@ -98,15 +98,15 @@ delegationSpecifier
     ;
 
 constructorInvocation
-    : userType NL* valueArguments
-    ;
-
-annotatedDelegationSpecifier
-    : annotation* NL* delegationSpecifier
+    : userType NL* callSuffix
     ;
 
 explicitDelegation
     : (userType | functionType) NL* BY NL* expression
+    ;
+
+classBody
+    : LCURL NL* classMemberDeclaration* NL* RCURL
     ;
 
 typeParameters
@@ -114,7 +114,7 @@ typeParameters
     ;
 
 typeParameter
-    : typeParameterModifiers? NL* simpleIdentifier (NL* COLON NL* type)?
+    : typeParameterModifiers? NL* (simpleIdentifier | MULT) (NL* COLON NL* type)?
     ;
 
 typeConstraints
@@ -122,24 +122,32 @@ typeConstraints
     ;
 
 typeConstraint
-    : annotation* simpleIdentifier NL* COLON NL* type
+    : singleAnnotation* simpleIdentifier NL* COLON NL* type
     ;
 
 // SECTION: classMembers
 
-classMemberDeclarations
-    : (classMemberDeclaration semis?)*
-    ;
-
 classMemberDeclaration
-    : declaration
-//    | companionObject
-    | anonymousInitializer
-    | secondaryConstructor
+    : (
+        declaration
+        /*| objectDeclaration
+        | companionObject*/
+        | anonymousInitializer
+        | secondaryConstructor
+        //| typeAlias
+    ) anysemi+
     ;
 
 anonymousInitializer
     : INIT NL* block
+    ;
+
+secondaryConstructor
+    : modifiers? CONSTRUCTOR NL* functionValueParameters (NL* COLON NL* constructorDelegationCall)? NL* block?
+    ;
+
+constructorDelegationCall
+    : (THIS | SUPER) NL* valueArguments
     ;
 
 /* companionObject
@@ -150,12 +158,8 @@ anonymousInitializer
     ; */
 
 functionDeclaration
-    : modifiers?
-      FUN (NL* typeParameters)? (NL* receiverType NL* DOT)? NL* simpleIdentifier
-      NL* functionValueParameters
-      (NL* COLON NL* type)?
-      (NL* typeConstraints)?
-      (NL* functionBody)?
+    : modifiers? FUN (NL* typeParameters)? (NL* receiverType NL* DOT)? NL* simpleIdentifier
+      NL* functionValueParameters (NL* COLON NL* type)? (NL* typeConstraints)? (NL* functionBody)?
     ;
 
 functionValueParameters
@@ -171,26 +175,19 @@ functionBody
     | ASSIGNMENT NL* expression
     ;
 
-variableDeclaration
-    : annotation* NL* simpleIdentifier (NL* COLON NL* type)?
+propertyDeclaration
+    : modifiers? (VAL | VAR) (NL* typeParameters)? (NL* receiverType NL* DOT)?
+      (NL* /*(multiVariableDeclaration | variableDeclaration)*/ variableDeclaration)
+      (NL* typeConstraints)? (NL* (BY | ASSIGNMENT) NL* expression)?
+      (NL* SEMICOLON)? NL* (getter (NL* semi? setter)? | setter (NL* semi? getter))?
     ;
 
 /*multiVariableDeclaration
     : LPAREN NL* variableDeclaration (NL* COMMA NL* variableDeclaration)* (NL* COMMA)? NL* RPAREN
     ;*/
 
-propertyDeclaration
-    : modifiers? (VAL | VAR)
-      (NL* typeParameters)?
-      (NL* receiverType NL* DOT)?
-      (NL* /*(multiVariableDeclaration | variableDeclaration)*/ variableDeclaration)
-      (NL* typeConstraints)?
-      (NL* (ASSIGNMENT NL* expression | propertyDelegate))?
-      (NL* SEMICOLON)? NL* (getter? (NL* semi? setter)? | setter? (NL* semi? getter)?)
-    ;
-
-propertyDelegate
-    : BY NL* expression
+variableDeclaration
+    : singleAnnotation* NL* simpleIdentifier (NL* COLON NL* type)?
     ;
 
 getter
@@ -200,7 +197,7 @@ getter
 
 setter
     : modifiers? SET
-      (NL* LPAREN NL* functionValueParameterWithOptionalType (NL* COMMA)? NL* RPAREN (NL* COLON NL* type)? NL* functionBody)?
+      (NL* LPAREN NL* functionValueParameterWithOptionalType (NL* COMMA)? NL* RPAREN NL* functionBody)?
     ;
 
 parametersWithOptionalType
@@ -226,32 +223,25 @@ parameter
       (NL* classBody)?
     ;*/
 
-secondaryConstructor
-    : modifiers? CONSTRUCTOR NL* functionValueParameters (NL* COLON NL* constructorDelegationCall)? NL* block?
-    ;
-
-constructorDelegationCall
-    : (THIS | SUPER) NL* valueArguments
-    ;
-
 // SECTION: enumClasses
 
 enumClassBody
-    : LBRACE NL* enumEntries? (NL* SEMICOLON NL* classMemberDeclarations)? NL* RBRACE
+    : LCURL NL* enumEntries? (NL* SEMICOLON NL* classMemberDeclaration*)? NL* RCURL
     ;
 
 enumEntries
-    : enumEntry (NL* COMMA NL* enumEntry)* NL* COMMA?
+    : enumEntry+ SEMICOLON?
     ;
 
 enumEntry
-    : (modifiers NL*)? simpleIdentifier (NL* valueArguments)? (NL* classBody)?
+    : (modifiers NL*)? simpleIdentifier (NL* valueArguments)? (NL* classBody)? (NL* COMMA)?
     ;
 
 // SECTION: types
 
 type
-    : /* typeModifiers? */ annotations? (functionType | parenthesizedType | nullableType | /* typeReference */ userType | definitelyNonNullableType)
+    : /* typeModifiers? */ annotation*
+    (functionType | parenthesizedType | nullableType | userType | /* typeReference | definitelyNonNullableType*/)
     ;
 
 /* typeReference
@@ -287,7 +277,7 @@ typeProjectionModifiers
 
 typeProjectionModifier
     : varianceModifier NL*
-    | annotation
+    | singleAnnotation
     ;
 
 functionType
@@ -303,38 +293,42 @@ parenthesizedType
     ;
 
 receiverType
-    : /* typeModifiers? */ annotations? (parenthesizedType | nullableType | /* typeReference */ userType)
+    : /* typeModifiers? */ annotation? (parenthesizedType | nullableType | /* typeReference */ userType)
     ;
 
 parenthesizedUserType
     : LPAREN NL* (userType | parenthesizedUserType) NL* RPAREN
     ;
 
-definitelyNonNullableType
-    : /* typeModifiers? */ annotations? (userType | parenthesizedUserType) /* NL* AMP NL*  typeModifiers? annotations? (userType | parenthesizedUserType) */
-    ;
+/*definitelyNonNullableType
+    : typeModifiers? annotations? (userType | parenthesizedUserType) NL* AMP NL*  typeModifiers? annotations? (userType | parenthesizedUserType)
+    ;*/
 
 // SECTION: statements
 
 statements
-    : (statement (semis statement)*)? semis?
+    : anysemi* (statement (anysemi+ statement?)*)?
     ;
 
 statement
-    : (label | annotation)* ( declaration | assignment | loopStatement | expression)
+    : blockLevelExpression
+    | blockLevelDeclaration
+    ;
+
+blockLevelExpression
+    : annotation* NL* expression
+    ;
+
+blockLevelDeclaration
+    : label* ( declaration | assignment | loopStatement)
     ;
 
 label
     : simpleIdentifier (AT_NO_WS | AT_POST_WS) NL*
     ;
 
-controlStructureBody
-    : block
-    | statement
-    ;
-
-block
-    : LBRACE NL* statements NL* RBRACE
+assignment
+    : (directlyAssignableExpression ASSIGNMENT | assignableExpression assignmentAndOperator) NL* expression
     ;
 
 loopStatement
@@ -344,7 +338,7 @@ loopStatement
     ;
 
 forStatement
-    : FOR NL* LPAREN annotation* /*(variableDeclaration | multiVariableDeclaration)*/ variableDeclaration
+    : FOR NL* LPAREN singleAnnotation* /*(variableDeclaration | multiVariableDeclaration)*/ variableDeclaration
       /* IN */ COLON expression RPAREN NL* controlStructureBody?
     ;
 
@@ -356,16 +350,13 @@ whileStatement
     : DO NL* controlStructureBody? NL* WHILE NL* LPAREN expression RPAREN
     ; */
 
-assignment
-    : (directlyAssignableExpression ASSIGNMENT | assignableExpression assignmentAndOperator) NL* expression
+controlStructureBody
+    : block
+    | statement
     ;
 
-semi
-    : (SEMICOLON | NL) NL*
-    ;
-
-semis
-    : (SEMICOLON | NL)+
+block
+    : LCURL NL* statements NL* RCURL
     ;
 
 // SECTION: expressions
@@ -395,7 +386,7 @@ genericCallLikeComparison
     ;
 
 isExpression // was 'infixOperation'
-    : elvisExpression (/* inOperator NL* elvisExpression |*/ NL* isOperator NL* type)*
+    : elvisExpression (/* inOperator NL* elvisExpression |*/ isOperator NL* type)?
     ;
 
 elvisExpression
@@ -419,11 +410,11 @@ additiveExpression
     ;
 
 multiplicativeExpression
-    : asExpression (multiplicativeOperator NL* asExpression)*
+    : typeRHS (multiplicativeOperator NL* typeRHS)*
     ;
 
-asExpression
-    : prefixUnaryExpression (NL* asOperator NL* type)*
+typeRHS
+    : prefixUnaryExpression (NL* typeOperation prefixUnaryExpression)*
     ;
 
 prefixUnaryExpression
@@ -431,85 +422,23 @@ prefixUnaryExpression
     ;
 
 unaryPrefix
-    : annotation
+    : prefixUnaryOperator NL*
+    | singleAnnotation
     | label
-    | prefixUnaryOperator NL*
     ;
 
 postfixUnaryExpression
-    : primaryExpression postfixUnarySuffix*
+    : atomicExpression postfixUnarySuffix*
     ;
 
-postfixUnarySuffix
-    : postfixUnaryOperator
-    | typeArguments
-    | callSuffix
-    | indexingSuffix
-    | navigationSuffix
-    ;
-
-directlyAssignableExpression
-    : postfixUnaryExpression assignableSuffix
-    | simpleIdentifier
-    | parenthesizedDirectlyAssignableExpression
-    ;
-
-parenthesizedDirectlyAssignableExpression
-    : LPAREN NL* directlyAssignableExpression NL* RPAREN
-    ;
-
-assignableExpression
-    : prefixUnaryExpression
-    | parenthesizedAssignableExpression
-    ;
-
-parenthesizedAssignableExpression
-    : LPAREN NL* assignableExpression NL* RPAREN
-    ;
-
-assignableSuffix
-    : typeArguments
-    | indexingSuffix
-    | navigationSuffix
-    ;
-
-indexingSuffix
-    : LSQUARE NL* expression (NL* COMMA NL* expression)* (NL* COMMA)? NL* RSQUARE
-    ;
-
-navigationSuffix
-    : memberAccessOperator NL* (simpleIdentifier | parenthesizedExpression | CLASS)
-    ;
-
-callSuffix
-    : typeArguments? (valueArguments? annotatedLambda | valueArguments)
-    ;
-
-annotatedLambda
-    : annotation* label? NL* lambdaLiteral
-    ;
-
-typeArguments
-    : LANGLE NL* typeProjection (NL* COMMA NL* typeProjection)* (NL* COMMA)? NL* RANGLE
-    ;
-
-valueArguments
-    : LPAREN NL* (valueArgument (NL* COMMA NL* valueArgument)* (NL* COMMA)? NL*)? RPAREN
-    ;
-
-valueArgument
-    : annotation? NL* (simpleIdentifier NL* ASSIGNMENT NL*)? MULT? NL* expression
-    ;
-
-primaryExpression
+atomicExpression
     : parenthesizedExpression
     | simpleIdentifier
     | literalConstant
-    | stringLiteral
     | callableReference
     | functionLiteral
-//    | objectLiteral
     | collectionLiteral
+//    | objectLiteral
     | thisExpression
     | superExpression
     | ifExpression
@@ -536,6 +465,7 @@ literalConstant
     | NullLiteral
     | LongLiteral
 //    | UnsignedLiteral
+    | stringLiteral
     ;
 
 stringLiteral
@@ -558,7 +488,7 @@ lineStringContent
     ;
 
 lineStringExpression
-    : LineStrExprStart NL* expression NL* RBRACE
+    : LineStrExprStart NL* expression NL* RCURL
     ;
 
 multiLineStringContent
@@ -568,11 +498,11 @@ multiLineStringContent
     ;
 
 multiLineStringExpression
-    : MultiLineStrExprStart NL* expression NL* RBRACE
+    : MultiLineStrExprStart NL* expression NL* RCURL
     ;
 
 lambdaLiteral
-    : LBRACE NL* (lambdaParameters? NL* ARROW NL*)? statements NL* RBRACE
+    : LCURL NL* (lambdaParameters? NL* ARROW NL*)? statements NL* RCURL
     ;
 
 lambdaParameters
@@ -623,11 +553,11 @@ ifExpression
     ;
 
 whenSubject
-    : LPAREN (annotation* NL* VAL NL* variableDeclaration NL* ASSIGNMENT NL*)? expression RPAREN
+    : LPAREN (singleAnnotation* NL* VAL NL* variableDeclaration NL* ASSIGNMENT NL*)? expression RPAREN
     ;
 
 whenExpression
-    : WHEN NL* whenSubject? NL* LBRACE NL* (whenEntry NL*)* NL* RBRACE
+    : WHEN NL* whenSubject? NL* LCURL NL* (whenEntry NL*)* NL* RCURL
     ;
 
 whenEntry
@@ -654,7 +584,7 @@ tryExpression
     ;
 
 catchBlock
-    : CATCH NL* LPAREN annotation* simpleIdentifier COLON type (NL* COMMA)? RPAREN NL* block
+    : CATCH NL* LPAREN singleAnnotation* simpleIdentifier COLON type (NL* COMMA)? RPAREN NL* block
     ;
 
 finallyBlock
@@ -672,6 +602,67 @@ jumpExpression
 
 callableReference
     : receiverType? COLONCOLON NL* (simpleIdentifier | CLASS)
+    ;
+
+postfixUnarySuffix
+    : postfixUnaryOperator
+    | typeArguments
+    | callSuffix
+    | indexingSuffix
+    | navigationSuffix
+    ;
+
+directlyAssignableExpression
+    : postfixUnaryExpression assignableSuffix
+    | simpleIdentifier
+    | parenthesizedDirectlyAssignableExpression
+    ;
+
+parenthesizedDirectlyAssignableExpression
+    : LPAREN NL* directlyAssignableExpression NL* RPAREN
+    ;
+
+assignableExpression
+    : prefixUnaryExpression
+    | parenthesizedAssignableExpression
+    ;
+
+parenthesizedAssignableExpression
+    : LPAREN NL* assignableExpression NL* RPAREN
+    ;
+
+assignableSuffix
+    : typeArguments
+    | indexingSuffix
+    | navigationSuffix
+    ;
+
+indexingSuffix
+    : LSQUARE NL* expression (NL* COMMA NL* expression)* (NL* COMMA)? NL* RSQUARE
+    ;
+
+navigationSuffix
+    : memberAccessOperator NL* (simpleIdentifier | parenthesizedExpression | CLASS)
+    ;
+
+callSuffix
+    : typeArguments? (valueArguments? annotatedLambda | valueArguments)
+    ;
+
+annotatedLambda
+    : singleAnnotation* label? NL* lambdaLiteral
+    ;
+
+typeArguments
+    : LANGLE NL* typeProjection (NL* COMMA NL* typeProjection)* (NL* COMMA)? NL* RANGLE
+    ;
+
+valueArguments
+    : LPAREN NL* (valueArgument (NL* COMMA NL* valueArgument)* (NL* COMMA)? NL*)? RPAREN
+    ;
+
+valueArgument
+    : (simpleIdentifier NL* ASSIGNMENT NL*)? MULT? NL* expression
     ;
 
 assignmentAndOperator
@@ -717,9 +708,10 @@ multiplicativeOperator
     | MOD
     ;
 
-asOperator
+typeOperation
     : AS
     | AS_SAFE
+    | COLON
     ;
 
 prefixUnaryOperator
@@ -815,7 +807,7 @@ typeParameterModifiers
 typeParameterModifier
     : /* reificationModifier NL*
     | */ varianceModifier NL*
-    | annotation
+    | singleAnnotation
     ;
 
 /* functionModifier
@@ -854,24 +846,30 @@ platformModifier
 
 // SECTION: annotations
 
-annotations // oolang addition
-    : annotation+
-    ;
-
 annotation
-    : (singleAnnotation | multiAnnotation) NL*
+    : (singleAnnotation | multiAnnotations) NL*
     ;
 
 singleAnnotation
-    : (annotationUseSiteTarget NL* | AT_NO_WS | AT_PRE_WS) unescapedAnnotation
+    : annotationUseSiteTarget NL* COLON NL* unescapedAnnotation
+    | (AT_NO_WS | AT_PRE_WS) unescapedAnnotation
     ;
 
-multiAnnotation
-    : (annotationUseSiteTarget NL* | AT_NO_WS | AT_PRE_WS) LSQUARE unescapedAnnotation+ RSQUARE
+multiAnnotations
+    : annotationUseSiteTarget COLON LSQUARE unescapedAnnotation+ RSQUARE
+    | (AT_NO_WS | AT_PRE_WS) LSQUARE unescapedAnnotation+ RSQUARE
     ;
 
 annotationUseSiteTarget
-    : (AT_NO_WS | AT_PRE_WS) (FIELD /* | PROPERTY */ | GET | SET /* | RECEIVER*/ | PARAM | SETPARAM | DELEGATE) NL* COLON
+    : FIELD_SITE
+//    | FILE_SITE
+    | PROPERTY_SITE
+    | GET_SITE
+    | SET_SITE
+//    | RECEIVER_SITE
+    | PARAM_SITE
+    | SETPARAM_SITE
+    | DELEGATE_SITE
     ;
 
 unescapedAnnotation
@@ -883,56 +881,60 @@ unescapedAnnotation
 
 simpleIdentifier
     : Identifier
+    //soft keywords:
     | ABSTRACT
     | ANNOTATION
     | BY
     | CATCH
-//    | COMPANION
+/*  | CONTEXT
+    | COMPANION*/
     | CONSTRUCTOR
-//    | CROSSINLINE
-//    | DATA
-//    | DYNAMIC
+/*  | CROSSINLINE
+/   | DATA
+/   | DYNAMIC*/
     | ENUM
-//    | EXTERNAL
+//  | EXTERNAL
+    | FIELD
     | FINAL
     | FINALLY
     | GET
     | IMPORT
-//    | INFIX
+//  | INFIX
     | INIT
-//    | INLINE
+//  | INLINE
     | INNER
-//    | INTERNAL
-//    | LATEINIT
-//    | NOINLINE
+//  | INTERNAL
+//  | LATEINIT
+//  | NOINLINE
     | OPEN
-//    | OPERATOR
+//  | OPERATOR
     | OUT
     | OVERRIDE
-    | STATIC // oolang addition
     | PRIVATE
     | PROTECTED
     | PUBLIC
 //    | REIFIED
     | SEALED
-//    | TAILREC
     | SET
+    | STATIC // oolang addition
+//    | TAILREC
     | VARARG
     | WHERE
-    | FIELD
-//    | PROPERTY
-//    | RECEIVER
-    | PARAM
-    | SETPARAM
-    | DELEGATE
-//    | FILE
-//    | EXPECT
-//    | ACTUAL
+// strong keywords
 //    | CONST
 //    | SUSPEND
-    | VALUE
     ;
 
 identifier
     : simpleIdentifier (NL* DOT simpleIdentifier)*
+    ;
+
+semi
+    : NL+
+    | NL* SEMICOLON NL*
+    ;
+
+anysemi
+    : NL
+    | SEMICOLON
     ;

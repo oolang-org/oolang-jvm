@@ -54,8 +54,8 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
             astFile.imports.add(visitImportHeader(importHeaderCtx));
         }
 
-        for (final var topLevelObjectCtx : ctx.topLevelObject()) {
-            astFile.rootElements.add(visitClassDeclaration(topLevelObjectCtx.classDeclaration()));
+        for (final var classDeclarationCtx : ctx.classDeclaration()) {
+            astFile.rootElements.add(visitClassDeclaration(classDeclarationCtx));
         }
 
         return addAstInfo(astFile, ctx);
@@ -143,7 +143,7 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         assert ctx != null;
 
         final var classBody = new ClassBody();
-        for (final var classMemberDeclarationCtx : ctx.classMemberDeclarations().classMemberDeclaration()) {
+        for (final var classMemberDeclarationCtx : ctx.classMemberDeclaration()) {
             classBody.children.add(visitClassMemberDeclaration(classMemberDeclarationCtx));
         }
         return addAstInfo(classBody, ctx);
@@ -272,14 +272,24 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     public @NonNull Statement visitStatement(final @NonNull StatementContext ctx) {
         assert ctx != null;
 
-        final var statement = new RealStatement();
-        if (ctx.expression() != null) {
-            statement.children.add(visitExpression(ctx.expression()));
+        final Statement statement;
+        final var blockLevelExpressionCtx = ctx.blockLevelExpression();
+        if (blockLevelExpressionCtx != null) {
+            statement = visitBlockLevelExpression(blockLevelExpressionCtx);
         } else {
             throw new UnsupportedOperationException();
         }
-        statement.annotations = visitAnnotations(ctx.annotation());
         return addAstInfo(statement, ctx);
+    }
+
+    @Override
+    public @NonNull Statement visitBlockLevelExpression(final @NonNull BlockLevelExpressionContext ctx) {
+        assert ctx != null;
+
+        final var statement = new RealStatement();
+        statement.children.add(visitExpression(ctx.expression()));
+        statement.annotations = visitAnnotations(ctx.annotation());
+        return statement;
     }
 
     @Override
@@ -340,9 +350,10 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
 
     @Override
     public @NonNull Expression visitMultiplicativeExpression(final @NonNull MultiplicativeExpressionContext ctx) {
-        for (final var asExpressionCtx : ctx.asExpression()) {
-            final var prefixUnaryExpressionCtx = asExpressionCtx.prefixUnaryExpression();
-            return visitPostfixUnaryExpression(prefixUnaryExpressionCtx.postfixUnaryExpression());
+        for (final var typeRhsCtx : ctx.typeRHS()) {
+            for (final var prefixUnaryExpressionCtx : typeRhsCtx.prefixUnaryExpression()) {
+                return visitPostfixUnaryExpression(prefixUnaryExpressionCtx.postfixUnaryExpression());
+            }
         }
         throw new UnsupportedOperationException();
     }
@@ -351,16 +362,14 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     public @NonNull Expression visitPostfixUnaryExpression(final @NonNull PostfixUnaryExpressionContext ctx) {
         assert ctx != null;
 
-        final var primaryExpressionCtx = ctx.primaryExpression();
+        final var atomicExpressionCtx = ctx.atomicExpression();
 
         final Expression expression;
-        if (primaryExpressionCtx.literalConstant() != null) {
-            expression = visitLiteralConstant(primaryExpressionCtx.literalConstant());
-        } else if (primaryExpressionCtx.stringLiteral() != null) {
-            expression = visitStringLiteral(primaryExpressionCtx.stringLiteral());
-        } else if (primaryExpressionCtx.simpleIdentifier() != null) {
+        if (atomicExpressionCtx.literalConstant() != null) {
+            expression = visitLiteralConstant(atomicExpressionCtx.literalConstant());
+        } else if (atomicExpressionCtx.simpleIdentifier() != null) {
             final var realExpression = new RealExpression();
-            realExpression.identifiers.add(visitSimpleIdentifier(primaryExpressionCtx.simpleIdentifier()));
+            realExpression.identifiers.add(visitSimpleIdentifier(atomicExpressionCtx.simpleIdentifier()));
             visitPostfixUnarySuffixes(ctx.postfixUnarySuffix(), realExpression);
             expression = realExpression;
         } else {
@@ -374,6 +383,12 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     public @NonNull Expression visitLiteralConstant(final @NonNull LiteralConstantContext ctx) {
         assert ctx != null;
 
+        // 1) String literal
+        if (ctx.stringLiteral() != null) {
+            return visitStringLiteral(ctx.stringLiteral());
+        }
+
+        // 2) other literals
         final ConstantDesc value;
         if (ctx.IntegerLiteral() != null) {
             value = Integer.parseInt(ctx.getText());
@@ -441,9 +456,6 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
                             callArgument.identifiers.add(visitSimpleIdentifier(valueArgCtx.simpleIdentifier()));
                         }
                         callArgument.children.add(visitExpression(valueArgCtx.expression()));
-                        if (valueArgCtx.annotation() != null) {
-                            callArgument.annotations = visitAnnotations(List.of(valueArgCtx.annotation()));
-                        }
                         expression.children.add(addAstInfo(callArgument, valueArgCtx));
                     }
                 }
@@ -475,9 +487,7 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         } else {
             throw new UnsupportedOperationException();
         }
-        if (ctx.annotations() != null) {
-            type.annotations = visitAnnotations(ctx.annotations().annotation());
-        }
+        type.annotations = visitAnnotations(ctx.annotation());
         return type;
     }
 
@@ -573,13 +583,15 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
 
         final var annotations = new ArrayList<@NonNull Annotation>();
         for (final var annotationCtx : annotationsCtx) {
-            if (annotationCtx.singleAnnotation() != null) {
-                annotations.add(visitAnnotation(annotationCtx.singleAnnotation().unescapedAnnotation(),
-                        annotationCtx.singleAnnotation().annotationUseSiteTarget()));
-            } else if (annotationCtx.multiAnnotation() != null) {
-                for (final var unescapedAnnotation : annotationCtx.multiAnnotation().unescapedAnnotation()) {
+            final var singleAnnotationCtx = annotationCtx.singleAnnotation();
+            if (singleAnnotationCtx != null) {
+                annotations.add(visitAnnotation(singleAnnotationCtx.unescapedAnnotation(),
+                        singleAnnotationCtx.annotationUseSiteTarget()));
+            } else {
+                final var multiAnnotationsCtx = annotationCtx.multiAnnotations();
+                for (final var unescapedAnnotation : multiAnnotationsCtx.unescapedAnnotation()) {
                     annotations.add(visitAnnotation(unescapedAnnotation,
-                            annotationCtx.multiAnnotation().annotationUseSiteTarget()));
+                            multiAnnotationsCtx.annotationUseSiteTarget()));
                 }
             }
         }
@@ -601,8 +613,8 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     }
 
     private static Annotation.@NonNull UseSiteTarget toEnumUseSiteTarget(final @NonNull String useSiteTarget) {
-        // A use-site target is like '@get:', we want 'GET'
-        final var cleaned = useSiteTarget.substring(1, useSiteTarget.length() - 1).toUpperCase(Locale.US);
+        // A use-site target is like '@get', we want 'GET'
+        final var cleaned = useSiteTarget.substring(1, useSiteTarget.length()).toUpperCase(Locale.US);
         return Annotation.UseSiteTarget.valueOf(cleaned);
     }
 

@@ -41,12 +41,6 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitImportAlias(OolangParser.ImportAliasContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link OolangParser#topLevelObject}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitTopLevelObject(OolangParser.TopLevelObjectContext ctx);
-	/**
 	 * Visit a parse tree produced by {@link OolangParser#declaration}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -64,12 +58,6 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitPrimaryConstructor(OolangParser.PrimaryConstructorContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#classBody}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitClassBody(OolangParser.ClassBodyContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link OolangParser#classParameters}.
 	 * @param ctx the parse tree
@@ -89,6 +77,12 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitDelegationSpecifiers(OolangParser.DelegationSpecifiersContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link OolangParser#annotatedDelegationSpecifier}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitAnnotatedDelegationSpecifier(OolangParser.AnnotatedDelegationSpecifierContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link OolangParser#delegationSpecifier}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -101,17 +95,17 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitConstructorInvocation(OolangParser.ConstructorInvocationContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link OolangParser#annotatedDelegationSpecifier}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitAnnotatedDelegationSpecifier(OolangParser.AnnotatedDelegationSpecifierContext ctx);
-	/**
 	 * Visit a parse tree produced by {@link OolangParser#explicitDelegation}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
 	T visitExplicitDelegation(OolangParser.ExplicitDelegationContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#classBody}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitClassBody(OolangParser.ClassBodyContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link OolangParser#typeParameters}.
 	 * @param ctx the parse tree
@@ -137,12 +131,6 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitTypeConstraint(OolangParser.TypeConstraintContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link OolangParser#classMemberDeclarations}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitClassMemberDeclarations(OolangParser.ClassMemberDeclarationsContext ctx);
-	/**
 	 * Visit a parse tree produced by {@link OolangParser#classMemberDeclaration}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -154,6 +142,18 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitAnonymousInitializer(OolangParser.AnonymousInitializerContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#secondaryConstructor}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitSecondaryConstructor(OolangParser.SecondaryConstructorContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#constructorDelegationCall}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitConstructorDelegationCall(OolangParser.ConstructorDelegationCallContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link OolangParser#functionDeclaration}.
 	 * @param ctx the parse tree
@@ -179,23 +179,17 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitFunctionBody(OolangParser.FunctionBodyContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link OolangParser#variableDeclaration}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitVariableDeclaration(OolangParser.VariableDeclarationContext ctx);
-	/**
 	 * Visit a parse tree produced by {@link OolangParser#propertyDeclaration}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
 	T visitPropertyDeclaration(OolangParser.PropertyDeclarationContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link OolangParser#propertyDelegate}.
+	 * Visit a parse tree produced by {@link OolangParser#variableDeclaration}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitPropertyDelegate(OolangParser.PropertyDelegateContext ctx);
+	T visitVariableDeclaration(OolangParser.VariableDeclarationContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link OolangParser#getter}.
 	 * @param ctx the parse tree
@@ -232,18 +226,6 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitParameter(OolangParser.ParameterContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#secondaryConstructor}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitSecondaryConstructor(OolangParser.SecondaryConstructorContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#constructorDelegationCall}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitConstructorDelegationCall(OolangParser.ConstructorDelegationCallContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link OolangParser#enumClassBody}.
 	 * @param ctx the parse tree
@@ -341,12 +323,6 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitParenthesizedUserType(OolangParser.ParenthesizedUserTypeContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link OolangParser#definitelyNonNullableType}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitDefinitelyNonNullableType(OolangParser.DefinitelyNonNullableTypeContext ctx);
-	/**
 	 * Visit a parse tree produced by {@link OolangParser#statements}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -359,23 +335,29 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitStatement(OolangParser.StatementContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link OolangParser#blockLevelExpression}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitBlockLevelExpression(OolangParser.BlockLevelExpressionContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#blockLevelDeclaration}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitBlockLevelDeclaration(OolangParser.BlockLevelDeclarationContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link OolangParser#label}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
 	T visitLabel(OolangParser.LabelContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link OolangParser#controlStructureBody}.
+	 * Visit a parse tree produced by {@link OolangParser#assignment}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitControlStructureBody(OolangParser.ControlStructureBodyContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#block}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitBlock(OolangParser.BlockContext ctx);
+	T visitAssignment(OolangParser.AssignmentContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link OolangParser#loopStatement}.
 	 * @param ctx the parse tree
@@ -395,23 +377,17 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitWhileStatement(OolangParser.WhileStatementContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link OolangParser#assignment}.
+	 * Visit a parse tree produced by {@link OolangParser#controlStructureBody}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitAssignment(OolangParser.AssignmentContext ctx);
+	T visitControlStructureBody(OolangParser.ControlStructureBodyContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link OolangParser#semi}.
+	 * Visit a parse tree produced by {@link OolangParser#block}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitSemi(OolangParser.SemiContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#semis}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitSemis(OolangParser.SemisContext ctx);
+	T visitBlock(OolangParser.BlockContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link OolangParser#expression}.
 	 * @param ctx the parse tree
@@ -479,11 +455,11 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitMultiplicativeExpression(OolangParser.MultiplicativeExpressionContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link OolangParser#asExpression}.
+	 * Visit a parse tree produced by {@link OolangParser#typeRHS}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitAsExpression(OolangParser.AsExpressionContext ctx);
+	T visitTypeRHS(OolangParser.TypeRHSContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link OolangParser#prefixUnaryExpression}.
 	 * @param ctx the parse tree
@@ -503,89 +479,11 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitPostfixUnaryExpression(OolangParser.PostfixUnaryExpressionContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link OolangParser#postfixUnarySuffix}.
+	 * Visit a parse tree produced by {@link OolangParser#atomicExpression}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitPostfixUnarySuffix(OolangParser.PostfixUnarySuffixContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#directlyAssignableExpression}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitDirectlyAssignableExpression(OolangParser.DirectlyAssignableExpressionContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#parenthesizedDirectlyAssignableExpression}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitParenthesizedDirectlyAssignableExpression(OolangParser.ParenthesizedDirectlyAssignableExpressionContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#assignableExpression}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitAssignableExpression(OolangParser.AssignableExpressionContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#parenthesizedAssignableExpression}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitParenthesizedAssignableExpression(OolangParser.ParenthesizedAssignableExpressionContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#assignableSuffix}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitAssignableSuffix(OolangParser.AssignableSuffixContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#indexingSuffix}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitIndexingSuffix(OolangParser.IndexingSuffixContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#navigationSuffix}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitNavigationSuffix(OolangParser.NavigationSuffixContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#callSuffix}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitCallSuffix(OolangParser.CallSuffixContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#annotatedLambda}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitAnnotatedLambda(OolangParser.AnnotatedLambdaContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#typeArguments}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitTypeArguments(OolangParser.TypeArgumentsContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#valueArguments}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitValueArguments(OolangParser.ValueArgumentsContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#valueArgument}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitValueArgument(OolangParser.ValueArgumentContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#primaryExpression}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitPrimaryExpression(OolangParser.PrimaryExpressionContext ctx);
+	T visitAtomicExpression(OolangParser.AtomicExpressionContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link OolangParser#parenthesizedExpression}.
 	 * @param ctx the parse tree
@@ -749,6 +647,84 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitCallableReference(OolangParser.CallableReferenceContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link OolangParser#postfixUnarySuffix}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitPostfixUnarySuffix(OolangParser.PostfixUnarySuffixContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#directlyAssignableExpression}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitDirectlyAssignableExpression(OolangParser.DirectlyAssignableExpressionContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#parenthesizedDirectlyAssignableExpression}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitParenthesizedDirectlyAssignableExpression(OolangParser.ParenthesizedDirectlyAssignableExpressionContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#assignableExpression}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitAssignableExpression(OolangParser.AssignableExpressionContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#parenthesizedAssignableExpression}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitParenthesizedAssignableExpression(OolangParser.ParenthesizedAssignableExpressionContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#assignableSuffix}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitAssignableSuffix(OolangParser.AssignableSuffixContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#indexingSuffix}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitIndexingSuffix(OolangParser.IndexingSuffixContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#navigationSuffix}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitNavigationSuffix(OolangParser.NavigationSuffixContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#callSuffix}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitCallSuffix(OolangParser.CallSuffixContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#annotatedLambda}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitAnnotatedLambda(OolangParser.AnnotatedLambdaContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#typeArguments}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitTypeArguments(OolangParser.TypeArgumentsContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#valueArguments}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitValueArguments(OolangParser.ValueArgumentsContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#valueArgument}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitValueArgument(OolangParser.ValueArgumentContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link OolangParser#assignmentAndOperator}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -785,11 +761,11 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitMultiplicativeOperator(OolangParser.MultiplicativeOperatorContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link OolangParser#asOperator}.
+	 * Visit a parse tree produced by {@link OolangParser#typeOperation}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitAsOperator(OolangParser.AsOperatorContext ctx);
+	T visitTypeOperation(OolangParser.TypeOperationContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link OolangParser#prefixUnaryOperator}.
 	 * @param ctx the parse tree
@@ -881,12 +857,6 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitInheritanceModifier(OolangParser.InheritanceModifierContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link OolangParser#annotations}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitAnnotations(OolangParser.AnnotationsContext ctx);
-	/**
 	 * Visit a parse tree produced by {@link OolangParser#annotation}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -899,11 +869,11 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitSingleAnnotation(OolangParser.SingleAnnotationContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link OolangParser#multiAnnotation}.
+	 * Visit a parse tree produced by {@link OolangParser#multiAnnotations}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitMultiAnnotation(OolangParser.MultiAnnotationContext ctx);
+	T visitMultiAnnotations(OolangParser.MultiAnnotationsContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link OolangParser#annotationUseSiteTarget}.
 	 * @param ctx the parse tree
@@ -928,4 +898,16 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitIdentifier(OolangParser.IdentifierContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#semi}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitSemi(OolangParser.SemiContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link OolangParser#anysemi}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitAnysemi(OolangParser.AnysemiContext ctx);
 }

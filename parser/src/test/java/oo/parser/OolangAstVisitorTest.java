@@ -106,14 +106,7 @@ public class OolangAstVisitorTest {
                 package com.example
                 class Example {}""");
         verifyPackage(astFile);
-        var root = astFile.rootElements.getFirst();
-        assertThat(root).isNotNull();
-        assertThat(root.elementType).isEqualTo(CLASS);
-        assertThat(root.identifier).isNotNull();
-        assertThat(root.identifier.identifier).isEqualTo("Example");
-        assertThat(root.description()).isEqualTo("Element(class Example)");
-        assertThat(root.children).hasSize(1);
-        assertThat(root.children.getFirst()).isInstanceOf(ClassBody.class);
+        verifyUntilClassBody(astFile);
         print(astFile);
     }
 
@@ -253,17 +246,7 @@ public class OolangAstVisitorTest {
                 class Inner
                 }""");
         verifyPackage(astFile);
-        var imports = astFile.imports;
-        assertThat(imports).isEmpty();
-        var root = astFile.rootElements.getFirst();
-        assertThat(root).isNotNull();
-        assertThat(root.elementType).isEqualTo(CLASS);
-        assertThat(root.modifiers).isEmpty();
-        assertThat(root.identifier).isNotNull();
-        assertThat(root.identifier.identifier).isEqualTo("Example");
-        assertThat(root.description()).isEqualTo("Element(class Example)");
-        assertThat(root.children).hasSize(1);
-        assertThat(root.children.getFirst()).isInstanceOf(ClassBody.class);
+        var root = verifyUntilClassBody(astFile);
         var classBody = (ClassBody) root.children.getFirst();
         assertThat(classBody.content()).hasSize(1);
         var innerClass = (RealElement) classBody.content().getFirst();
@@ -284,17 +267,7 @@ public class OolangAstVisitorTest {
                 val foo: String
                 }""");
         verifyPackage(astFile);
-        var imports = astFile.imports;
-        assertThat(imports).isEmpty();
-        var root = astFile.rootElements.getFirst();
-        assertThat(root).isNotNull();
-        assertThat(root.elementType).isEqualTo(CLASS);
-        assertThat(root.modifiers).isEmpty();
-        assertThat(root.identifier).isNotNull();
-        assertThat(root.identifier.identifier).isEqualTo("Example");
-        assertThat(root.description()).isEqualTo("Element(class Example)");
-        assertThat(root.children).hasSize(1);
-        assertThat(root.children.getFirst()).isInstanceOf(ClassBody.class);
+        var root = verifyUntilClassBody(astFile);
         var classBody = (ClassBody) root.children.getFirst();
         assertThat(classBody.content()).hasSize(1);
         var property = (RealElement) classBody.content().getFirst();
@@ -316,14 +289,7 @@ public class OolangAstVisitorTest {
                 fun foo() {}
                 }""");
         verifyPackage(astFile);
-        var root = astFile.rootElements.getFirst();
-        assertThat(root).isNotNull();
-        assertThat(root.elementType).isEqualTo(CLASS);
-        assertThat(root.identifier).isNotNull();
-        assertThat(root.identifier.identifier).isEqualTo("Example");
-        assertThat(root.description()).isEqualTo("Element(class Example)");
-        assertThat(root.children).hasSize(1);
-        assertThat(root.children.getFirst()).isInstanceOf(ClassBody.class);
+        var root = verifyUntilClassBody(astFile);
         var classBody = (ClassBody) root.children.getFirst();
         assertThat(classBody.content()).hasSize(1);
         var funDeclaration = (RealElement) classBody.content().getFirst();
@@ -345,14 +311,7 @@ public class OolangAstVisitorTest {
                 fun foo() {}
                 }""");
         verifyPackage(astFile);
-        var root = astFile.rootElements.getFirst();
-        assertThat(root).isNotNull();
-        assertThat(root.elementType).isEqualTo(CLASS);
-        assertThat(root.identifier).isNotNull();
-        assertThat(root.identifier.identifier).isEqualTo("Example");
-        assertThat(root.description()).isEqualTo("Element(class Example)");
-        assertThat(root.children).hasSize(1);
-        assertThat(root.children.getFirst()).isInstanceOf(ClassBody.class);
+        var root = verifyUntilClassBody(astFile);
         var classBody = (ClassBody) root.children.getFirst();
         assertThat(classBody.content()).hasSize(1);
         var funDeclaration = (RealElement) classBody.content().getFirst();
@@ -375,13 +334,7 @@ public class OolangAstVisitorTest {
                 fun foo(bar: String) {}
                 }""");
         verifyPackage(astFile);
-        var root = astFile.rootElements.getFirst();
-        assertThat(root).isNotNull();
-        assertThat(root.elementType).isEqualTo(CLASS);
-        assertThat(root.identifier).isNotNull();
-        assertThat(root.identifier.identifier).isEqualTo("Example");
-        assertThat(root.description()).isEqualTo("Element(class Example)");
-        assertThat(root.children).hasSize(1);
+        var root = verifyUntilClassBody(astFile);
         var classBody = (ClassBody) root.children.getFirst();
         assertThat(classBody.content()).hasSize(1);
         var funDeclaration = (RealElement) classBody.content().getFirst();
@@ -421,13 +374,7 @@ public class OolangAstVisitorTest {
 
     private @NonNull RealExpression verifyMainUntilStatement(AstFile astFile) {
         verifyPackage(astFile);
-        var root = astFile.rootElements.getFirst();
-        assertThat(root).isNotNull();
-        assertThat(root.elementType).isEqualTo(CLASS);
-        assertThat(root.identifier).isNotNull();
-        assertThat(root.identifier.identifier).isEqualTo("Example");
-        assertThat(root.description()).isEqualTo("Element(class Example)");
-        assertThat(root.children).hasSize(1);
+        var root = verifyUntilClassBody(astFile);
         var classBody = (ClassBody) root.children.getFirst();
         assertThat(classBody.content()).hasSize(1);
         var funDeclaration = (RealElement) classBody.content().getFirst();
@@ -497,7 +444,7 @@ public class OolangAstVisitorTest {
     }
 
     @Test
-    public void parseClassWithMainFunctionAndPropertyUsage() {
+    public void parseClassWithMainFunctionAndStaticPropertyUsage() {
         var astFile = astForCode("""
                 package com.example
                 class Example {
@@ -507,17 +454,7 @@ public class OolangAstVisitorTest {
                 }
                 }""");
         verifyPackage(astFile);
-        var imports = astFile.imports;
-        assertThat(imports).isEmpty();
-        var root = astFile.rootElements.getFirst();
-        assertThat(root).isNotNull();
-        assertThat(root.elementType).isEqualTo(CLASS);
-        assertThat(root.modifiers).isEmpty();
-        assertThat(root.identifier).isNotNull();
-        assertThat(root.identifier.identifier).isEqualTo("Example");
-        assertThat(root.description()).isEqualTo("Element(class Example)");
-        assertThat(root.children).hasSize(1);
-        assertThat(root.children.getFirst()).isInstanceOf(ClassBody.class);
+        var root = verifyUntilClassBody(astFile);
         var classBody = (ClassBody) root.children.getFirst();
         assertThat(classBody.content()).hasSize(2);
 
@@ -548,6 +485,64 @@ public class OolangAstVisitorTest {
         assertThat(funCallParamPropAccess.description()).isEqualTo("Expression(variableOrPropAccess PROP)");
 
         print(astFile);
+    }
+
+    @Test
+    public void parseClassWithMainFunctionAndInstancePropertyUsage() {
+        var astFile = astForCode("""
+                package com.example
+                class Example {
+                val prop = "Hello, World!"
+                static fun main(args: Array<String>) {
+                System.out.println(prop)
+                }
+                }""");
+        verifyPackage(astFile);
+        var root = verifyUntilClassBody(astFile);
+        var classBody = (ClassBody) root.children.getFirst();
+        assertThat(classBody.content()).hasSize(2);
+
+        var property = (RealElement) classBody.content().getFirst();
+        assertThat(property.elementType).isEqualTo(VAL);
+        assertThat(property.modifiers).isEmpty();
+        assertThat(property.identifier).isNotNull();
+        assertThat(property.identifier.identifier).isEqualTo("prop");
+        assertThat(property.type).isNull();
+        assertThat(property.children).hasSize(1);
+        var propertyInit = (RealElement) property.children.getFirst();
+        assertThat(propertyInit.elementType).isEqualTo(PROPERTY_INITIALIZER);
+        var propertyExpression = (ConstantExpression) propertyInit.children.getFirst();
+        assertThat(propertyExpression.description()).isEqualTo("ConstantExpression(\"Hello, World!\")");
+
+        var funDeclaration = (RealElement) classBody.content().getLast();
+        var codeBlock = (CodeBlock) funDeclaration.children.getLast();
+        var statement = (RealStatement) codeBlock.content().getFirst();
+        var funCall = (RealExpression) statement.children.getFirst();
+        assertThat(funCall.description()).isEqualTo("Expression(funCall System.out.println)");
+        assertThat(funCall.type).isEqualTo(FUN_CALL);
+        assertThat(funCall.content()).hasSize(1);
+        var funCallParam = (RealExpression) funCall.content().getFirst();
+        assertThat(funCallParam.description()).isEqualTo("Expression(funCallParameter)");
+        assertThat(funCallParam.content()).hasSize(1);
+        var funCallParamPropAccess = (RealExpression) funCallParam.content().getFirst();
+        assertThat(funCallParamPropAccess.description()).isEqualTo("Expression(variableOrPropAccess prop)");
+
+        print(astFile);
+    }
+
+    private static @NonNull RealElement verifyUntilClassBody(AstFile astFile) {
+        var imports = astFile.imports;
+        assertThat(imports).isEmpty();
+        var root = astFile.rootElements.getFirst();
+        assertThat(root).isNotNull();
+        assertThat(root.elementType).isEqualTo(CLASS);
+        assertThat(root.modifiers).isEmpty();
+        assertThat(root.identifier).isNotNull();
+        assertThat(root.identifier.identifier).isEqualTo("Example");
+        assertThat(root.description()).isEqualTo("Element(class Example)");
+        assertThat(root.children).hasSize(1);
+        assertThat(root.children.getFirst()).isInstanceOf(ClassBody.class);
+        return root;
     }
 
     private static AstFile astForCode(String code) {

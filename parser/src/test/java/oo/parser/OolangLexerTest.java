@@ -24,7 +24,7 @@ public class OolangLexerTest {
     @Test
     public void lexSimplestClassWithBraces() {
         assertThat(tokens(lexerForCode("class A {}")))
-                .containsExactly("CLASS", "HexDigitOrSeparator", "LBRACE", "RBRACE", "EOF");
+                .containsExactly("CLASS", "HexDigitOrSeparator", "LCURL", "RCURL", "EOF");
     }
 
     private static List<String> tokens(OolangLexer lexer) {
