@@ -12,21 +12,8 @@ options { tokenVocab = OolangLexer; }
 // SECTION: general
 
 oolangFile
-    /*: shebangLine? NL* fileAnnotation* packageHeader importList topLevelObject* EOF*/
     : packageHeader? importList anysemi* classDeclaration (anysemi+ classDeclaration?)* EOF
     ;
-
-/* script
-    : shebangLine? NL* fileAnnotation* packageHeader importList (statement semi)* EOF
-    ;
-
-shebangLine
-    : ShebangLine NL+
-    ;
-
-fileAnnotation
-    : (AT_NO_WS | AT_PRE_WS) FILE NL* COLON NL* (LSQUARE unescapedAnnotation+ RSQUARE | unescapedAnnotation) NL*
-    ;*/
 
 packageHeader
     : PACKAGE identifier semi?
@@ -44,20 +31,10 @@ importAlias
     : AS simpleIdentifier
     ;
 
-/*topLevelObject
-    : declaration semis?
-    ;
-
-typeAlias
-    : modifiers? TYPE_ALIAS NL* simpleIdentifier (NL* typeParameters)? NL* ASSIGNMENT NL* type
-    ;*/
-
 declaration
     : classDeclaration
-//    | objectDeclaration
     | functionDeclaration
     | propertyDeclaration
-//    | typeAlias
     ;
 
 // SECTION: classes
@@ -94,7 +71,6 @@ delegationSpecifier
     | explicitDelegation
     | userType
     | functionType
-//    | SUSPEND NL* functionType
     ;
 
 constructorInvocation
@@ -130,11 +106,8 @@ typeConstraint
 classMemberDeclaration
     : (
         declaration
-        /*| objectDeclaration
-        | companionObject*/
         | anonymousInitializer
         | secondaryConstructor
-        //| typeAlias
     ) anysemi+
     ;
 
@@ -149,13 +122,6 @@ secondaryConstructor
 constructorDelegationCall
     : (THIS | SUPER) NL* valueArguments
     ;
-
-/* companionObject
-    : modifiers? COMPANION NL* DATA? NL* OBJECT
-      (NL* simpleIdentifier)?
-      (NL* COLON NL* delegationSpecifiers)?
-      (NL* classBody)?
-    ; */
 
 functionDeclaration
     : modifiers? FUN (NL* typeParameters)? (NL* receiverType NL* DOT)? NL* simpleIdentifier
@@ -181,10 +147,6 @@ propertyDeclaration
       (NL* typeConstraints)? (NL* (BY | ASSIGNMENT) NL* expression)?
       (NL* SEMICOLON)? NL* (getter (NL* semi? setter)? | setter (NL* semi? getter))?
     ;
-
-/*multiVariableDeclaration
-    : LPAREN NL* variableDeclaration (NL* COMMA NL* variableDeclaration)* (NL* COMMA)? NL* RPAREN
-    ;*/
 
 variableDeclaration
     : singleAnnotation* NL* simpleIdentifier (NL* COLON NL* type)?
@@ -216,13 +178,6 @@ parameter
     : simpleIdentifier NL* COLON NL* type
     ;
 
-/*objectDeclaration
-    : modifiers? OBJECT
-      NL* simpleIdentifier
-      (NL* COLON NL* delegationSpecifiers)?
-      (NL* classBody)?
-    ;*/
-
 // SECTION: enumClasses
 
 enumClassBody
@@ -240,17 +195,11 @@ enumEntry
 // SECTION: types
 
 type
-    : /* typeModifiers? */ annotation*
-    (functionType | parenthesizedType | nullableType | userType | /* typeReference | definitelyNonNullableType*/)
+    : annotation* (functionType | parenthesizedType | nullableType | userType)
     ;
 
-/* typeReference
-    : userType
-    | DYNAMIC
-    ; */
-
 nullableType
-    : (/* typeReference */ userType | parenthesizedType) NL* quest+
+    : (userType | parenthesizedType) NL* quest+
     ;
 
 quest
@@ -293,16 +242,12 @@ parenthesizedType
     ;
 
 receiverType
-    : /* typeModifiers? */ annotation? (parenthesizedType | nullableType | /* typeReference */ userType)
+    : annotation? (parenthesizedType | nullableType | userType)
     ;
 
 parenthesizedUserType
     : LPAREN NL* (userType | parenthesizedUserType) NL* RPAREN
     ;
-
-/*definitelyNonNullableType
-    : typeModifiers? annotations? (userType | parenthesizedUserType) NL* AMP NL*  typeModifiers? annotations? (userType | parenthesizedUserType)
-    ;*/
 
 // SECTION: statements
 
@@ -334,21 +279,16 @@ assignment
 loopStatement
     : forStatement
     | whileStatement
-//    | doWhileStatement
     ;
 
 forStatement
-    : FOR NL* LPAREN singleAnnotation* /*(variableDeclaration | multiVariableDeclaration)*/ variableDeclaration
-      /* IN */ COLON expression RPAREN NL* controlStructureBody?
+    : FOR NL* LPAREN singleAnnotation* variableDeclaration
+      COLON expression RPAREN NL* controlStructureBody?
     ;
 
 whileStatement
     : WHILE NL* LPAREN expression RPAREN NL* (controlStructureBody | SEMICOLON)
     ;
-
-/* doWhileStatement
-    : DO NL* controlStructureBody? NL* WHILE NL* LPAREN expression RPAREN
-    ; */
 
 controlStructureBody
     : block
@@ -385,8 +325,8 @@ genericCallLikeComparison
     : isExpression callSuffix*
     ;
 
-isExpression // was 'infixOperation'
-    : elvisExpression (/* inOperator NL* elvisExpression |*/ isOperator NL* type)?
+isExpression
+    : elvisExpression (isOperator NL* type)?
     ;
 
 elvisExpression
@@ -396,14 +336,6 @@ elvisExpression
 elvis
     : QUEST_NO_WS COLON
     ;
-
- /* infixFunctionCall
-    : rangeExpression (simpleIdentifier NL* rangeExpression)*
-    ;
-
-rangeExpression
-    : additiveExpression (/* (RANGE | RANGE_UNTIL) NL* additiveExpression)*
-    ;*/
 
 additiveExpression
     : multiplicativeExpression (additiveOperator NL* multiplicativeExpression)*
@@ -433,12 +365,12 @@ postfixUnaryExpression
 
 atomicExpression
     : parenthesizedExpression
+    | collectionLiteral
     | simpleIdentifier
     | literalConstant
+    | stringLiteral
     | callableReference
     | functionLiteral
-    | collectionLiteral
-//    | objectLiteral
     | thisExpression
     | superExpression
     | ifExpression
@@ -464,8 +396,6 @@ literalConstant
     | RealLiteral
     | NullLiteral
     | LongLiteral
-//    | UnsignedLiteral
-    | stringLiteral
     ;
 
 stringLiteral
@@ -508,32 +438,17 @@ lambdaLiteral
 lambdaParameters
     : variableDeclaration (NL* COMMA NL* variableDeclaration)* (NL* COMMA)?
     ;
-    /* was : lambdaParameter (NL* COMMA NL* lambdaParameter)* (NL* COMMA)?
-
-lambdaParameter
-    : variableDeclaration
-    | multiVariableDeclaration (NL* COLON NL* type)?
-    ;*/
 
 anonymousFunction
-    : /* SUSPEND?
-      NL* */
-      FUN
-      (NL* type NL* DOT)?
-      NL* parametersWithOptionalType
-      (NL* COLON NL* type)?
-      (NL* typeConstraints)?
-      (NL* functionBody)?
+    : FUN
+      (NL* type NL* DOT)? NL* parametersWithOptionalType (NL* COLON NL* type)?
+      (NL* typeConstraints)? (NL* functionBody)?
     ;
 
 functionLiteral
     : lambdaLiteral
     | anonymousFunction
     ;
-
-/* objectLiteral
-    : DATA? NL* OBJECT (NL* COLON NL* delegationSpecifiers NL*)? (NL* classBody)?
-    ; */
 
 thisExpression
     : THIS
@@ -567,13 +482,8 @@ whenEntry
 
 whenCondition
     : expression
-    //| rangeTest
     | typeTest
     ;
-
-/*rangeTest
-    : inOperator NL* expression
-    ;*/
 
 typeTest
     : isOperator NL* type
@@ -687,11 +597,6 @@ comparisonOperator
     | GE
     ;
 
-/*inOperator
-    : IN
-    | NOT_IN
-    ;*/
-
 isOperator
     : IS
     | NOT_IS
@@ -757,27 +662,15 @@ modifier
     : (classModifier
     | memberModifier
     | visibilityModifier
-//    | functionModifier
-//    | propertyModifier
     | inheritanceModifier
-    | VARARG ) NL* /* | parameterModifier
-    | platformModifier) NL* */
+    | VARARG ) NL*
     ;
-
-/* typeModifiers
-    : typeModifier+
-    ;
-
-typeModifier
-    : annotation
-    | SUSPEND NL*
-    ; */
 
 classModifier
     : ENUM
     | SEALED
     | ANNOTATION
-//    | DATA
+    | RECORD
     | INNER
     | VALUE
     ;
@@ -791,7 +684,6 @@ memberModifier
 visibilityModifier
     : PUBLIC
     | PRIVATE
-//    | INTERNAL
     | PROTECTED
     ;
 
@@ -805,44 +697,15 @@ typeParameterModifiers
     ;
 
 typeParameterModifier
-    : /* reificationModifier NL*
-    | */ varianceModifier NL*
+    : varianceModifier NL*
     | singleAnnotation
     ;
-
-/* functionModifier
-    : TAILREC
-    | OPERATOR
-    | INFIX
-    | INLINE
-    | EXTERNAL
-    | SUSPEND
-    ;
-
-propertyModifier
-    : CONST
-    ; */
 
 inheritanceModifier
     : ABSTRACT
     | FINAL
     | OPEN
     ;
-
-/* parameterModifier
-    : VARARG
-    | NOINLINE
-    | CROSSINLINE
-    ;
-
-reificationModifier
-    : REIFIED
-    ;
-
-platformModifier
-    : EXPECT
-    | ACTUAL
-    ; */
 
 // SECTION: annotations
 
@@ -862,7 +725,6 @@ multiAnnotations
 
 annotationUseSiteTarget
     : FIELD_SITE
-//    | FILE_SITE
     | PROPERTY_SITE
     | GET_SITE
     | SET_SITE
@@ -886,43 +748,28 @@ simpleIdentifier
     | ANNOTATION
     | BY
     | CATCH
-/*  | CONTEXT
-    | COMPANION*/
     | CONSTRUCTOR
-/*  | CROSSINLINE
-/   | DATA
-/   | DYNAMIC*/
+    | RECORD
     | ENUM
-//  | EXTERNAL
     | FIELD
     | FINAL
     | FINALLY
     | GET
     | IMPORT
-//  | INFIX
     | INIT
-//  | INLINE
     | INNER
-//  | INTERNAL
-//  | LATEINIT
-//  | NOINLINE
     | OPEN
-//  | OPERATOR
     | OUT
     | OVERRIDE
     | PRIVATE
     | PROTECTED
     | PUBLIC
-//    | REIFIED
     | SEALED
     | SET
     | STATIC // oolang addition
-//    | TAILREC
+//  | TAILREC
     | VARARG
     | WHERE
-// strong keywords
-//    | CONST
-//    | SUSPEND
     ;
 
 identifier

@@ -367,6 +367,8 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         final Expression expression;
         if (atomicExpressionCtx.literalConstant() != null) {
             expression = visitLiteralConstant(atomicExpressionCtx.literalConstant());
+        } else if (atomicExpressionCtx.stringLiteral() != null) {
+            expression = visitStringLiteral(atomicExpressionCtx.stringLiteral());
         } else if (atomicExpressionCtx.simpleIdentifier() != null) {
             final var realExpression = new RealExpression();
             realExpression.identifiers.add(visitSimpleIdentifier(atomicExpressionCtx.simpleIdentifier()));
@@ -383,12 +385,6 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     public @NonNull Expression visitLiteralConstant(final @NonNull LiteralConstantContext ctx) {
         assert ctx != null;
 
-        // 1) String literal
-        if (ctx.stringLiteral() != null) {
-            return visitStringLiteral(ctx.stringLiteral());
-        }
-
-        // 2) other literals
         final ConstantDesc value;
         if (ctx.IntegerLiteral() != null) {
             value = Integer.parseInt(ctx.getText());
@@ -614,7 +610,7 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
 
     private static Annotation.@NonNull UseSiteTarget toEnumUseSiteTarget(final @NonNull String useSiteTarget) {
         // A use-site target is like '@get', we want 'GET'
-        final var cleaned = useSiteTarget.substring(1, useSiteTarget.length()).toUpperCase(Locale.US);
+        final var cleaned = useSiteTarget.substring(1).toUpperCase(Locale.US);
         return Annotation.UseSiteTarget.valueOf(cleaned);
     }
 

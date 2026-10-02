@@ -13,10 +13,6 @@ import UnicodeClasses;
 
 channels { COMMENT }
 
-/*ShebangLine
-    : '#!' ~[\r\n]*
-    ;*/
-
 DelimitedComment
     : '/*' ( DelimitedComment | . )*? '*/'
       -> channel(COMMENT)
@@ -88,11 +84,6 @@ EQEQEQ           : '===';
 SINGLE_QUOTE     : '\'';
 AND              : '&';
 OR               : '|';
-/* DOUBLE_ARROW  : '=>';
-RANGE            : '..';
-RANGE_UNTIL      : '..<';
-DOUBLE_SEMICOLON : ';;';
-HASH             : '#'; */
 
 // SECTION: keywords
 
@@ -109,13 +100,10 @@ CLASS            : 'class';
 INTERFACE        : 'interface';
 // CONTEXT       : 'context';
 FUN              : 'fun';
-// OBJECT        : 'object';
 VAL              : 'val';
 VAR              : 'var';
-// TYPE_ALIAS    : 'typealias';
 CONSTRUCTOR      : 'constructor';
 BY               : 'by';
-// COMPANION     : 'companion';
 INIT             : 'init';
 THIS             : 'this';
 SUPER            : 'super';
@@ -129,17 +117,14 @@ CATCH            : 'catch';
 FINALLY          : 'finally';
 FOR              : 'for';
 WHILE            : 'while';
-// DO            : 'do';
 THROW            : 'throw';
 RETURN           : 'return';
 CONTINUE         : 'continue';
 YIELD            : 'yield';
-// BREAK         : 'break';
 AS               : 'as';
 IS               : 'is';
 NOT_IS           : '!is' (Hidden | NL);
 IN               : 'in';
-// NOT_IN        : '!in' (Hidden | NL);
 OUT              : 'out';
 FIELD_SITE       : '@field';
 FIELD            : 'field';
@@ -158,32 +143,19 @@ DELEGATE_SITE    : '@delegate';
 PUBLIC      : 'public';
 PRIVATE     : 'private';
 PROTECTED   : 'protected';
-// INTERNAL : 'internal';
 ENUM        : 'enum';
 SEALED      : 'sealed';
 VALUE       : 'value';
-ANNOTATION  : 'annotation';
-// DATA     : 'data';
+RECORD      : 'record';
 INNER       : 'inner';
-/*TAILREC   : 'tailrec';
-OPERATOR    : 'operator';
-INLINE      : 'inline';
-INFIX       : 'infix';
-EXTERNAL    : 'external';
-SUSPEND     : 'suspend';*/
+ANNOTATION  : 'annotation';
 OVERRIDE    : 'override';
 ABSTRACT    : 'abstract';
 FINAL       : 'final';
 OPEN        : 'open';
 STATIC      : 'static'; // oolang addition
-/*CONST     : 'const';
-LATEINIT    : 'lateinit';*/
+// LATEINIT : 'lateinit';
 VARARG      : 'vararg';
-/*NOINLINE  : 'noinline';
-CROSSINLINE : 'crossinline';
-REIFIED     : 'reified';
-EXPECT      : 'expect';
-ACTUAL      : 'actual';*/
 
 // SECTION: literals
 
@@ -232,10 +204,6 @@ BinLiteral
     : '0' [bB] BinDigit BinDigitOrSeparator* BinDigit
     | '0' [bB] BinDigit
     ;
-
-/* UnsignedLiteral
-    : (IntegerLiteral | HexLiteral | BinLiteral) [uU] [lL]?
-    ; */
 
 LongLiteral
     : (IntegerLiteral | HexLiteral | BinLiteral) [lL]
@@ -372,13 +340,8 @@ Inside_MULT_ASSIGNMENT    : MULT_ASSIGNMENT    -> type(MULT_ASSIGNMENT);
 Inside_DIV_ASSIGNMENT     : DIV_ASSIGNMENT     -> type(DIV_ASSIGNMENT);
 Inside_MOD_ASSIGNMENT     : MOD_ASSIGNMENT     -> type(MOD_ASSIGNMENT);
 Inside_ARROW              : ARROW              -> type(ARROW);
-/*Inside_DOUBLE_ARROW     : DOUBLE_ARROW       -> type(DOUBLE_ARROW);
-Inside_RANGE              : RANGE              -> type(RANGE);
-Inside_RANGE_UNTIL        : RANGE_UNTIL        -> type(RANGE_UNTIL);
-Inside_RESERVED           : RESERVED           -> type(RESERVED);*/
+Inside_RESERVED           : RESERVED           -> type(RESERVED);
 Inside_COLONCOLON         : COLONCOLON         -> type(COLONCOLON);
-/*Inside_DOUBLE_SEMICOLON : DOUBLE_SEMICOLON   -> type(DOUBLE_SEMICOLON);
-Inside_HASH               : HASH               -> type(HASH);*/
 Inside_AT_NO_WS           : AT_NO_WS           -> type(AT_NO_WS);
 Inside_AT_POST_WS         : AT_POST_WS         -> type(AT_POST_WS);
 Inside_AT_PRE_WS          : AT_PRE_WS          -> type(AT_PRE_WS);
@@ -395,7 +358,6 @@ Inside_EXCL_EQ            : EXCL_EQ            -> type(EXCL_EQ);
 Inside_EXCL_EQEQ          : EXCL_EQEQ          -> type(EXCL_EQEQ);
 Inside_IS                 : IS                 -> type(IS);
 Inside_NOT_IS             : NOT_IS             -> type(NOT_IS);
-// Inside_NOT_IN          : NOT_IN             -> type(NOT_IN);
 Inside_AS                 : AS                 -> type(AS);
 Inside_AS_SAFE            : AS_SAFE            -> type(AS_SAFE);
 Inside_EQEQ               : EQEQ               -> type(EQEQ);
@@ -408,12 +370,10 @@ Inside_OR                 : OR                 -> type(OR);
 
 Inside_VAL         : VAL            -> type(VAL);
 Inside_VAR         : VAR            -> type(VAR);
-// Inside_OBJECT   : OBJECT         -> type(OBJECT);
 Inside_SUPER       : SUPER          -> type(SUPER);
 Inside_IN          : IN             -> type(IN);
 Inside_OUT         : OUT            -> type(OUT);
 Inside_FIELD       : FIELD          -> type(FIELD);
-// Inside_FILE     : FILE_SITE      -> type(FILE_SITE);
 Inside_PROPERTY    : PROPERTY_SITE  -> type(PROPERTY_SITE);
 Inside_GET         : GET_SITE       -> type(GET_SITE);
 Inside_SET         : SET_SITE       -> type(SET_SITE);
@@ -437,35 +397,21 @@ Inside_CATCH       : CATCH          -> type(CATCH);
 Inside_FINALLY     : FINALLY        -> type(FINALLY);
 Inside_FOR         : FOR            -> type(FOR);
 Inside_WHILE       : WHILE          -> type(WHILE);
-//Inside_DO        : DO             -> type(DO);
 
 Inside_PUBLIC      : PUBLIC      -> type(PUBLIC);
 Inside_PRIVATE     : PRIVATE     -> type(PRIVATE);
 Inside_PROTECTED   : PROTECTED   -> type(PROTECTED);
-// Inside_INTERNAL : INTERNAL    -> type(INTERNAL);
 Inside_ENUM        : ENUM        -> type(ENUM);
 Inside_SEALED      : SEALED      -> type(SEALED);
-Inside_ANNOTATION  : ANNOTATION  -> type(ANNOTATION);
-// Inside_DATA     : DATA        -> type(DATA);
+Inside_RECORD      : RECORD      -> type(RECORD);
 Inside_INNER       : INNER       -> type(INNER);
-/*Inside_TAILREC   : TAILREC     -> type(TAILREC);
-Inside_OPERATOR    : OPERATOR    -> type(OPERATOR);
-Inside_INLINE      : INLINE      -> type(INLINE);
-Inside_INFIX       : INFIX       -> type(INFIX);
-Inside_EXTERNAL    : EXTERNAL    -> type(EXTERNAL);
-Inside_SUSPEND     : SUSPEND     -> type(SUSPEND);*/
+Inside_ANNOTATION  : ANNOTATION  -> type(ANNOTATION);
 Inside_OVERRIDE    : OVERRIDE    -> type(OVERRIDE);
 Inside_ABSTRACT    : ABSTRACT    -> type(ABSTRACT);
 Inside_FINAL       : FINAL       -> type(FINAL);
 Inside_OPEN        : OPEN        -> type(OPEN);
-/* Inside_CONST    : CONST       -> type(CONST);
-Inside_LATEINIT    : LATEINIT    -> type(LATEINIT);*/
+// Inside_LATEINIT : LATEINIT    -> type(LATEINIT);
 Inside_VARARG      : VARARG      -> type(VARARG);
-/* Inside_NOINLINE : NOINLINE    -> type(NOINLINE);
-Inside_CROSSINLINE : CROSSINLINE -> type(CROSSINLINE);
-Inside_REIFIED     : REIFIED     -> type(REIFIED);
-Inside_EXPECT      : EXPECT      -> type(EXPECT);
-Inside_ACTUAL      : ACTUAL      -> type(ACTUAL);*/
 
 Inside_BooleanLiteral   : BooleanLiteral   -> type(BooleanLiteral);
 Inside_IntegerLiteral   : IntegerLiteral   -> type(IntegerLiteral);
@@ -475,7 +421,6 @@ Inside_BinLiteral       : BinLiteral       -> type(BinLiteral);
 Inside_CharacterLiteral : CharacterLiteral -> type(CharacterLiteral);
 Inside_RealLiteral      : RealLiteral      -> type(RealLiteral);
 Inside_NullLiteral      : NullLiteral      -> type(NullLiteral);
-// Inside_UnsignedLiteral: UnsignedLiteral -> type(UnsignedLiteral);
 
 Inside_Identifier      : Identifier                       -> type(Identifier);
 Inside_Comment         : (LineComment | DelimitedComment) -> channel(COMMENT);
@@ -486,84 +431,3 @@ Inside_NL              : NL                               -> skip;
 mode DEFAULT_MODE;
 
 ErrorCharacter: .;
-
-// SECTION: string expression. fixme what is it for ?
-
-/*mode StringExpression;
-
-StrExpr_RCURL: RCURL -> popMode, type(RCURL);
-
-StrExpr_LPAREN  : LPAREN  -> pushMode(Inside), type(LPAREN);
-StrExpr_LSQUARE : LSQUARE -> pushMode(Inside), type(LSQUARE);
-
-StrExpr_RPAREN             : ')'                -> type(RPAREN);
-StrExpr_RSQUARE            : ']'                -> type(RSQUARE);
-StrExpr_LCURL              : LCURL              -> pushMode(StringExpression), type(LCURL);
-StrExpr_DOT                : DOT                -> type(DOT);
-StrExpr_COMMA              : COMMA              -> type(COMMA);
-StrExpr_MULT               : MULT               -> type(MULT);
-StrExpr_MOD                : MOD                -> type(MOD);
-StrExpr_DIV                : DIV                -> type(DIV);
-StrExpr_ADD                : ADD                -> type(ADD);
-StrExpr_SUB                : SUB                -> type(SUB);
-StrExpr_INCR               : INCR               -> type(INCR);
-StrExpr_DECR               : DECR               -> type(DECR);
-StrExpr_CONJ               : CONJ               -> type(CONJ);
-StrExpr_DISJ               : DISJ               -> type(DISJ);
-StrExpr_EXCL_WS            : '!' (Hidden|NL)    -> type(EXCL_WS);
-StrExpr_EXCL_NO_WS         : EXCL_NO_WS         -> type(EXCL_NO_WS);
-StrExpr_COLON              : COLON              -> type(COLON);
-StrExpr_SEMICOLON          : SEMICOLON          -> type(SEMICOLON);
-StrExpr_ASSIGNMENT         : ASSIGNMENT         -> type(ASSIGNMENT);
-StrExpr_ADD_ASSIGNMENT     : ADD_ASSIGNMENT     -> type(ADD_ASSIGNMENT);
-StrExpr_SUB_ASSIGNMENT     : SUB_ASSIGNMENT     -> type(SUB_ASSIGNMENT);
-StrExpr_MULT_ASSIGNMENT    : MULT_ASSIGNMENT    -> type(MULT_ASSIGNMENT);
-StrExpr_DIV_ASSIGNMENT     : DIV_ASSIGNMENT     -> type(DIV_ASSIGNMENT);
-StrExpr_MOD_ASSIGNMENT     : MOD_ASSIGNMENT     -> type(MOD_ASSIGNMENT);
-StrExpr_ARROW              : ARROW              -> type(ARROW);
-// StrExpr_DOUBLE_ARROW    : DOUBLE_ARROW       -> type(DOUBLE_ARROW);
-// StrExpr_RANGE           : RANGE              -> type(RANGE);
-StrExpr_COLONCOLON         : COLONCOLON         -> type(COLONCOLON);
-// StrExpr_DOUBLE_SEMICOLON: DOUBLE_SEMICOLON   -> type(DOUBLE_SEMICOLON);
-// StrExpr_HASH               : HASH               -> type(HASH);
-StrExpr_AT_NO_WS           : AT_NO_WS           -> type(AT_NO_WS);
-StrExpr_AT_POST_WS         : AT_POST_WS         -> type(AT_POST_WS);
-StrExpr_AT_PRE_WS          : AT_PRE_WS          -> type(AT_PRE_WS);
-StrExpr_AT_BOTH_WS         : AT_BOTH_WS         -> type(AT_BOTH_WS);
-StrExpr_QUEST_WS           : '?' (Hidden | NL)  -> type(QUEST_WS);
-StrExpr_QUEST_NO_WS        : QUEST_NO_WS        -> type(QUEST_NO_WS);
-StrExpr_ELVIS_WS           : '?:' (Hidden | NL) -> type(ELVIS_WS);
-StrExpr_LANGLE             : LANGLE             -> type(LANGLE);
-StrExpr_RANGLE             : RANGLE             -> type(RANGLE);
-StrExpr_LE                 : LE                 -> type(LE);
-StrExpr_GE                 : GE                 -> type(GE);
-StrExpr_EXCL_EQ            : EXCL_EQ            -> type(EXCL_EQ);
-StrExpr_EXCL_EQEQ          : EXCL_EQEQ          -> type(EXCL_EQEQ);
-StrExpr_AS                 : AS                 -> type(AS);
-StrExpr_IS                 : IS                 -> type(IS);
-StrExpr_IN                 : IN                 -> type(IN);
-StrExpr_NOT_IS             : NOT_IS             -> type(NOT_IS);
-// StrExpr_NOT_IN          : NOT_IN             -> type(NOT_IN);
-StrExpr_AS_SAFE            : AS_SAFE            -> type(AS_SAFE);
-StrExpr_EQEQ               : EQEQ               -> type(EQEQ);
-StrExpr_EQEQEQ             : EQEQEQ             -> type(EQEQEQ);
-StrExpr_SINGLE_QUOTE       : SINGLE_QUOTE       -> type(SINGLE_QUOTE);
-StrExpr_QUOTE_OPEN         : QUOTE_OPEN         -> pushMode(LineString), type(QUOTE_OPEN);
-StrExpr_TRIPLE_QUOTE_OPEN  : TRIPLE_QUOTE_OPEN  -> pushMode(MultiLineString), type(TRIPLE_QUOTE_OPEN);
-StrExpr_AND                : AND                -> type(AND);
-StrExpr_OR                 : OR                 -> type(OR);
-
-StrExpr_BooleanLiteral   : BooleanLiteral   -> type(BooleanLiteral);
-StrExpr_IntegerLiteral   : IntegerLiteral   -> type(IntegerLiteral);
-StrExpr_LongLiteral      : LongLiteral      -> type(LongLiteral);
-StrExpr_HexLiteral       : HexLiteral       -> type(HexLiteral);
-StrExpr_BinLiteral       : BinLiteral       -> type(BinLiteral);
-StrExpr_CharacterLiteral : CharacterLiteral -> type(CharacterLiteral);
-StrExpr_RealLiteral      : RealLiteral      -> type(RealLiteral);
-StrExpr_NullLiteral      : NullLiteral      -> type(NullLiteral);
-// StrExpr_UnsignedLiteral: UnsignedLiteral -> type(UnsignedLiteral);
-
-StrExpr_Identifier      : Identifier                       -> type(Identifier);
-StrExpr_Comment         : (LineComment | DelimitedComment) -> channel(COMMENT);
-StrExpr_WS              : WS                               -> skip;
-StrExpr_NL              : NL                               -> skip;*/
