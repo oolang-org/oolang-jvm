@@ -5,6 +5,7 @@
 package org.oolang.ast.expression;
 
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.oolang.ast.AstInfo;
 
 import static org.oolang.ast.Identifier.SimpleIdentifier;
@@ -24,7 +25,7 @@ public record LoadExpression(
     }
 
     @Override
-    public @NonNull AstInfo info() {
+    public @Nullable AstInfo info() {
         return identifier.info();
     }
 

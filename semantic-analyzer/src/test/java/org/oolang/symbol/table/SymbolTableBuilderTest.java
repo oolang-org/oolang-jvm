@@ -13,6 +13,8 @@ import org.oolang.parser.OolangAstVisitor;
 import org.oolang.parser.generated.OolangLexer;
 import org.oolang.parser.generated.OolangParser;
 
+import java.lang.constant.ConstantDescs;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.oolang.semantic.analyzer.OolangSemanticAnalyzerTest.buildImports;
 import static org.oolang.symbol.table.Visibility.*;
@@ -73,6 +75,9 @@ public class SymbolTableBuilderTest {
         assertThat(childProperty.isFinal()).isTrue();
         var klass = (Klass) childProperty.type();
         assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        assertThat(rootKlass.functions).hasSize(1);
+        verifyDefaultConstructor(rootKlass);
     }
 
     @Test
@@ -95,6 +100,8 @@ public class SymbolTableBuilderTest {
         assertThat(childProperty.isFinal()).isFalse();
         var klass = (Klass) childProperty.type();
         assertThat(klass.descriptorString()).isEqualTo("Ljava/math/BigInteger;");
+
+        assertThat(rootKlass.functions).isEmpty();
     }
 
     @Test
@@ -107,7 +114,7 @@ public class SymbolTableBuilderTest {
         assertThat(symbolTable.klasses).hasSize(1);
         var rootKlass = symbolTable.klasses.values().iterator().next();
         assertThat(rootKlass.name).isEqualTo("Example");
-        assertThat(rootKlass.functions).hasSize(1);
+        assertThat(rootKlass.functions).hasSize(2);
         var childFunction = rootKlass.functions.getFirst();
         assertThat(childFunction.name).isEqualTo("foo");
         assertThat(childFunction.visibility).isEqualTo(PRIVATE);
@@ -117,6 +124,8 @@ public class SymbolTableBuilderTest {
         var klass = (Klass) childFunction.returnType();
         assertThat(klass.descriptorString()).isEqualTo("V");
         assertThat(childFunction.parameters).isEmpty();
+
+        verifyDefaultConstructor(rootKlass);
     }
 
     @Test
@@ -129,7 +138,7 @@ public class SymbolTableBuilderTest {
         assertThat(symbolTable.klasses).hasSize(1);
         var rootKlass = symbolTable.klasses.values().iterator().next();
         assertThat(rootKlass.name).isEqualTo("Example");
-        assertThat(rootKlass.functions).hasSize(1);
+        assertThat(rootKlass.functions).hasSize(2);
         var childFunction = rootKlass.functions.getFirst();
         assertThat(childFunction.name).isEqualTo("foo");
         assertThat(childFunction.visibility).isEqualTo(PRIVATE);
@@ -139,6 +148,8 @@ public class SymbolTableBuilderTest {
         var klass = (Klass) childFunction.returnType();
         assertThat(klass.descriptorString()).isEqualTo("V");
         assertThat(childFunction.parameters).isEmpty();
+
+        verifyDefaultConstructor(rootKlass);
     }
 
     @Test
@@ -151,7 +162,7 @@ public class SymbolTableBuilderTest {
         assertThat(symbolTable.klasses).hasSize(1);
         var rootKlass = symbolTable.klasses.values().iterator().next();
         assertThat(rootKlass.name).isEqualTo("Example");
-        assertThat(rootKlass.functions).hasSize(1);
+        assertThat(rootKlass.functions).hasSize(2);
         var childFunction = rootKlass.functions.getFirst();
         assertThat(childFunction.name).isEqualTo("foo");
         assertThat(childFunction.visibility).isEqualTo(PUBLIC);
@@ -165,6 +176,8 @@ public class SymbolTableBuilderTest {
         assertThat(parameter.name).isEqualTo("bar");
         klass = (Klass) parameter.type();
         assertThat(klass.descriptorString()).isEqualTo("I");
+
+        verifyDefaultConstructor(rootKlass);
     }
 
     @Test
@@ -191,6 +204,18 @@ public class SymbolTableBuilderTest {
         assertThat(parameter.name).isEqualTo("args");
         klass = (Klass) parameter.type();
         assertThat(klass.descriptorString()).isEqualTo("[Ljava/lang/String;"); // = an array '[' for strings
+    }
+
+    private void verifyDefaultConstructor(OolangKlass rootKlass) {
+        var defaultConstructor = rootKlass.functions.getLast();
+        assertThat(defaultConstructor.name).isEqualTo(ConstantDescs.INIT_NAME);
+        assertThat(defaultConstructor.visibility).isEqualTo(PUBLIC);
+        assertThat(defaultConstructor.isStatic).isFalse();
+        assertThat(defaultConstructor.isAbstract).isFalse();
+        assertThat(defaultConstructor.isFinal()).isTrue();
+        var constructorReturnType = (Klass) defaultConstructor.returnType();
+        assertThat(constructorReturnType.descriptorString()).isEqualTo("Lcom/example/Example;");
+        assertThat(defaultConstructor.parameters).isEmpty();
     }
 
     private static OolangKlass symbolTableForCode(String code) {

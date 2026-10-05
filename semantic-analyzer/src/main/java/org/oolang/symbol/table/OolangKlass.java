@@ -9,6 +9,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 
+import static org.oolang.symbol.table.TypeResolver.OBJECT_KLASS;
 import static org.oolang.symbol.table.Visibility.PUBLIC;
 
 @SuppressWarnings("preview")
@@ -18,12 +19,15 @@ public final class OolangKlass extends BaseSymbol implements Klass {
     private static final @NonNull BaseSymbol VIRTUAL =
             new BaseSymbol("", PUBLIC, false /* whatever */, false /* whatever */, false /* whatever */);
 
-    static @NonNull OolangKlass createRoot(final @NonNull String packageName) {
-        return new OolangKlass(VIRTUAL, false /* whatever */, false /* whatever */, packageName);
+    static @NonNull OolangKlass createRoot(final @NonNull String packageName, @NonNull Map<@NonNull String, @NonNull String> imports) {
+        return new OolangKlass(VIRTUAL, false /* whatever */, false /* whatever */, packageName, imports);
     }
 
     private final boolean isInterface;
+    private final @NonNull String packageName;
     private final @NonNull String fullName;
+
+    final @NonNull Map<@NonNull String, @NonNull String> imports;
 
     // --------------------------------------------
     // Optional properties / functions / subclasses
@@ -36,21 +40,29 @@ public final class OolangKlass extends BaseSymbol implements Klass {
     OolangKlass(final @NonNull BaseSymbol baseSymbol,
                 final boolean isInterface,
                 final boolean isTopLevel,
-                final @NonNull String prefix) {
+                final @NonNull String prefix,
+                final @NonNull Map<String, String> imports) {
         assert baseSymbol != null;
         assert prefix != null;
+        assert imports != null;
         super(baseSymbol);
 
         this.isInterface = isInterface;
         if (name.isEmpty()) {
-            this.fullName = prefix; // the root of a symbol table is a virtual klass, fullName = package
+            // the root of a symbol table is a virtual klass, fullName = package
+            this.packageName = prefix;
+            this.fullName = prefix;
+        } else if (isTopLevel) {
+            this.packageName = prefix;
+            this.fullName = prefix + '.' + baseSymbol.name;
         } else {
-            this.fullName = prefix +
-                    (isTopLevel ? '.' : '$') + // top-level (".") / nested ("$")
-                    baseSymbol.name;
-
-            KLASSES_CACHE.get().put(fullName, this);
+            final var endOfPackageName = prefix.lastIndexOf('.');
+            this.packageName = prefix.substring(0, endOfPackageName);
+            this.fullName = prefix + '$' + baseSymbol.name;
         }
+        this.imports = imports;
+
+        KLASSES_CACHE.get().put(fullName, this);
     }
 
     @NonNull OolangKlass addKlass(final @NonNull BaseSymbol baseSymbol, final boolean isInterface) {
@@ -59,7 +71,7 @@ public final class OolangKlass extends BaseSymbol implements Klass {
         if (klasses == null) {
             klasses = new HashMap<>();
         }
-        final var childKlass = new OolangKlass(baseSymbol, isInterface, name.isEmpty(), fullName);
+        final var childKlass = new OolangKlass(baseSymbol, isInterface, name.isEmpty(), fullName, imports);
         klasses.put(baseSymbol.name, childKlass);
         return childKlass;
     }
@@ -107,12 +119,12 @@ public final class OolangKlass extends BaseSymbol implements Klass {
 
     @Override
     public @NonNull String packageName() {
-        return "";
+        return packageName;
     }
 
     @Override
     public @NonNull SequencedCollection<@NonNull Type> genericSuperKlasses() {
-        return List.of();
+        return List.of(OBJECT_KLASS); // todo real implementation
     }
 
     @Override

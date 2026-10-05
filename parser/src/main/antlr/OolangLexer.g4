@@ -109,6 +109,7 @@ THIS             : 'this';
 SUPER            : 'super';
 TYPEOF           : 'typeof';
 WHERE            : 'where';
+NEW              : 'new';
 IF               : 'if';
 ELSE             : 'else';
 WHEN             : 'when';
@@ -365,6 +366,7 @@ Inside_EQEQEQ             : EQEQEQ             -> type(EQEQEQ);
 Inside_SINGLE_QUOTE       : SINGLE_QUOTE       -> type(SINGLE_QUOTE);
 Inside_QUOTE_OPEN         : QUOTE_OPEN         -> pushMode(LineString), type(QUOTE_OPEN);
 Inside_TRIPLE_QUOTE_OPEN  : TRIPLE_QUOTE_OPEN  -> pushMode(MultiLineString), type(TRIPLE_QUOTE_OPEN);
+Inside_NEW                : NEW                -> type(NEW);
 Inside_AND                : AND                -> type(AND);
 Inside_OR                 : OR                 -> type(OR);
 

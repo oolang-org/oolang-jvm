@@ -7,6 +7,7 @@ package org.oolang.symbol.table;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.oolang.ast.AstType;
+import org.oolang.semantic.analyzer.OolangSemanticException;
 import org.oolang.symbol.table.Type.GenericType;
 
 import java.lang.constant.ConstantDesc;
@@ -14,7 +15,6 @@ import java.lang.constant.ConstantDescs;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.WildcardType;
 import java.util.Arrays;
-import java.util.Map;
 
 import static org.oolang.ast.Identifier.MultipleIdentifier;
 import static org.oolang.ast.Identifier.SimpleIdentifier;
@@ -66,10 +66,10 @@ public final class TypeResolver {
         return resolveType(wildcardType.getUpperBounds()[0]);
     }
 
-    static @NonNull Type resolveType(final @Nullable AstType astType,
-                                     final @NonNull Map<String, String> imports,
-                                     final boolean isArray) {
-        assert imports != null;
+    public static @NonNull Type resolveType(final @Nullable AstType astType,
+                                            final @NonNull OolangKlass oolangKlass,
+                                            final boolean isArray) {
+        assert oolangKlass != null;
 
         // no type = void
         if (astType == null) {
@@ -78,7 +78,7 @@ public final class TypeResolver {
 
         // generic type with parameters
         if (astType.parameters != null) {
-            final var klass = resolveKlass(astType, imports, isArray);
+            final var klass = resolveKlass(astType, oolangKlass, isArray);
 
             // specific array pseudo-class case
             if (klass == Array.getInstance()) {
@@ -86,80 +86,84 @@ public final class TypeResolver {
                     // todo throw a semantic analysis exception
                     throw new RuntimeException("An array must have exactly one parameter");
                 }
-                return resolveType(astType.parameters.getFirst(), imports, true);
+                return resolveType(astType.parameters.getFirst(), oolangKlass, true);
             }
 
             return new GenericType(
                     klass,
                     astType.parameters.stream()
-                            .map(parameterType -> resolveType(parameterType, imports, false))
+                            .map(parameterType -> resolveType(parameterType, oolangKlass, false))
                             .toList()
             );
         }
 
         // simple type
-        return resolveKlass(astType, imports, isArray);
+        return resolveKlass(astType, oolangKlass, isArray);
     }
 
     private static @NonNull Klass resolveKlass(final @NonNull AstType astType,
-                                               final @NonNull Map<String, String> imports,
+                                               final @NonNull OolangKlass oolangKlass,
                                                final boolean isArray) {
         assert astType != null;
-        assert imports != null;
+        assert oolangKlass != null;
 
         final var klass = switch (astType.identifier) {
             // must resolve the class name
-            case SimpleIdentifier simpleId -> resolveKlassFromSimpleName(simpleId.identifier, imports);
+            case SimpleIdentifier simpleId -> resolveKlassFromSimpleName(simpleId.identifier, oolangKlass);
             // fully qualified class name
             case MultipleIdentifier multipleId -> getKlassFromName(multipleId.rawName());
         };
         if (klass == null) {
-            throw new RuntimeException("Could not resolve klass from name"); // todo semantic exception
+            throw new OolangSemanticException("Could not resolve klass from name " + astType.identifier.description());
         }
 
         return (isArray) ? klass.arrayType() : klass;
     }
 
     public static @Nullable Klass resolveKlassFromSimpleName(final @NonNull String simpleKlassName,
-                                                             final @NonNull Map<String, String> imports) {
+                                                             final @NonNull OolangKlass oolangKlass) {
         assert simpleKlassName != null;
-        assert imports != null;
+        assert oolangKlass != null;
 
-        // 1) todo try to resolve sibling class
+        // 1) try to get the fully qualified class name from an import, if present search with this full class name
+        var fullKlassName = oolangKlass.imports.get(simpleKlassName);
+        if (fullKlassName != null) {
+            return getKlassFromName(fullKlassName);
+        }
 
-        // 2) try to get the fully qualified class name from an import
-        final var fullKlassName = imports.get(simpleKlassName);
+        // 2) search for class from the same package that doesn't need to be imported
+        final var klass = getKlassFromName(oolangKlass.packageName() + "." + simpleKlassName);
+        if (klass != null) {
+            return klass;
+        }
 
         // 3) fast-path for primitives and most often used classes and for the Array pseudo-class, no cache call
-        if (fullKlassName == null) {
-            switch (simpleKlassName) {
-                case STRING_KLASS_NAME -> {
-                    return STRING_KLASS;
-                }
-                case INT_KLASS_NAME -> {
-                    return INT_KLASS;
-                }
-                case LONG_KLASS_NAME -> {
-                    return LONG_KLASS;
-                }
-                case FLOAT_KLASS_NAME -> {
-                    return FLOAT_KLASS;
-                }
-                case DOUBLE_KLASS_NAME -> {
-                    return DOUBLE_KLASS;
-                }
-                case ARRAY_KLASS_NAME -> {
-                    return Array.getInstance();
-                }
-                case VOID_KLASS_NAME -> {
-                    return VOID_KLASS;
-                }
+        switch (simpleKlassName) {
+            case STRING_KLASS_NAME -> {
+                return STRING_KLASS;
+            }
+            case INT_KLASS_NAME -> {
+                return INT_KLASS;
+            }
+            case LONG_KLASS_NAME -> {
+                return LONG_KLASS;
+            }
+            case FLOAT_KLASS_NAME -> {
+                return FLOAT_KLASS;
+            }
+            case DOUBLE_KLASS_NAME -> {
+                return DOUBLE_KLASS;
+            }
+            case ARRAY_KLASS_NAME -> {
+                return Array.getInstance();
+            }
+            case VOID_KLASS_NAME -> {
+                return VOID_KLASS;
             }
         }
 
-        return getKlassFromName((fullKlassName != null) ? fullKlassName
-                // 4) classes from the java.lang package don't need to be imported
-                : "java.lang." + simpleKlassName);
+        // 4) search for class from the java.lang package that doesn't need to be imported
+        return getKlassFromName("java.lang." + simpleKlassName);
     }
 
     /**
@@ -234,4 +238,6 @@ public final class TypeResolver {
     // String
     public static final @NonNull Klass STRING_KLASS = resolveKlass(String.class);
     private static final @NonNull String STRING_KLASS_NAME = "String";
+    // Object
+    public static final @NonNull Klass OBJECT_KLASS = resolveKlass(Object.class);
 }

@@ -40,7 +40,12 @@ public final class AstFileWriter {
         assert appendable != null;
 
         if (withAstInfo) {
-            appendable.append(ast.info().toString());
+            final var astInfo = ast.info();
+            if (astInfo != null) {
+                appendable.append(astInfo.toString());
+            } else {
+                appendable.append("                                  ");
+            }
         }
         indent(appendable, depth);
         appendable.append(ast.description()).append(System.lineSeparator());

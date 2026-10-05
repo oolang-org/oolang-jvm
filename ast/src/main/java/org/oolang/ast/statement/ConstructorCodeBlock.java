@@ -18,9 +18,9 @@ public final class ConstructorCodeBlock extends AbstractAst implements Statement
     /**
      * Expression to another constructor in the current class or a super constructor.
      * <p>
-     * If null, an implicit call to the no-arg super constructor is performed.
+     * If null, an implicit call to the no-arg super constructor is built during semantic analysis.
      */
-    public @Nullable RealExpression initCall = null;
+    public /* lateinit */ RealExpression initCall = null;
     public final @NonNull List<@NonNull Statement> lateLarvalStatements = new ArrayList<>();
 
     @Override

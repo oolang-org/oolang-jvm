@@ -24,6 +24,7 @@ import org.oolang.parser.generated.OolangParser.*;
 import org.oolang.parser.generated.OolangParserBaseVisitor;
 
 import java.lang.constant.ConstantDesc;
+import java.lang.constant.ConstantDescs;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -38,6 +39,8 @@ import static org.oolang.ast.element.RealElement.ElementType.VAR;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.*;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.ADD;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.SUB;
+import static org.oolang.ast.statement.RealStatement.StatementType.ASSIGNMENT;
+import static org.oolang.ast.statement.RealStatement.StatementType.EXPRESSION;
 
 public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     @Override
@@ -110,6 +113,7 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
 
         final var constructor = new RealElement(CONSTRUCTOR);
         addModifiersAndAnnotations(ctx.modifiers(), constructor);
+        constructor.identifier = new Identifier.SimpleIdentifier(ConstantDescs.INIT_NAME);
 
         for (final var classParamCtx : ctx.classParameters().classParameter()) {
             constructor.children.add(visitClassParameter(classParamCtx));
@@ -272,24 +276,86 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     public @NonNull Statement visitStatement(final @NonNull StatementContext ctx) {
         assert ctx != null;
 
-        final Statement statement;
         final var blockLevelExpressionCtx = ctx.blockLevelExpression();
         if (blockLevelExpressionCtx != null) {
-            statement = visitBlockLevelExpression(blockLevelExpressionCtx);
-        } else {
-            throw new UnsupportedOperationException();
+            return addAstInfo(visitBlockLevelExpression(blockLevelExpressionCtx), ctx);
         }
-        return addAstInfo(statement, ctx);
+
+        final var blockLevelDeclarationCtx = ctx.blockLevelDeclaration();
+        assert blockLevelDeclarationCtx != null;
+        return addAstInfo(visitBlockLevelDeclaration(blockLevelDeclarationCtx), ctx);
     }
 
     @Override
     public @NonNull Statement visitBlockLevelExpression(final @NonNull BlockLevelExpressionContext ctx) {
         assert ctx != null;
 
-        final var statement = new RealStatement();
+        final var statement = new RealStatement(EXPRESSION);
         statement.children.add(visitExpression(ctx.expression()));
         statement.annotations = visitAnnotations(ctx.annotation());
         return statement;
+    }
+
+    @Override
+    public @NonNull RealStatement visitBlockLevelDeclaration(final @NonNull BlockLevelDeclarationContext ctx) {
+        assert ctx != null;
+
+        final RealStatement statement;
+        final var assignmentCtx = ctx.assignment();
+        if (assignmentCtx != null) {
+            statement = visitAssignment(assignmentCtx);
+        } else {
+            throw new UnsupportedOperationException("Non assignment declaration statement not supported yet");
+        }
+
+        if (!ctx.label().isEmpty()) {
+            throw new UnsupportedOperationException("Label in declaration statement not supported yet");
+        }
+
+        return statement;
+    }
+
+    @Override
+    public @NonNull RealStatement visitAssignment(final @NonNull AssignmentContext ctx) {
+        assert ctx != null;
+
+        final var statement = new RealStatement(ASSIGNMENT);
+
+        // normal assignment '='
+        final var directlyAssignableExpressionCtx = ctx.directlyAssignableExpression();
+        if (directlyAssignableExpressionCtx != null) {
+            statement.children.add(visitDirectlyAssignableExpression(directlyAssignableExpressionCtx));
+        } else {
+            throw new UnsupportedOperationException("Assignment statement with operator not supported yet");
+        }
+
+        statement.children.add(visitExpression(ctx.expression()));
+
+        return statement;
+    }
+
+    /// ```
+    /// : postfixUnaryExpression assignableSuffix
+    /// | simpleIdentifier
+    /// ```
+    @Override
+    public @NonNull Expression visitDirectlyAssignableExpression(
+            final @NonNull DirectlyAssignableExpressionContext ctx
+    ) {
+        assert ctx != null;
+
+        final var simpleIdentifierCtx = ctx.simpleIdentifier();
+        if (simpleIdentifierCtx != null) {
+            final var expression = new RealExpression(VARIABLE_OR_PROP_ACCESS);
+            expression.identifiers.add(visitSimpleIdentifier(simpleIdentifierCtx));
+            return addAstInfo(expression, ctx);
+        }
+
+        final var postfixUnaryExpressionCtx = ctx.postfixUnaryExpression();
+        assert postfixUnaryExpressionCtx != null;
+        assert ctx.assignableSuffix() != null;
+        // visitPostfixUnaryExpression(postfixUnaryExpressionCtx); // + todo handle assignableSuffix
+        throw new UnsupportedOperationException("postfixUnaryExpression assignableSuffix");
     }
 
     @Override
@@ -363,22 +429,55 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         assert ctx != null;
 
         final var atomicExpressionCtx = ctx.atomicExpression();
+        final var postfixUnarySuffixesCtx = ctx.postfixUnarySuffix();
 
-        final Expression expression;
+        Expression expression;
+        var mustCompleteExpression = false;
         if (atomicExpressionCtx.literalConstant() != null) {
             expression = visitLiteralConstant(atomicExpressionCtx.literalConstant());
+
         } else if (atomicExpressionCtx.stringLiteral() != null) {
             expression = visitStringLiteral(atomicExpressionCtx.stringLiteral());
+
         } else if (atomicExpressionCtx.simpleIdentifier() != null) {
             final var realExpression = new RealExpression();
             realExpression.identifiers.add(visitSimpleIdentifier(atomicExpressionCtx.simpleIdentifier()));
-            visitPostfixUnarySuffixes(ctx.postfixUnarySuffix(), realExpression);
-            expression = realExpression;
+            if (postfixUnarySuffixesCtx.isEmpty()) {
+                realExpression.expressionType = VARIABLE_OR_PROP_ACCESS;
+                // Always add a chainable expression as parent to the variable or property access,
+                // so we can clean it in the semantic analysis phase
+                final var chainableExpression = new RealExpression(CHAINABLE);
+                addExpressionToChain(chainableExpression, realExpression);
+                expression = addAstInfo(chainableExpression, ctx);
+            } else {
+                expression = realExpression;
+                mustCompleteExpression = true;
+            }
+
+        } else if (atomicExpressionCtx.constructorInvocation() != null) {
+            final var constructorCallExpression = visitConstructorInvocation(atomicExpressionCtx.constructorInvocation());
+            if (postfixUnarySuffixesCtx.isEmpty()) {
+                // Always add a chainable expression as parent to the constructor call,
+                // so we can complete it in the semantic analysis phase
+                final var chainableExpression = new RealExpression(CHAINABLE);
+                addExpressionToChain(chainableExpression, constructorCallExpression);
+                expression = addAstInfo(chainableExpression, ctx);
+            } else {
+                expression = constructorCallExpression;
+            }
+
         } else {
             throw new UnsupportedOperationException();
         }
 
-        return addAstInfo(expression, ctx);
+        // add suffixes or/and chained expressions
+        if (!postfixUnarySuffixesCtx.isEmpty()) {
+            expression = addAstInfo(
+                    visitPostfixUnarySuffixes(postfixUnarySuffixesCtx, expression, mustCompleteExpression),
+                    ctx);
+        }
+
+        return expression;
     }
 
     @Override
@@ -394,7 +493,7 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
             throw new UnsupportedOperationException();
         }
 
-        return new ConstantExpression(value);
+        return addAstInfo(new ConstantExpression(value), ctx);
     }
 
     @Override
@@ -414,63 +513,116 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
 
         // fast-path for single String content
         if (ctx.lineStringContent().size() == 1 && ctx.lineStringExpression().isEmpty()) {
-            return new ConstantExpression(ctx.lineStringContent().getFirst().getText());
+            return addAstInfo(new ConstantExpression(ctx.lineStringContent().getFirst().getText()), ctx);
         }
         throw new UnsupportedOperationException();
     }
 
-    private void visitPostfixUnarySuffixes(final @NonNull List<@NonNull PostfixUnarySuffixContext> ctx,
-                                           final @NonNull RealExpression expression) {
+    @Override
+    public @NonNull RealExpression visitConstructorInvocation(final @NonNull ConstructorInvocationContext ctx) {
         assert ctx != null;
+
+        // constructor call is a function call
+        final var constructorCall = new RealExpression(FUN_CALL);
+        constructorCall.type = visitUserType(ctx.userType());
+        constructorCall.identifiers.add(new SimpleIdentifier(ConstantDescs.INIT_NAME));
+        // add function call parameters
+        addFunCallParameters(constructorCall, ctx.callSuffix());
+
+        return addAstInfo(constructorCall, ctx);
+    }
+
+    private @NonNull RealExpression visitPostfixUnarySuffixes(
+            final @NonNull List<@NonNull PostfixUnarySuffixContext> postfixUnarySuffixesCtx,
+            final @NonNull Expression expression,
+            final boolean mustCompleteExpression
+    ) {
+        assert postfixUnarySuffixesCtx != null;
+        assert !postfixUnarySuffixesCtx.isEmpty();
         assert expression != null;
 
-        for (final var postfixUnarySuffixCtx : ctx) {
+        final var chainableExpression = new RealExpression(CHAINABLE);
+        RealExpression currentExpression = (mustCompleteExpression) ? (RealExpression) expression : null;
+        addExpressionToChain(chainableExpression, expression);
+
+        for (final var postfixUnarySuffixCtx : postfixUnarySuffixesCtx) {
+            if (currentExpression == null) {
+                currentExpression = new RealExpression();
+                addExpressionToChain(chainableExpression, currentExpression);
+            }
+
             final var navSuffixCtx = postfixUnarySuffixCtx.navigationSuffix();
             if (navSuffixCtx != null) {
                 if (navSuffixCtx.memberAccessOperator().DOT() != null) {
-                    expression.identifiers.add(visitSimpleIdentifier(navSuffixCtx.simpleIdentifier()));
+                    currentExpression.identifiers.add(visitSimpleIdentifier(navSuffixCtx.simpleIdentifier()));
                 }
                 continue;
             }
 
             final var typeArgumentsCtx = postfixUnarySuffixCtx.typeArguments();
             if (typeArgumentsCtx != null) {
-                System.out.println("typeArguments " + typeArgumentsCtx.getText());
-                continue;
+                throw new UnsupportedOperationException("Type arguments are not supported yet: " +
+                        typeArgumentsCtx.getText());
             }
 
             final var callSuffixCtx = postfixUnarySuffixCtx.callSuffix();
             if (callSuffixCtx != null) {
-                expression.type = FUN_CALL;
-                // add function arguments
-                final var valueArgsCtx = callSuffixCtx.valueArguments();
-                if (valueArgsCtx != null) {
-                    for (final var valueArgCtx : valueArgsCtx.valueArgument()) {
-                        final var callArgument = new RealExpression(FUN_CALL_PARAMETER);
-                        if (valueArgCtx.simpleIdentifier() != null) {
-                            // for named argument
-                            callArgument.identifiers.add(visitSimpleIdentifier(valueArgCtx.simpleIdentifier()));
-                        }
-                        callArgument.children.add(visitExpression(valueArgCtx.expression()));
-                        expression.children.add(addAstInfo(callArgument, valueArgCtx));
-                    }
-                }
-                return;
+                currentExpression.expressionType = FUN_CALL;
+                // add function call parameters
+                addFunCallParameters(currentExpression, callSuffixCtx);
+                addAstInfo(currentExpression, callSuffixCtx);
+                currentExpression = null;
+                continue;
             }
 
             // "args[index]"
             final var indexingSuffixCtx = postfixUnarySuffixCtx.indexingSuffix();
             if (indexingSuffixCtx != null) {
-                expression.type = INDEXING;
+                currentExpression.expressionType = INDEXING;
                 for (final var indexedExpressionCtx : indexingSuffixCtx.expression()) {
-                    expression.children.add(visitExpression(indexedExpressionCtx));
+                    currentExpression.children.add(visitExpression(indexedExpressionCtx));
                 }
-                return;
+                addAstInfo(currentExpression, indexingSuffixCtx);
+                currentExpression = null;
             }
         }
 
-        // no early return = variable or prop access
-        expression.type = VARIABLE_OR_PROP_ACCESS;
+        if (currentExpression != null) {
+            // no expression type yet = variable or prop access
+            currentExpression.expressionType = VARIABLE_OR_PROP_ACCESS;
+        }
+
+        return chainableExpression;
+    }
+
+    private static void addExpressionToChain(final @NonNull RealExpression chainableExpression,
+                                             final @NonNull Expression childExpression) {
+        assert chainableExpression != null;
+        assert childExpression != null;
+
+        if (childExpression instanceof RealExpression childRealExpression) {
+            childRealExpression.parent = chainableExpression;
+        }
+        chainableExpression.children.add(childExpression);
+    }
+
+    private void addFunCallParameters(final @NonNull RealExpression expression,
+                                      final @NonNull CallSuffixContext callSuffixCtx) {
+        assert expression != null;
+        assert callSuffixCtx != null;
+
+        final var valueArgsCtx = callSuffixCtx.valueArguments();
+        if (valueArgsCtx != null) {
+            for (final var valueArgCtx : valueArgsCtx.valueArgument()) {
+                final var callArgument = new RealExpression(FUN_CALL_PARAMETER);
+                if (valueArgCtx.simpleIdentifier() != null) {
+                    // for named argument
+                    callArgument.identifiers.add(visitSimpleIdentifier(valueArgCtx.simpleIdentifier()));
+                }
+                callArgument.children.add(visitExpression(valueArgCtx.expression()));
+                expression.children.add(addAstInfo(callArgument, valueArgCtx));
+            }
+        }
     }
 
     @Override
@@ -518,7 +670,7 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
             return null;
         }
 
-        final var parameters = new ArrayList<@NonNull AstType>();
+        final var parameters = new ArrayList<AstType>();
         for (final var typeProjectionCtx : ctx.typeArguments().typeProjection()) {
             parameters.add(visitTypeProjection(typeProjectionCtx));
         }

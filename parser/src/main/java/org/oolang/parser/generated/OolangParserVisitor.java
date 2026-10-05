@@ -659,24 +659,6 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitDirectlyAssignableExpression(OolangParser.DirectlyAssignableExpressionContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link OolangParser#parenthesizedDirectlyAssignableExpression}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitParenthesizedDirectlyAssignableExpression(OolangParser.ParenthesizedDirectlyAssignableExpressionContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#assignableExpression}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitAssignableExpression(OolangParser.AssignableExpressionContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#parenthesizedAssignableExpression}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitParenthesizedAssignableExpression(OolangParser.ParenthesizedAssignableExpressionContext ctx);
-	/**
 	 * Visit a parse tree produced by {@link OolangParser#assignableSuffix}.
 	 * @param ctx the parse tree
 	 * @return the visitor result

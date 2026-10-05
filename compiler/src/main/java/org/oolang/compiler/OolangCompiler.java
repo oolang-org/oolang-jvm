@@ -36,9 +36,9 @@ import java.util.Locale;
 import java.util.Objects;
 
 import static java.lang.System.Logger.Level.DEBUG;
-import static org.oolang.ast.element.RealElement.ElementType.*;
-import static org.oolang.ast.expression.JvmInvocationUtils.GET_STATIC;
-import static org.oolang.ast.expression.JvmInvocationUtils.INVOKE_VIRTUAL;
+import static org.oolang.ast.element.RealElement.ElementType.PARAMETER;
+import static org.oolang.ast.element.RealElement.ElementType.PROPERTY_INITIALIZER;
+import static org.oolang.ast.expression.JvmInvocationUtils.*;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.PROP_ACCESS;
 import static org.oolang.compiler.Descriptors.*;
 import static org.oolang.compiler.StringCompilationUtils.stringConcatenation;
@@ -104,29 +104,15 @@ public final class OolangCompiler {
         assert classBody != null;
         assert classBuilder != null;
 
-        var hasConstructor = false;
         for (final var child : classBody.children) {
             switch (child.elementType) {
-                case CONSTRUCTOR -> {
-                    hasConstructor = true;
-                    visitConstructor(child, classBuilder);
-                }
+                case CONSTRUCTOR -> visitConstructor(child, classBuilder);
                 case VAR, VAL -> visitProperty(child, classBuilder);
                 case FUN -> visitFun(child, classBuilder);
                 case CLASS -> visitClass(child, classBuilder);
                 case INTERFACE -> throw new UnsupportedOperationException();
                 default -> throw new IllegalStateException("Unknown element type: " + child.elementType);
             }
-        }
-
-        // if no explicit constructor was found, add a public empty default constructor
-        if (!hasConstructor) {
-            final var defaultConstructor = new RealElement(CONSTRUCTOR);
-            defaultConstructor.modifiers.addAll(
-                    List.of(new ElementModifier(ElementModifier.ModifierType.VISIBILITY, PUBLIC),
-                            new ElementModifier(ElementModifier.ModifierType.INHERITANCE, FINAL)));
-            defaultConstructor.children.add(new ConstructorCodeBlock());
-            visitConstructor(defaultConstructor, classBuilder);
         }
     }
 
@@ -157,16 +143,8 @@ public final class OolangCompiler {
         }
 
         // 2) call another constructor in the current class or a super constructor.
-        codeBuilder.aload(0); // = this
-        if (constructorCodeBlock.initCall != null) {
-            visitRealExpression(constructorCodeBlock.initCall, codeBuilder);
-        } else {
-            // implicit call to no-arg super constructor
-            codeBuilder.invokespecial(
-                    ClassDesc.ofDescriptor(OBJECT),
-                    ConstantDescs.INIT_NAME,
-                    MethodTypeDesc.of(ConstantDescs.CD_void));
-        }
+        assert constructorCodeBlock.initCall != null;
+        visitRealExpression(constructorCodeBlock.initCall, codeBuilder);
 
         // 3) execute late-larval statements
         for (final var lateStatement : constructorCodeBlock.lateLarvalStatements) {
@@ -191,6 +169,8 @@ public final class OolangCompiler {
                 if (propChild instanceof RealElement propChildElement
                         && propChildElement.elementType == PROPERTY_INITIALIZER
                         && propChildElement.children.getFirst() instanceof ConstantExpression initializerConstExpr) {
+                    // For instance fields, this constant value is required for the Java compiler (javac), as this
+                    // inlining also happens if you compile another class against this which accesses the field directly
                     fieldBuilder.with(ConstantValueAttribute.of(initializerConstExpr.value));
                     break;
                 }
@@ -249,11 +229,8 @@ public final class OolangCompiler {
         assert realStatement != null;
         assert codeBuilder != null;
 
-        for (final var child : realStatement.children) {
-            switch (child) {
-                case Expression expression -> visitExpression(expression, codeBuilder);
-                default -> throw new UnsupportedOperationException("Unsupported realStatement child: " + child);
-            }
+        for (final var childExpression : realStatement.children) {
+            visitExpression(childExpression, codeBuilder);
         }
     }
 
@@ -295,12 +272,37 @@ public final class OolangCompiler {
         assert realExpression != null;
         assert codeBuilder != null;
 
-        switch (realExpression.type) {
+        switch (realExpression.expressionType) {
+            case NEW -> visitNewExpression(realExpression, codeBuilder);
+            case CHAINABLE -> visitChainableExpression(realExpression, codeBuilder);
             case ADD -> visitAdditiveExpression(realExpression, codeBuilder);
             case INDEXING -> visitIndexingExpression(realExpression, codeBuilder);
-            case VARIABLE_OR_PROP_ACCESS -> visitVariableOrPropAccessExpression(realExpression, codeBuilder);
+            case PROP_ACCESS -> visitPropAccess(realExpression, codeBuilder);
+            case PROP_ASSIGNMENT -> visitPropAssignmentExpression(realExpression, codeBuilder);
             case FUN_CALL -> visitFunCallExpression(realExpression, codeBuilder);
-            default -> throw new UnsupportedOperationException("Unsupported expression type: " + realExpression.type);
+            default ->
+                    throw new UnsupportedOperationException("Unsupported expression type: " + realExpression.expressionType);
+        }
+    }
+
+    private static void visitNewExpression(final @NonNull RealExpression newExpression,
+                                           final @NonNull CodeBuilder codeBuilder) {
+        assert newExpression != null;
+        assert codeBuilder != null;
+
+        final var descriptor = newExpression.descriptorString();
+        assert descriptor != null;
+        codeBuilder.new_(ClassDesc.ofDescriptor(descriptor));
+        codeBuilder.dup();
+    }
+
+    private static void visitChainableExpression(final @NonNull RealExpression chainableExpression,
+                                                 final @NonNull CodeBuilder codeBuilder) {
+        assert chainableExpression != null;
+        assert codeBuilder != null;
+
+        for (final var child : chainableExpression.children) {
+            visitExpression(child, codeBuilder);
         }
     }
 
@@ -329,7 +331,7 @@ public final class OolangCompiler {
             switch (child) {
                 case LoadExpression loadExpression -> visitLoadExpression(loadExpression, codeBuilder);
                 case RealExpression realExpression -> {
-                    assert realExpression.type == PROP_ACCESS;
+                    assert realExpression.expressionType == PROP_ACCESS;
                     visitPropAccess(realExpression, codeBuilder);
                 }
                 case ConstantExpression constantExpression -> visitConstantExpression(constantExpression, codeBuilder);
@@ -339,26 +341,6 @@ public final class OolangCompiler {
 
         // then load the array
         codeBuilder.aaload();
-    }
-
-    private static void visitVariableOrPropAccessExpression(
-            final @NonNull RealExpression variableOrPropAccessExpression,
-            final @NonNull CodeBuilder codeBuilder
-    ) {
-        assert variableOrPropAccessExpression != null;
-        assert codeBuilder != null;
-
-        // loop on variable or prop access children = one or several chained accesses
-        for (final var child : variableOrPropAccessExpression.children) {
-            switch (child) {
-                case LoadExpression loadExpression -> visitLoadExpression(loadExpression, codeBuilder);
-                case RealExpression realExpression -> {
-                    assert realExpression.type == PROP_ACCESS;
-                    visitPropAccess(realExpression, codeBuilder);
-                }
-                default -> throw new IllegalStateException("Unexpected expression type: " + child.getClass());
-            }
-        }
     }
 
     private static void visitPropAccess(final @NonNull RealExpression propAccessExpression,
@@ -378,8 +360,28 @@ public final class OolangCompiler {
 
         switch (propAccessExpression.invocation) {
             case GET_STATIC -> codeBuilder.getstatic(owner, name, type);
-            default -> throw new UnsupportedOperationException(propAccessExpression.invocation +
-                    " invocation is not supported yet");
+            case GET_FIELD -> codeBuilder.getfield(owner, name, type);
+        }
+    }
+
+    private static void visitPropAssignmentExpression(final @NonNull RealExpression propAssignmentExpression,
+                                                      final @NonNull CodeBuilder codeBuilder) {
+        assert propAssignmentExpression != null;
+        assert codeBuilder != null;
+
+        final var propDescriptorString = propAssignmentExpression.descriptorString();
+        assert propAssignmentExpression.ownerDescriptorString != null;
+        assert propDescriptorString != null;
+        assert propAssignmentExpression.invocation != null;
+        assert propAssignmentExpression.identifiers.size() == 1;
+
+        final var owner = ClassDesc.ofDescriptor(propAssignmentExpression.ownerDescriptorString);
+        final var name = propAssignmentExpression.identifiers.getFirst().identifier; // a property has a simple identifier
+        final var type = ClassDesc.ofDescriptor(propDescriptorString);
+
+        switch (propAssignmentExpression.invocation) {
+            case PUT_STATIC -> codeBuilder.putstatic(owner, name, type);
+            case PUT_FIELD -> codeBuilder.putfield(owner, name, type);
         }
     }
 
@@ -394,13 +396,14 @@ public final class OolangCompiler {
                 throw new IllegalStateException("Fun call children should be RealExpression, was: " +
                         childRaw.getClass());
             }
-            switch (child.type) {
+            switch (child.expressionType) {
                 case PROP_ACCESS -> visitPropAccess(child, codeBuilder);
                 case FUN_CALL_PARAMETER -> {
                     assert child.children.size() == 1;
                     visitExpression(child.children.getFirst(), codeBuilder);
                 }
-                default -> throw new UnsupportedOperationException("Unsupported expression type: " + child.type);
+                default ->
+                        throw new UnsupportedOperationException("Unsupported expression type: " + child.expressionType);
             }
         }
 
@@ -426,6 +429,7 @@ public final class OolangCompiler {
 
         switch (invokeExpression.invocation) {
             case INVOKE_VIRTUAL -> codeBuilder.invokevirtual(owner, name, type);
+            case INVOKE_SPECIAL -> codeBuilder.invokespecial(owner, name, type);
             default -> throw new UnsupportedOperationException(invokeExpression.invocation +
                     " invocation is not supported yet");
         }
@@ -498,11 +502,14 @@ public final class OolangCompiler {
         final var inheritanceFlag = switch (inheritance) {
             case "final" -> AccessFlag.FINAL;
             case "abstract" -> AccessFlag.ABSTRACT;
-            case "open" -> AccessFlag.SUPER;
+            case "open" -> null;
             default -> throw new IllegalStateException("Unknown inheritance: " + inheritance);
         };
 
-        var modifiers = visibilityFlag.mask() | inheritanceFlag.mask();
+        var modifiers = visibilityFlag.mask();
+        if (inheritanceFlag != null) {
+            modifiers |= inheritanceFlag.mask();
+        }
         if (isStatic) {
             modifiers |= AccessFlag.STATIC.mask();
         }
