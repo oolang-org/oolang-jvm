@@ -20,6 +20,8 @@ import org.oolang.parser.OolangAstVisitor;
 import org.oolang.parser.generated.OolangLexer;
 import org.oolang.parser.generated.OolangParser;
 
+import java.lang.constant.ConstantDescs;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.oolang.ast.element.RealElement.ElementType.*;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.*;
@@ -182,7 +184,8 @@ public class OolangAstVisitorTest {
         assertThat(root.children).hasSize(1);
         var constructor = (RealElement) root.children.getFirst();
         assertThat(constructor.elementType).isEqualTo(CONSTRUCTOR);
-        assertThat(constructor.identifier).isNull();
+        assertThat(constructor.identifier).isNotNull();
+        assertThat(constructor.identifier.identifier).isEqualTo(ConstantDescs.INIT_NAME);
         assertThat(constructor.children).hasSize(1);
         var constructorParam = (RealElement) constructor.children.getFirst();
         assertThat(constructorParam.elementType).isEqualTo(VAL);
@@ -360,12 +363,17 @@ public class OolangAstVisitorTest {
                 System.out.println("Hello, World!")
                 }
                 }""");
-        var funCall = verifyMainUntilStatement(astFile);
-        assertThat(funCall.description()).isEqualTo("Expression(funCall System.out.println)");
-        assertThat(funCall.type).isEqualTo(FUN_CALL);
+        var chainable = verifyMainUntilStatement(astFile);
+        assertThat(chainable.description()).isEqualTo("Expression(chainable)");
+        assertThat(chainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(chainable.content()).hasSize(1);
+        var funCall = (RealExpression) chainable.content().getFirst();
+        assertThat(funCall.description()).isEqualTo("Expression(fun_call System.out.println)");
+        assertThat(funCall.expressionType).isEqualTo(FUN_CALL);
+        assertThat(funCall.parent).isEqualTo(chainable);
         assertThat(funCall.content()).hasSize(1);
         var funCallParam = (RealExpression) funCall.content().getFirst();
-        assertThat(funCallParam.description()).isEqualTo("Expression(funCallParameter)");
+        assertThat(funCallParam.description()).isEqualTo("Expression(fun_call_parameter)");
         assertThat(funCallParam.content()).hasSize(1);
         var funCallParamString = (ConstantExpression) funCallParam.content().getFirst();
         assertThat(funCallParamString.description()).isEqualTo("ConstantExpression(\"Hello, World!\")");
@@ -408,24 +416,34 @@ public class OolangAstVisitorTest {
                 System.out.println("Hello, " + args[0] + " and " + args[1])
                 }
                 }""");
-        var funCall = verifyMainUntilStatement(astFile);
-        assertThat(funCall.description()).isEqualTo("Expression(funCall System.out.println)");
-        assertThat(funCall.type).isEqualTo(FUN_CALL);
+        var chainable = verifyMainUntilStatement(astFile);
+        assertThat(chainable.description()).isEqualTo("Expression(chainable)");
+        assertThat(chainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(chainable.content()).hasSize(1);
+        var funCall = (RealExpression) chainable.content().getFirst();
+        assertThat(funCall.description()).isEqualTo("Expression(fun_call System.out.println)");
+        assertThat(funCall.expressionType).isEqualTo(FUN_CALL);
+        assertThat(funCall.parent).isEqualTo(chainable);
         assertThat(funCall.content()).hasSize(1);
         var funCallParam = (RealExpression) funCall.content().getFirst();
-        assertThat(funCallParam.description()).isEqualTo("Expression(funCallParameter)");
+        assertThat(funCallParam.description()).isEqualTo("Expression(fun_call_parameter)");
         assertThat(funCallParam.content()).hasSize(1);
         var funCallParamAdd = (RealExpression) funCallParam.content().getFirst();
         assertThat(funCallParamAdd.description()).isEqualTo("Expression(add)");
-        assertThat(funCallParamAdd.type).isEqualTo(ADD);
+        assertThat(funCallParamAdd.expressionType).isEqualTo(ADD);
         assertThat(funCallParamAdd.content()).hasSize(4);
 
         var funCallParamConstant1 = (ConstantExpression) funCallParamAdd.content().get(0);
         assertThat(funCallParamConstant1.description()).isEqualTo("ConstantExpression(\"Hello, \")");
 
-        var funCallParamArray1 = (RealExpression) funCallParamAdd.content().get(1);
+        var funCallParamChainable1 = (RealExpression) funCallParamAdd.content().get(1);
+        assertThat(funCallParamChainable1.description()).isEqualTo("Expression(chainable)");
+        assertThat(funCallParamChainable1.expressionType).isEqualTo(CHAINABLE);
+        assertThat(funCallParamChainable1.content()).hasSize(1);
+        var funCallParamArray1 = (RealExpression) funCallParamChainable1.content().getFirst();
         assertThat(funCallParamArray1.description()).isEqualTo("Expression(indexing args)");
-        assertThat(funCallParamArray1.type).isEqualTo(INDEXING);
+        assertThat(funCallParamArray1.expressionType).isEqualTo(INDEXING);
+        assertThat(funCallParamArray1.parent).isEqualTo(funCallParamChainable1);
         assertThat(funCallParamArray1.content()).hasSize(1);
         var funCallParamArrayIndex1 = (ConstantExpression) funCallParamArray1.content().getFirst();
         assertThat(funCallParamArrayIndex1.description()).isEqualTo("ConstantExpression(0)");
@@ -433,9 +451,14 @@ public class OolangAstVisitorTest {
         var funCallParamConstant2 = (ConstantExpression) funCallParamAdd.content().get(2);
         assertThat(funCallParamConstant2.description()).isEqualTo("ConstantExpression(\" and \")");
 
-        var funCallParamArray2 = (RealExpression) funCallParamAdd.content().get(3);
+        var funCallParamChainable2 = (RealExpression) funCallParamAdd.content().get(3);
+        assertThat(funCallParamChainable2.description()).isEqualTo("Expression(chainable)");
+        assertThat(funCallParamChainable2.expressionType).isEqualTo(CHAINABLE);
+        assertThat(funCallParamChainable2.content()).hasSize(1);
+        var funCallParamArray2 = (RealExpression) funCallParamChainable2.content().getFirst();
         assertThat(funCallParamArray2.description()).isEqualTo("Expression(indexing args)");
-        assertThat(funCallParamArray2.type).isEqualTo(INDEXING);
+        assertThat(funCallParamArray2.expressionType).isEqualTo(INDEXING);
+        assertThat(funCallParamArray2.parent).isEqualTo(funCallParamChainable2);
         assertThat(funCallParamArray2.content()).hasSize(1);
         var funCallParamArrayIndex2 = (ConstantExpression) funCallParamArray2.content().getFirst();
         assertThat(funCallParamArrayIndex2.description()).isEqualTo("ConstantExpression(1)");
@@ -474,15 +497,24 @@ public class OolangAstVisitorTest {
         var funDeclaration = (RealElement) classBody.content().getLast();
         var codeBlock = (CodeBlock) funDeclaration.children.getLast();
         var statement = (RealStatement) codeBlock.content().getFirst();
-        var funCall = (RealExpression) statement.children.getFirst();
-        assertThat(funCall.description()).isEqualTo("Expression(funCall System.out.println)");
-        assertThat(funCall.type).isEqualTo(FUN_CALL);
+        var chainable = (RealExpression) statement.children.getFirst();
+        assertThat(chainable.description()).isEqualTo("Expression(chainable)");
+        assertThat(chainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(chainable.content()).hasSize(1);
+        var funCall = (RealExpression) chainable.content().getFirst();
+        assertThat(funCall.description()).isEqualTo("Expression(fun_call System.out.println)");
+        assertThat(funCall.expressionType).isEqualTo(FUN_CALL);
+        assertThat(funCall.parent).isEqualTo(chainable);
         assertThat(funCall.content()).hasSize(1);
         var funCallParam = (RealExpression) funCall.content().getFirst();
-        assertThat(funCallParam.description()).isEqualTo("Expression(funCallParameter)");
+        assertThat(funCallParam.description()).isEqualTo("Expression(fun_call_parameter)");
         assertThat(funCallParam.content()).hasSize(1);
-        var funCallParamPropAccess = (RealExpression) funCallParam.content().getFirst();
-        assertThat(funCallParamPropAccess.description()).isEqualTo("Expression(variableOrPropAccess PROP)");
+        var funCallParamChainable = (RealExpression) funCallParam.content().getFirst();
+        assertThat(funCallParamChainable.description()).isEqualTo("Expression(chainable)");
+        assertThat(funCallParamChainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(funCallParamChainable.content()).hasSize(1);
+        var funCallParamPropAccess = (RealExpression) funCallParamChainable.content().getFirst();
+        assertThat(funCallParamPropAccess.description()).isEqualTo("Expression(variable_or_prop_access PROP)");
 
         print(astFile);
     }
@@ -494,7 +526,7 @@ public class OolangAstVisitorTest {
                 class Example {
                 val prop = "Hello, World!"
                 static fun main(args: Array<String>) {
-                System.out.println(prop)
+                System.out.println(new Example().prop)
                 }
                 }""");
         verifyPackage(astFile);
@@ -517,15 +549,34 @@ public class OolangAstVisitorTest {
         var funDeclaration = (RealElement) classBody.content().getLast();
         var codeBlock = (CodeBlock) funDeclaration.children.getLast();
         var statement = (RealStatement) codeBlock.content().getFirst();
-        var funCall = (RealExpression) statement.children.getFirst();
-        assertThat(funCall.description()).isEqualTo("Expression(funCall System.out.println)");
-        assertThat(funCall.type).isEqualTo(FUN_CALL);
+        var chainable = (RealExpression) statement.children.getFirst();
+        assertThat(chainable.description()).isEqualTo("Expression(chainable)");
+        assertThat(chainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(chainable.content()).hasSize(1);
+        var funCall = (RealExpression) chainable.content().getFirst();
+        assertThat(funCall.description()).isEqualTo("Expression(fun_call System.out.println)");
+        assertThat(funCall.expressionType).isEqualTo(FUN_CALL);
+        assertThat(funCall.parent).isEqualTo(chainable);
         assertThat(funCall.content()).hasSize(1);
         var funCallParam = (RealExpression) funCall.content().getFirst();
-        assertThat(funCallParam.description()).isEqualTo("Expression(funCallParameter)");
+        assertThat(funCallParam.description()).isEqualTo("Expression(fun_call_parameter)");
         assertThat(funCallParam.content()).hasSize(1);
-        var funCallParamPropAccess = (RealExpression) funCallParam.content().getFirst();
-        assertThat(funCallParamPropAccess.description()).isEqualTo("Expression(variableOrPropAccess prop)");
+        var funCallParamChainable = (RealExpression) funCallParam.content().getFirst();
+        assertThat(funCallParamChainable.description()).isEqualTo("Expression(chainable)");
+        assertThat(funCallParamChainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(funCallParamChainable.content()).hasSize(2);
+        var funCallParamClassInstantiation = (RealExpression) funCallParamChainable.content().getFirst();
+        assertThat(funCallParamClassInstantiation.description()).isEqualTo("Expression(fun_call <init>)");
+        assertThat(funCallParamClassInstantiation.expressionType).isEqualTo(FUN_CALL);
+        assertThat(funCallParamClassInstantiation.parent).isEqualTo(funCallParamChainable);
+        assertThat(funCallParamClassInstantiation.type).isNotNull();
+        assertThat(funCallParamClassInstantiation.type.description()).isEqualTo("Type(Example)");
+        assertThat(funCallParamClassInstantiation.content()).isEmpty();
+        var funCallParamVarOrPropAccess = (RealExpression) funCallParamChainable.content().getLast();
+        assertThat(funCallParamVarOrPropAccess.description()).isEqualTo("Expression(variable_or_prop_access prop)");
+        assertThat(funCallParamVarOrPropAccess.expressionType).isEqualTo(VARIABLE_OR_PROP_ACCESS);
+        assertThat(funCallParamVarOrPropAccess.parent).isEqualTo(funCallParamChainable);
+        assertThat(funCallParamVarOrPropAccess.content()).isEmpty();
 
         print(astFile);
     }

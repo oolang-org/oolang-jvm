@@ -9,13 +9,20 @@ import org.jspecify.annotations.Nullable;
 import org.oolang.ast.AbstractAst;
 import org.oolang.ast.Annotation;
 import org.oolang.ast.Ast;
+import org.oolang.ast.expression.Expression;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public final class RealStatement extends AbstractAst implements StatementNode {
+    public final @NonNull StatementType statementType;
     public @Nullable List<@NonNull Annotation> annotations = null;
-    public @NonNull List<@NonNull Ast> children = new ArrayList<>();
+    public @NonNull List<@NonNull Expression> children = new ArrayList<>();
+
+    public RealStatement(final @NonNull StatementType statementType) {
+        this.statementType = Objects.requireNonNull(statementType);
+    }
 
     @Override
     public @NonNull String description() {
@@ -30,5 +37,10 @@ public final class RealStatement extends AbstractAst implements StatementNode {
         }
         content.addAll(children);
         return content;
+    }
+
+    public enum StatementType {
+        EXPRESSION,
+        ASSIGNMENT
     }
 }

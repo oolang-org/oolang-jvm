@@ -5,28 +5,34 @@
 package org.oolang.semantic.analyzer;
 
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.oolang.ast.AstFile;
 import org.oolang.ast.Identifier.SimpleIdentifier;
 import org.oolang.ast.Import;
 import org.oolang.ast.element.ClassBody;
+import org.oolang.ast.element.ElementModifier;
 import org.oolang.ast.element.RealElement;
 import org.oolang.ast.expression.ConstantExpression;
 import org.oolang.ast.expression.Expression;
 import org.oolang.ast.expression.LoadExpression;
 import org.oolang.ast.expression.RealExpression;
 import org.oolang.ast.statement.CodeBlock;
+import org.oolang.ast.statement.ConstructorCodeBlock;
 import org.oolang.ast.statement.RealStatement;
+import org.oolang.ast.statement.Statement;
 import org.oolang.symbol.table.BaseSymbol.Function;
 import org.oolang.symbol.table.BaseSymbol.Property;
 import org.oolang.symbol.table.*;
 import org.oolang.symbol.table.Variable.SimpleVariable;
 
+import java.lang.constant.ConstantDescs;
 import java.util.*;
 
+import static org.oolang.ast.element.ElementModifier.ModifierType.INHERITANCE;
 import static org.oolang.ast.element.RealElement.ElementType.PROPERTY_INITIALIZER;
 import static org.oolang.ast.expression.JvmInvocationUtils.*;
-import static org.oolang.ast.expression.RealExpression.ExpressionType.FUN_CALL_PARAMETER;
-import static org.oolang.ast.expression.RealExpression.ExpressionType.PROP_ACCESS;
+import static org.oolang.ast.expression.RealExpression.ExpressionType.*;
+import static org.oolang.ast.statement.RealStatement.StatementType.ASSIGNMENT;
 import static org.oolang.symbol.table.TypeResolver.*;
 import static org.oolang.symbol.table.Visibility.PRIVATE;
 
@@ -45,52 +51,55 @@ public final class OolangSemanticAnalyzer {
 
         for (final var element : ast.rootElements) {
             final var scopes = new Scopes();
-            switch (element.elementType) {
-                case CLASS -> {
-                    assert symbolTable.klasses != null;
-                    visitClass(element, scopes, symbolTable.klasses.get(elementName(element)), imports);
-                }
-                case INTERFACE -> throw new UnsupportedOperationException("interface");
-                default -> throw new IllegalStateException("Unknown element: " + element.elementType);
+            assert symbolTable.klasses != null;
+            final var klass = symbolTable.klasses.get(elementName(element));
+            assert klass != null;
+            if (klass.isInterface()) {
+                throw new UnsupportedOperationException("interface");
+            } else {
+                visitClass(element, scopes, klass);
             }
         }
     }
 
     private static void visitClass(final @NonNull RealElement classElement,
                                    final @NonNull Scopes scopes,
-                                   final @NonNull OolangKlass klass,
-                                   final @NonNull Map<@NonNull String, @NonNull String> imports) {
+                                   final @NonNull OolangKlass currentKlass) {
         assert classElement != null;
         assert scopes != null;
-        assert klass != null;
-        assert imports != null;
+        assert currentKlass != null;
 
-        final Scopes effectiveScopes = (klass.isStatic)
+        final Scopes effectiveScopes = (currentKlass.isStatic)
                 ? scopes.enterStatic() // static class = start a new fresh Scopes
                 : scopes;
 
         for (final var child : classElement.children) {
             if (child instanceof ClassBody classBody) {
-                effectiveScopes.push(klass.isStatic, true);
-                visitClassBody(classBody, scopes, klass, imports);
-                effectiveScopes.pop(klass.isStatic);
+                effectiveScopes.pushKlass(currentKlass);
+                visitClassBody(classBody, effectiveScopes, currentKlass);
+                effectiveScopes.popKlass();
             }
         }
     }
 
     private static void visitClassBody(final @NonNull ClassBody classBody,
                                        final @NonNull Scopes scopes,
-                                       final @NonNull OolangKlass klass,
-                                       final @NonNull Map<@NonNull String, @NonNull String> imports) {
+                                       final @NonNull OolangKlass currentKlass) {
         assert classBody != null;
         assert scopes != null;
-        assert klass != null;
-        assert imports != null;
+        assert currentKlass != null;
 
+        // the inline assignments for constructors
+        final var initializedPropAssignments = new ArrayList<@NonNull RealStatement>();
         // first loop to resolve all properties and add them to the current scope
         for (final var child : classBody.children) {
             switch (child.elementType) {
-                case VAR, VAL -> visitProperty(child, scopes, klass, imports);
+                case VAR, VAL -> {
+                    final var propAssignment = visitProperty(child, scopes, currentKlass);
+                    if (propAssignment != null) {
+                        initializedPropAssignments.add(propAssignment);
+                    }
+                }
             }
         }
 
@@ -98,55 +107,86 @@ public final class OolangSemanticAnalyzer {
         var funIndex = 0;
         for (final var child : classBody.children) {
             switch (child.elementType) {
-                case CONSTRUCTOR, FUN -> visitFunction(child, scopes, klass, funIndex++, imports);
+                case CONSTRUCTOR, FUN ->
+                        visitFunction(child, scopes, currentKlass, funIndex++, initializedPropAssignments);
                 case CLASS -> {
-                    assert klass.klasses != null;
-                    visitClass(child, scopes, klass.klasses.get(elementName(child)), imports);
+                    assert currentKlass.klasses != null;
+                    visitClass(child, scopes, currentKlass.klasses.get(elementName(child)));
                 }
                 case INTERFACE -> throw new UnsupportedOperationException("interface");
             }
         }
     }
 
-    private static void visitProperty(final @NonNull RealElement propertyElement,
-                                      final @NonNull Scopes scopes,
-                                      final @NonNull OolangKlass klass,
-                                      final @NonNull Map<@NonNull String, @NonNull String> imports) {
+    /**
+     * If this property is not static (= instance) and has an initializer, return the inline assignment for constructors
+     */
+    private static @Nullable RealStatement visitProperty(final @NonNull RealElement propertyElement,
+                                                         final @NonNull Scopes scopes,
+                                                         final @NonNull OolangKlass currentKlass) {
         assert propertyElement != null;
         assert scopes != null;
-        assert klass != null;
-        assert imports != null;
+        assert currentKlass != null;
 
-        final var property = klass.properties().get(elementName(propertyElement));
+        final var propertyName = elementName(propertyElement);
+        final var property = currentKlass.properties().get(propertyName);
+        scopes.putProperty(property);
+
         final var typeOrNull = property.typeOrNull(); // resolve property type if explicit
-        if (typeOrNull == null) { // else infer type from the property's expression
-            assert propertyElement.children.size() == 1;
-            assert propertyElement.children.getFirst() instanceof RealElement realElement
-                    && realElement.elementType == PROPERTY_INITIALIZER;
 
-            final var propertyInitializer = (RealElement) propertyElement.children.getFirst();
-            final var propertyExpression = (Expression) propertyInitializer.children.getFirst();
-            final var propertyType = visitExpression(propertyExpression, scopes, klass, imports);
-            property.setType(propertyType);
-            // also set the property's descriptor string
-            propertyElement.setDescriptorString(TypeResolver.getKlassFromType(propertyType).descriptorString());
+        for (final var child : propertyElement.children) {
+            if (child instanceof RealElement realElement && realElement.elementType == PROPERTY_INITIALIZER) {
+                final var propertyExpression = (Expression) realElement.children.getFirst();
+                final var propertyType = visitExpression(propertyExpression, scopes, currentKlass, null);
+
+                if (typeOrNull == null) { // infer type from the property's expression
+                    property.setType(propertyType);
+                    // also set the property's descriptor string
+                    propertyElement.setDescriptorString(TypeResolver.getKlassFromType(propertyType).descriptorString());
+                }
+
+                // if property is not static (= instance), build and return the inline assignment for constructors
+                if (!property.isStatic) {
+                    final var assignment = new RealStatement(ASSIGNMENT);
+
+                    // build the assigned property
+                    final var assignedPart = new RealExpression(CHAINABLE);
+                    // 1) load this
+                    loadThis(assignedPart, scopes);
+                    // 2) resolve value to assign to the property = the prop initializer expression
+                    assignedPart.children.add(propertyExpression);
+                    // 3) assign property to its value
+                    final var propAssignmentExpression = new RealExpression(PROP_ASSIGNMENT);
+                    propAssignmentExpression.identifiers.add(new SimpleIdentifier(propertyName));
+                    propAssignmentExpression.ownerDescriptorString = currentKlass.descriptorString();
+                    propAssignmentExpression.invocation = PUT_FIELD;
+                    final var propDescriptorString = propertyElement.descriptorString();
+                    assert propDescriptorString != null;
+                    propAssignmentExpression.setDescriptorString(propDescriptorString);
+                    propAssignmentExpression.parent = assignedPart;
+                    assignedPart.children.add(propAssignmentExpression);
+
+                    assignment.children.add(assignedPart);
+                    return assignment;
+                }
+            }
         }
 
-        scopes.putProperty(property);
+        return null;
     }
 
     private static void visitFunction(final @NonNull RealElement funElement,
                                       final @NonNull Scopes scopes,
-                                      final @NonNull OolangKlass klass,
+                                      final @NonNull OolangKlass currentKlass,
                                       final int funIndex,
-                                      final @NonNull Map<@NonNull String, @NonNull String> imports) {
+                                      final @NonNull List<@NonNull RealStatement> initializedPropAssignments) {
         assert funElement != null;
         assert scopes != null;
-        assert klass != null;
-        assert imports != null;
+        assert currentKlass != null;
+        assert initializedPropAssignments != null;
 
-        assert klass.functions != null;
-        final var function = klass.functions.get(funIndex);
+        assert currentKlass.functions != null;
+        final var function = currentKlass.functions.get(funIndex);
         //noinspection ResultOfMethodCallIgnored
         function.returnType(); // resolve function's return type
 
@@ -155,7 +195,7 @@ public final class OolangSemanticAnalyzer {
                 : scopes;
 
         if (!function.isAbstract) {
-            effectiveScopes.push(function.isStatic, false);
+            effectiveScopes.pushFunction(function.isStatic);
         }
 
         for (final var parameter : function.parameters) {
@@ -167,56 +207,119 @@ public final class OolangSemanticAnalyzer {
 
         if (!function.isAbstract) {
             // code block is the last child of a non-abstract function
-            visitCodeBlock((CodeBlock) funElement.children.getLast(), effectiveScopes, klass, imports);
-            effectiveScopes.pop(function.isStatic);
+            switch (funElement.children.getLast()) {
+                case CodeBlock codeBlock -> visitCodeBlock(codeBlock, effectiveScopes, currentKlass);
+                case ConstructorCodeBlock constructorCodeBlock -> {
+                    // add the "open" inheritance modifier, a constructor cannot be final
+                    funElement.modifiers.add(new ElementModifier(INHERITANCE, "open"));
+                    visitConstructorCodeBlock(constructorCodeBlock, effectiveScopes, currentKlass);
+                    // add initialized property assignments upfront in early larval
+                    constructorCodeBlock.earlyLarvalStatements.addAll(0, initializedPropAssignments);
+                }
+                default -> throw new IllegalStateException("Unexpected value: " + funElement.children.getLast());
+            }
+            effectiveScopes.popFunction(function.isStatic);
         }
     }
 
     private static void visitCodeBlock(final @NonNull CodeBlock codeBlock,
                                        final @NonNull Scopes scopes,
-                                       final @NonNull OolangKlass klass,
-                                       final @NonNull Map<@NonNull String, @NonNull String> imports) {
+                                       final @NonNull OolangKlass currentKlass) {
         assert codeBlock != null;
         assert scopes != null;
-        assert klass != null;
-        assert imports != null;
+        assert currentKlass != null;
 
         for (final var statement : codeBlock.statements) {
-            switch (statement) {
-                case RealStatement realStatement -> visitStatement(realStatement, scopes, klass, imports);
-                default -> throw new UnsupportedOperationException("Unsupported statement: " + statement);
-            }
+            visitStatement(statement, scopes, currentKlass);
         }
     }
 
-    private static void visitStatement(final @NonNull RealStatement statement,
-                                       final @NonNull Scopes scopes,
-                                       final @NonNull OolangKlass klass,
-                                       final @NonNull Map<@NonNull String, @NonNull String> imports) {
-        assert statement != null;
+    private static void visitConstructorCodeBlock(ConstructorCodeBlock constructorCodeBlock,
+                                                  final @NonNull Scopes scopes,
+                                                  final @NonNull OolangKlass currentKlass) {
+        assert constructorCodeBlock != null;
         assert scopes != null;
-        assert klass != null;
-        assert imports != null;
+        assert currentKlass != null;
 
-        for (final var child : statement.children) {
-            switch (child) {
-                case Expression expression -> visitExpression(expression, scopes, klass, imports);
-                default -> throw new UnsupportedOperationException("Unsupported statement child: " + child);
-            }
+        for (final var earlyLarvalStatement : constructorCodeBlock.earlyLarvalStatements) {
+            visitStatement(earlyLarvalStatement, scopes, currentKlass);
+        }
+
+        if (constructorCodeBlock.initCall != null) {
+            assert constructorCodeBlock.initCall.expressionType == FUN_CALL;
+            visitFunCallExpression(constructorCodeBlock.initCall, scopes, currentKlass, null);
+        } else {
+            // Build an implicit call to no-arg super constructor
+            final var chainable = new RealExpression(CHAINABLE);
+            loadThis(chainable, scopes);
+
+            final var implicitSuperConstructorCall = new RealExpression(FUN_CALL);
+            implicitSuperConstructorCall.identifiers.add(new SimpleIdentifier(ConstantDescs.INIT_NAME));
+            final var superType = currentKlass.genericSuperKlasses().getFirst();
+            implicitSuperConstructorCall.ownerDescriptorString = getKlassFromType(superType).descriptorString();
+            implicitSuperConstructorCall.invocation = INVOKE_SPECIAL;
+            implicitSuperConstructorCall.typeDescriptorString = "()V";
+            chainable.children.add(implicitSuperConstructorCall);
+
+            constructorCodeBlock.initCall = chainable;
+        }
+
+        for (final var lateLarvalStatement : constructorCodeBlock.lateLarvalStatements) {
+            visitStatement(lateLarvalStatement, scopes, currentKlass);
         }
     }
 
-    private static @NonNull Type visitExpression(final @NonNull Expression expression,
-                                                 final @NonNull Scopes scopes,
-                                                 final @NonNull OolangKlass klass,
-                                                 final @NonNull Map<@NonNull String, @NonNull String> imports) {
+    private static void loadThis(final @NonNull RealExpression expression, final @NonNull Scopes scopes) {
         assert expression != null;
         assert scopes != null;
-        assert klass != null;
-        assert imports != null;
+
+        final var thisVariable = (SimpleVariable) scopes.resolveVariable("this");
+        assert thisVariable != null;
+        final var loadThis = loadExpression(thisVariable, new SimpleIdentifier("this"));
+        if (expression.parent != null) {
+            // add loadThis upfront
+            addNewExpressionInAst(expression, loadThis);
+        } else {
+            assert expression.expressionType == CHAINABLE;
+            expression.children.add(loadThis);
+        }
+    }
+
+    private static void visitStatement(final @NonNull Statement statement,
+                                       final @NonNull Scopes scopes,
+                                       final @NonNull OolangKlass currentKlass) {
+        switch (statement) {
+            case RealStatement realStatement -> visitRealStatement(realStatement, scopes, currentKlass);
+            default -> throw new UnsupportedOperationException("Unsupported statement: " + statement);
+        }
+    }
+
+    private static void visitRealStatement(final @NonNull RealStatement realStatement,
+                                           final @NonNull Scopes scopes,
+                                           final @NonNull OolangKlass currentKlass) {
+        assert realStatement != null;
+        assert scopes != null;
+        assert currentKlass != null;
+
+        for (final var childExpression : realStatement.children) {
+            visitExpression(childExpression, scopes, currentKlass, null);
+        }
+    }
+
+    /**
+     * @param applicableKlass the {@link Klass} this expression applies to. If null, the scope's current klass is used.
+     */
+    private static @NonNull Type visitExpression(final @NonNull Expression expression,
+                                                 final @NonNull Scopes scopes,
+                                                 final @NonNull OolangKlass currentKlass,
+                                                 final @Nullable Klass applicableKlass) {
+        assert expression != null;
+        assert scopes != null;
+        assert currentKlass != null;
 
         return switch (expression) {
-            case RealExpression realExpression -> visitRealExpression(realExpression, scopes, klass, imports);
+            case RealExpression realExpression ->
+                    visitRealExpression(realExpression, scopes, currentKlass, applicableKlass);
             case ConstantExpression constantExpression -> {
                 final var constantKlass = TypeResolver.getKlassFromConstantDesc(constantExpression.value);
                 constantExpression.setDescriptorString(constantKlass.descriptorString());
@@ -228,34 +331,64 @@ public final class OolangSemanticAnalyzer {
 
     private static @NonNull Type visitRealExpression(final @NonNull RealExpression realExpression,
                                                      final @NonNull Scopes scopes,
-                                                     final @NonNull OolangKlass klass,
-                                                     final @NonNull Map<@NonNull String, @NonNull String> imports) {
+                                                     final @NonNull OolangKlass currentKlass,
+                                                     final @Nullable Klass applicableKlass) {
         assert realExpression != null;
         assert scopes != null;
-        assert klass != null;
-        assert imports != null;
+        assert currentKlass != null;
 
-        return switch (realExpression.type) {
-            case ADD -> visitAdditiveExpression(realExpression, scopes, klass, imports);
-            case INDEXING -> visitIndexingExpression(realExpression, scopes, klass, imports);
-            case FUN_CALL -> visitFunCallExpression(realExpression, scopes, klass, imports);
-            case VARIABLE_OR_PROP_ACCESS -> visitVariableOrPropAccessExpression(realExpression, scopes, klass, imports);
-            default -> throw new UnsupportedOperationException("Unsupported expression type: " + realExpression.type);
+        return switch (realExpression.expressionType) {
+            case CHAINABLE -> visitChainableExpression(realExpression, scopes, currentKlass);
+            case ADD -> visitAdditiveExpression(realExpression, scopes, currentKlass);
+            case INDEXING -> visitIndexingExpression(realExpression, scopes, currentKlass, applicableKlass);
+            case VARIABLE_OR_PROP_ACCESS ->
+                    visitVariableOrPropAccessExpression(realExpression, scopes, currentKlass, applicableKlass);
+            case FUN_CALL -> visitFunCallExpression(realExpression, scopes, currentKlass, applicableKlass);
+            default -> throw new UnsupportedOperationException("Unsupported expression type: " +
+                    realExpression.expressionType);
         };
+    }
+
+    private static @NonNull Type visitChainableExpression(final @NonNull RealExpression chainableExpression,
+                                                          final @NonNull Scopes scopes,
+                                                          final @NonNull OolangKlass currentKlass) {
+        assert chainableExpression != null;
+        assert !chainableExpression.children.isEmpty();
+        assert scopes != null;
+        assert currentKlass != null;
+
+        // iterate on a copy of chained expressions, because this chain may be updated while iterating
+        Type lastType = null;
+        for (final var child : List.copyOf(chainableExpression.children)) {
+            lastType = visitExpression(
+                    child,
+                    scopes,
+                    currentKlass,
+                    (lastType != null) ? getKlassFromType(lastType) : null);
+        }
+        assert lastType != null;
+
+        // if there is only one child after visiting, replace this chained expression with its only child
+        if (chainableExpression.children.size() == 1
+                && chainableExpression.children.getFirst() instanceof RealExpression onlyChild) {
+            chainableExpression.replaceWith(onlyChild);
+        } else {
+            chainableExpression.setDescriptorString(getKlassFromType(lastType).descriptorString());
+        }
+
+        return lastType;
     }
 
     private static @NonNull Type visitAdditiveExpression(final @NonNull RealExpression additiveExpression,
                                                          final @NonNull Scopes scopes,
-                                                         final @NonNull OolangKlass klass,
-                                                         final @NonNull Map<@NonNull String, @NonNull String> imports) {
+                                                         final @NonNull OolangKlass currentKlass) {
         assert additiveExpression != null;
         assert scopes != null;
-        assert klass != null;
-        assert imports != null;
+        assert currentKlass != null;
 
         var isStringConcat = false;
         for (final var child : additiveExpression.children) {
-            final var childType = visitExpression(child, scopes, klass, imports);
+            final var childType = visitExpression(child, scopes, currentKlass, null);
             if (childType == STRING_KLASS) {
                 isStringConcat = true;
             }
@@ -270,17 +403,18 @@ public final class OolangSemanticAnalyzer {
 
     private static @NonNull Type visitIndexingExpression(final @NonNull RealExpression indexingExpression,
                                                          final @NonNull Scopes scopes,
-                                                         final @NonNull OolangKlass klass,
-                                                         final @NonNull Map<@NonNull String, @NonNull String> imports) {
+                                                         final @NonNull OolangKlass currentKlass,
+                                                         final @Nullable Klass applicableKlass) {
         assert indexingExpression != null;
         assert scopes != null;
-        assert klass != null;
-        assert imports != null;
+        assert currentKlass != null;
 
-        final var callerType = resolveCaller(indexingExpression, scopes, klass, imports, true);
-        final var indexType = visitExpression(indexingExpression.children.getLast(), scopes, klass, imports);
+        final var callerType = visitVariableOrPropAccessChain(
+                indexingExpression, scopes, currentKlass, applicableKlass, true);
+        final var indexType = visitExpression(
+                indexingExpression.children.getLast(), scopes, currentKlass, null);
 
-        final var caller = TypeResolver.getKlassFromType(callerType);
+        final var caller = getKlassFromType(callerType);
         if (caller.isArray()) {
             if (indexType != INT_KLASS) {
                 throw new OolangSemanticException("Indexing expression must be of type Int");
@@ -288,7 +422,7 @@ public final class OolangSemanticAnalyzer {
             // get the component type of this array
             final var componentType = caller.componentType();
             assert componentType != null;
-            indexingExpression.setDescriptorString(TypeResolver.getKlassFromType(componentType).descriptorString());
+            indexingExpression.setDescriptorString(getKlassFromType(componentType).descriptorString());
             return componentType;
         }
         throw new UnsupportedOperationException("todo List / Map indexing operations");
@@ -297,46 +431,67 @@ public final class OolangSemanticAnalyzer {
     private static @NonNull Type visitVariableOrPropAccessExpression(
             final @NonNull RealExpression variableOrPropAccessExpression,
             final @NonNull Scopes scopes,
-            final @NonNull OolangKlass klass,
-            final @NonNull Map<@NonNull String, @NonNull String> imports
+            final @NonNull OolangKlass currentKlass,
+            final @Nullable Klass applicableKlass
     ) {
         assert variableOrPropAccessExpression != null;
         assert scopes != null;
-        assert klass != null;
-        assert imports != null;
+        assert currentKlass != null;
 
-        return resolveCaller(variableOrPropAccessExpression, scopes, klass, imports, true);
+        return visitVariableOrPropAccessChain(
+                variableOrPropAccessExpression, scopes, currentKlass, applicableKlass, true);
     }
 
     private static @NonNull Type visitFunCallExpression(final @NonNull RealExpression funCallExpression,
                                                         final @NonNull Scopes scopes,
-                                                        final @NonNull OolangKlass klass,
-                                                        final @NonNull Map<@NonNull String, @NonNull String> imports) {
+                                                        final @NonNull OolangKlass currentKlass,
+                                                        final @Nullable Klass applicableKlass) {
         assert funCallExpression != null;
         assert scopes != null;
-        assert klass != null;
-        assert imports != null;
+        assert currentKlass != null;
 
-        final var callerType = (funCallExpression.identifiers.size() == 1) ? klass
-                : resolveCaller(funCallExpression, scopes, klass, imports, false);
+        final Klass caller;
+        if (funCallExpression.type != null) {
+            // constructor call
+            caller = getKlassFromType(TypeResolver.resolveType(funCallExpression.type, currentKlass, false));
+            // NEW instruction to allocate memory
+            final var newExpression = new RealExpression(NEW);
+            newExpression.setDescriptorString(caller.descriptorString());
+            // mutate AST to add NEW expression upfront
+            addNewExpressionInAst(funCallExpression, newExpression);
+        } else if (funCallExpression.identifiers.size() == 1) {
+            if (applicableKlass != null) {
+                caller = applicableKlass;
+            } else {
+                loadThis(funCallExpression, scopes);
+                caller = currentKlass;
+            }
+        } else {
+            caller = getKlassFromType(visitVariableOrPropAccessChain(
+                    funCallExpression, scopes, currentKlass, applicableKlass, false));
+        }
 
-        // last step: resolve the function to call and its parameters
-        final var funName = funCallExpression.identifiers.getFirst().identifier;
+        // resolve the function to call and its parameters
         final var funParameters = new ArrayList<@NonNull Type>();
         for (final var rawFunChild : funCallExpression.children) {
-            if (rawFunChild instanceof RealExpression funChild && funChild.type == FUN_CALL_PARAMETER) {
-                funParameters.add(visitFunParameter(funChild, scopes, klass, imports));
+            if (rawFunChild instanceof RealExpression funChild && funChild.expressionType == FUN_CALL_PARAMETER) {
+                if (!funChild.identifiers.isEmpty()) {
+                    throw new UnsupportedOperationException("Resolution of named parameter not implemented yet");
+                }
+                funParameters.add(visitFunCallParameter(funChild, scopes, currentKlass));
             }
         }
 
-        final var caller = TypeResolver.getKlassFromType(callerType);
+        // search super classes for caller. If present, we can access its protected functions
         var includeProtected = false;
-        for (final var superType : klass.genericSuperKlasses()) {
-            if (TypeResolver.getKlassFromType(superType).equals(caller)) {
+        for (final var superType : currentKlass.genericSuperKlasses()) {
+            if (getKlassFromType(superType).equals(caller)) {
                 includeProtected = true;
                 break;
             }
         }
+
+        final var funName = funCallExpression.identifiers.getFirst().identifier;
         final var function = caller.accessibleFunction(funName, funParameters, includeProtected);
         if (function == null) {
             throw new OolangSemanticException("Could not resolve function '" + funName +
@@ -349,20 +504,15 @@ public final class OolangSemanticAnalyzer {
         return function.returnType();
     }
 
-    private static @NonNull Type visitFunParameter(final @NonNull RealExpression funChild,
-                                                   final @NonNull Scopes scopes,
-                                                   final @NonNull OolangKlass klass,
-                                                   final @NonNull Map<@NonNull String, @NonNull String> imports) {
+    private static @NonNull Type visitFunCallParameter(final @NonNull RealExpression funChild,
+                                                       final @NonNull Scopes scopes,
+                                                       final @NonNull OolangKlass currentKlass) {
         assert funChild != null;
         assert scopes != null;
-        assert klass != null;
-        assert imports != null;
+        assert currentKlass != null;
 
-        if (!funChild.identifiers.isEmpty()) {
-            throw new UnsupportedOperationException("Resolution of variable as parameter not implemented");
-        }
-        // else there is an expression to resolve
-        return visitExpression(funChild.children.getFirst(), scopes, klass, imports);
+        // resolve fun parameter expression
+        return visitExpression(funChild.children.getFirst(), scopes, currentKlass, null);
     }
 
     private static @NonNull String functionInvocation(final @NonNull Klass caller, final @NonNull Function function) {
@@ -377,83 +527,139 @@ public final class OolangSemanticAnalyzer {
         }
         if (function.visibility == PRIVATE
                 || !caller.equals(function.declaringKlass)
-                || function.name.equals(CONSTRUCTOR_NAME)) {
+                || function.name.equals(ConstantDescs.INIT_NAME)) {
             return INVOKE_SPECIAL;
         }
         return INVOKE_VIRTUAL;
         // todo INVOKE_DYNAMIC
     }
 
-    private static @NonNull Type resolveCaller(final @NonNull RealExpression expression,
-                                               final @NonNull Scopes scopes,
-                                               final @NonNull OolangKlass klass,
-                                               final @NonNull Map<@NonNull String, @NonNull String> imports,
-                                               final boolean untilLast) {
+    private static @NonNull Type visitVariableOrPropAccessChain(final @NonNull RealExpression expression,
+                                                                final @NonNull Scopes scopes,
+                                                                final @NonNull OolangKlass currentKlass,
+                                                                final @Nullable Klass applicableKlass,
+                                                                final boolean untilLast) {
         assert expression != null;
         assert scopes != null;
-        assert klass != null;
-        assert imports != null;
+        assert currentKlass != null;
 
-        var idIndex = 0;
+
+        var idIndex = new IndexHolder();
         // if untilLast is false, we must keep the last identifier for function name
         final var lastIdIndex = expression.identifiers.size() - (untilLast ? 0 : 1);
 
-        var id = expression.identifiers.get(idIndex++);
+        var caller = (applicableKlass != null)
+                ? getFirstPropAccessInApplicableKlass(expression, applicableKlass, idIndex)
+                : firstVariableOrPropAccessInCurrentKlass(expression, scopes, currentKlass, idIndex, lastIdIndex);
+
+        while (idIndex.value < lastIdIndex) { // chained properties until last identifier
+            final var id = expression.identifiers.get(idIndex.value++);
+            final var property = caller.accessibleProperty(id.identifier, true);
+            if (property == null) {
+                throw new OolangSemanticException("Could not resolve property " + id.identifier +
+                        " from class " + caller.descriptorString());
+            }
+            final var propAccessExpression = propAccessExpression(property, id);
+            // mutate AST to add property call expression upfront
+            addNewExpressionInAst(expression, propAccessExpression);
+
+            // caller becomes property's klass
+            caller = getKlassFromType(property.type());
+        }
+
+        // clean identifiers after property access(es)
+        expression.identifiers.subList(0, lastIdIndex).clear();
+
+        return caller;
+    }
+
+    private static @NonNull Klass getFirstPropAccessInApplicableKlass(final @NonNull RealExpression expression,
+                                                                      final @NonNull Klass applicableKlass,
+                                                                      final @NonNull IndexHolder idIndex) {
+        assert expression != null;
+        assert applicableKlass != null;
+        assert idIndex != null;
+
+        final var id = expression.identifiers.get(idIndex.value++);
+        final var identifier = id.identifier;
+
+        final var property = applicableKlass.accessibleProperty(identifier, true);
+        if (property == null) {
+            throw new OolangSemanticException("Property '" + identifier + "' not found in class " +
+                    applicableKlass.descriptorString());
+        }
+
+        final var propertyExpression = propAccessExpression(property, id);
+        // mutate AST to add variable or property access call expression upfront
+        addNewExpressionInAst(expression, propertyExpression);
+
+        return getKlassFromType(property.type());
+    }
+
+    private static @NonNull Klass firstVariableOrPropAccessInCurrentKlass(final @NonNull RealExpression expression,
+                                                                          final @NonNull Scopes scopes,
+                                                                          final @NonNull OolangKlass currentKlass,
+                                                                          final @NonNull IndexHolder idIndex,
+                                                                          final int lastIdIndex) {
+        assert expression != null;
+        assert scopes != null;
+        assert currentKlass != null;
+        assert idIndex != null;
+
+        final var id = expression.identifiers.get(idIndex.value++);
         var identifier = id.identifier;
-        var childIndex = 0;
 
         // 1) first identifier may refer to a property or variable from this class's scope
         var variableOrProperty = scopes.resolveVariable(identifier);
 
         if (variableOrProperty == null) {
             // 2) else, first identifier may refer to a property from a parent
-            variableOrProperty = klass.accessibleProperty(identifier, false);
+            variableOrProperty = currentKlass.accessibleProperty(identifier, false);
         }
 
-        Klass caller;
         if (variableOrProperty != null) {
             final var variableOrPropertyExpression = switch (variableOrProperty) {
                 case SimpleVariable variable -> loadExpression(variable, id);
                 case Property property -> propAccessExpression(property, id);
             };
             // mutate AST to add variable or property access call expression upfront
-            expression.children.add(childIndex++, variableOrPropertyExpression);
+            addNewExpressionInAst(expression, variableOrPropertyExpression);
 
-            // caller becomes variable or property's klass
-            caller = getKlassFromType(variableOrProperty.type());
-
-        } else {
-            // 3) else, identifier is a static class access
-            caller = resolveKlassFromSimpleName(identifier, imports);
-            while (caller == null && idIndex < lastIdIndex) {
-                identifier = identifier + "." + expression.identifiers.get(idIndex++).identifier;
-                caller = getKlassFromName(identifier);
-            }
-
-            if (caller == null) {
-                throw new OolangSemanticException("Could not resolve static klass from identifiers " + identifier);
-            }
+            return getKlassFromType(variableOrProperty.type());
         }
 
-        while (idIndex < lastIdIndex) { // chained properties until last identifier
-            id = expression.identifiers.get(idIndex++);
-            identifier = id.identifier;
-            final var property = caller.accessibleProperty(identifier, true);
-            if (property == null) {
-                throw new OolangSemanticException("Could not resolve property " + identifier +
-                        " from class " + caller.descriptorString());
-            }
-            // mutate AST to add property call expression upfront
-            final var propAccessExpression = propAccessExpression(property, id);
-            expression.children.add(childIndex++, propAccessExpression);
-            // caller becomes property's klass
-            caller = getKlassFromType(property.type());
+        // 3) else, identifier is a static class access
+        var caller = resolveKlassFromSimpleName(identifier, currentKlass);
+        while (caller == null && idIndex.value < lastIdIndex) {
+            identifier = identifier + "." + expression.identifiers.get(idIndex.value++).identifier;
+            caller = getKlassFromName(identifier);
         }
 
-        // clean identifiers after property access
-        expression.identifiers.subList(0, lastIdIndex).clear();
-
+        if (caller == null) {
+            throw new OolangSemanticException("Could not resolve static klass from identifier " + identifier);
+        }
         return caller;
+    }
+
+    private static void addNewExpressionInAst(final @NonNull RealExpression expression,
+                                              final @NonNull Expression newExpression) {
+        assert expression != null;
+        assert expression.parent != null;
+        assert expression.parent.expressionType == CHAINABLE;
+        assert newExpression != null;
+
+        if (newExpression instanceof RealExpression newRealExpression) {
+            newRealExpression.parent = expression.parent;
+        }
+
+        final var indexOfExpression = expression.parent.children.indexOf(expression);
+        // "expression" was at index X in the parent list.
+        // Inserts "newExpression" at index X, pushing "expression" to X + 1
+        expression.parent.children.add(indexOfExpression, newExpression);
+        // also remove temporary VAR_OR_PROP_ACCESS
+        if (expression.expressionType == VARIABLE_OR_PROP_ACCESS) {
+            expression.parent.children.remove(indexOfExpression + 1);
+        }
     }
 
     private static @NonNull LoadExpression loadExpression(final @NonNull SimpleVariable variable,
@@ -463,7 +669,7 @@ public final class OolangSemanticAnalyzer {
 
         return new LoadExpression(id,
                 variable.slot(),
-                TypeResolver.getKlassFromType(variable.type()).descriptorString());
+                getKlassFromType(variable.type()).descriptorString());
     }
 
     private static @NonNull RealExpression propAccessExpression(final @NonNull Property property,
@@ -477,6 +683,7 @@ public final class OolangSemanticAnalyzer {
         propAccessExpression.ownerDescriptorString = property.declaringKlass.descriptorString();
         propAccessExpression.setDescriptorString(property.descriptorString());
         // set AST info from the identifier
+        assert id.info() != null;
         propAccessExpression.setInfo(id.info());
 
         return propAccessExpression;
@@ -504,5 +711,7 @@ public final class OolangSemanticAnalyzer {
         return element.identifier.identifier; // a function, property or class has a simple identifier
     }
 
-    private static final @NonNull String CONSTRUCTOR_NAME = "<init>";
+    private static final class IndexHolder {
+        private int value = 0;
+    }
 }

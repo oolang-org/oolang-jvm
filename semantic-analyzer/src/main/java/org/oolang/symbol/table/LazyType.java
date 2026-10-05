@@ -8,17 +8,15 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.oolang.ast.AstType;
 
-import java.util.Map;
-
 @SuppressWarnings("preview")
 final class LazyType {
     private final @NonNull LazyConstant<@NonNull Type> lazyType;
 
-    LazyType(final @Nullable AstType astType, final @NonNull Map<@NonNull String, @NonNull String> imports) {
-        assert imports != null;
+    LazyType(final @Nullable AstType astType, final @NonNull OolangKlass oolangKlass) {
+        assert oolangKlass != null;
 
         lazyType = LazyConstant.of(() -> {
-            final var type = TypeResolver.resolveType(astType, imports, false);
+            final var type = TypeResolver.resolveType(astType, oolangKlass, false);
 
             // type resolution, the compiler will use that descriptor string
             if (astType != null) {

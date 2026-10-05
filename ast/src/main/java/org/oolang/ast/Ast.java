@@ -5,11 +5,12 @@
 package org.oolang.ast;
 
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 public interface Ast {
     @NonNull String description();
 
-    @NonNull AstInfo info();
+    @Nullable AstInfo info();
 
     void setInfo(final @NonNull AstInfo info);
 }

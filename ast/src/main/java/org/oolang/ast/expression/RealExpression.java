@@ -9,16 +9,20 @@ import org.jspecify.annotations.Nullable;
 import org.oolang.ast.AbstractAst;
 import org.oolang.ast.Annotation;
 import org.oolang.ast.Ast;
+import org.oolang.ast.AstType;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import static org.oolang.ast.Identifier.SimpleIdentifier;
 
 public non-sealed class RealExpression extends AbstractAst implements ExpressionNode {
-    public /* lateinit */ ExpressionType type;
+    public /* lateinit */ ExpressionType expressionType;
     public final @NonNull List<@NonNull SimpleIdentifier> identifiers = new ArrayList<>();
+    public @Nullable AstType type = null;
     public @Nullable List<@NonNull Annotation> annotations = null;
+    public @Nullable RealExpression parent = null;
     public final @NonNull List<@NonNull Expression> children = new ArrayList<>();
 
     // set during semantic analysis phase.
@@ -30,16 +34,16 @@ public non-sealed class RealExpression extends AbstractAst implements Expression
     public RealExpression() {
     }
 
-    public RealExpression(final @NonNull ExpressionType type) {
-        assert type != null;
-        this.type = type;
+    public RealExpression(final @NonNull ExpressionType expressionType) {
+        assert expressionType != null;
+        this.expressionType = expressionType;
     }
 
     @Override
     public @NonNull String description() {
         final var sb = new StringBuilder();
         sb.append("Expression(");
-        sb.append(type.label);
+        sb.append(expressionType.name().toLowerCase(Locale.US));
         if (!identifiers.isEmpty()) {
             sb.append(" ");
             for (var i = 0; i < identifiers.size(); i++) {
@@ -73,26 +77,44 @@ public non-sealed class RealExpression extends AbstractAst implements Expression
         this.descriptorString = descriptorString;
     }
 
+    /**
+     * Replace all properties of this expression with those of the other expression.
+     */
+    public void replaceWith(final @NonNull RealExpression other) {
+        assert other != null;
+
+        this.expressionType = other.expressionType;
+        this.identifiers.clear();
+        this.identifiers.addAll(other.identifiers);
+        this.type = other.type;
+        this.annotations = other.annotations;
+        // we do not copy parent, keeping the current one, if any
+        this.children.clear();
+        this.children.addAll(other.children);
+
+        this.invocation = other.invocation;
+        this.ownerDescriptorString = other.ownerDescriptorString;
+        this.typeDescriptorString = other.typeDescriptorString;
+        this.descriptorString = other.descriptorString;
+    }
+
     public enum ExpressionType {
         /**
-         * Semantic analysis will enrich this type with a child. Either a {@link #PROP_ACCESS} typed
-         * {@link RealExpression} for property or a {@link LoadExpression} for variable.
+         * Semantic analysis will replace this undetermined type with either a
+         * <ul>
+         * <li><b>property access</b> = a {@link RealExpression} with a {@link #PROP_ACCESS} type.
+         * <li><b>variable access</b> = a {@link LoadExpression}.
+         * </ul>
          */
-        VARIABLE_OR_PROP_ACCESS("variableOrPropAccess"),
-
-        PROP_ACCESS("propAccess"),
-        FUN_CALL("funCall"),
-        FUN_CALL_PARAMETER("funCallParameter"),
-        STRING_LITERAL("stringLiteral"),
-        ADD("add"),
-        SUB("sub"),
-        INDEXING("indexing");
-
-        private final @NonNull String label;
-
-        ExpressionType(final @NonNull String label) {
-            assert label != null;
-            this.label = label;
-        }
+        VARIABLE_OR_PROP_ACCESS,
+        CHAINABLE,
+        PROP_ACCESS,
+        PROP_ASSIGNMENT,
+        FUN_CALL,
+        FUN_CALL_PARAMETER,
+        NEW,
+        ADD,
+        SUB,
+        INDEXING
     }
 }

@@ -273,7 +273,7 @@ label
     ;
 
 assignment
-    : (directlyAssignableExpression ASSIGNMENT | assignableExpression assignmentAndOperator) NL* expression
+    : (directlyAssignableExpression ASSIGNMENT | prefixUnaryExpression assignmentAndOperator) NL* expression
     ;
 
 loopStatement
@@ -373,6 +373,7 @@ atomicExpression
     | functionLiteral
     | thisExpression
     | superExpression
+    | NEW constructorInvocation
     | ifExpression
     | whenExpression
     | tryExpression
@@ -525,20 +526,6 @@ postfixUnarySuffix
 directlyAssignableExpression
     : postfixUnaryExpression assignableSuffix
     | simpleIdentifier
-    | parenthesizedDirectlyAssignableExpression
-    ;
-
-parenthesizedDirectlyAssignableExpression
-    : LPAREN NL* directlyAssignableExpression NL* RPAREN
-    ;
-
-assignableExpression
-    : prefixUnaryExpression
-    | parenthesizedAssignableExpression
-    ;
-
-parenthesizedAssignableExpression
-    : LPAREN NL* assignableExpression NL* RPAREN
     ;
 
 assignableSuffix

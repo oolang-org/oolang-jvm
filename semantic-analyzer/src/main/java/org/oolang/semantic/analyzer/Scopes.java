@@ -7,10 +7,12 @@ package org.oolang.semantic.analyzer;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.oolang.symbol.table.BaseSymbol.Property;
+import org.oolang.symbol.table.OolangKlass;
 import org.oolang.symbol.table.Type;
 import org.oolang.symbol.table.Variable;
 import org.oolang.symbol.table.Variable.SimpleVariable;
 
+import java.lang.constant.ConstantDescs;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -18,46 +20,45 @@ import static org.oolang.symbol.table.TypeResolver.DOUBLE_KLASS;
 import static org.oolang.symbol.table.TypeResolver.LONG_KLASS;
 
 final class Scopes {
-    private @NonNull Scope currentStatic;
-    private @NonNull Scope currentInstance;
-
-    Scopes() {
-        this(new Scope(0));
-    }
-
-    private Scopes(final @NonNull Scope currentStatic) {
-        this.currentStatic = currentStatic;
-        this.currentInstance = new Scope(1); // keep the 0 index for 'this'
-    }
+    private /* lateinit */ Scope currentStaticScope = null;
+    private /* lateinit */ Scope currentInstanceScope = null;
 
     @NonNull Scopes enterStatic() {
-        return new Scopes(currentStatic);
+        final var newScopes = new Scopes();
+        newScopes.currentStaticScope = currentStaticScope;
+        newScopes.currentInstanceScope = new Scope(null);
+        return newScopes;
     }
 
-    void push(final boolean isStatic, final boolean isClass) {
-        if (isStatic) {
-            final var newStaticHead = new Scope(0);
-            newStaticHead.previous = currentStatic;
-            currentStatic = newStaticHead;
-        } else {
-            final var newSlot = (isClass) ? currentInstance.slot + 1 : currentInstance.slot;
-            final var newInstanceHead = new Scope(newSlot);
-            newInstanceHead.previous = currentInstance;
-            currentInstance = newInstanceHead;
+    void pushKlass(final @NonNull OolangKlass klass) {
+        assert klass != null;
+
+        currentStaticScope = new Scope(currentStaticScope);
+        currentInstanceScope = new Scope(currentInstanceScope);
+
+        if (!klass.isInterface()) {
+            currentInstanceScope.putVariable("this", klass, true);
         }
     }
 
-    void pop(final boolean isStatic) {
+    void popKlass() {
+        currentStaticScope = currentStaticScope.previous;
+        currentInstanceScope = currentInstanceScope.previous;
+    }
+
+    void pushFunction(final boolean isStatic) {
         if (isStatic) {
-            final var currentStaticHead = currentStatic;
-            assert currentStaticHead.previous != null;
-            currentStatic = currentStaticHead.previous;
-            currentStaticHead.previous = null; // release this reference for GC
+            currentStaticScope = new Scope(currentStaticScope);
         } else {
-            final var currentInstanceHead = currentInstance;
-            assert currentInstanceHead.previous != null;
-            currentInstance = currentInstanceHead.previous;
-            currentInstanceHead.previous = null; // release this reference for GC
+            currentInstanceScope = new Scope(currentInstanceScope);
+        }
+    }
+
+    void popFunction(final boolean isStatic) {
+        if (isStatic) {
+            currentStaticScope = currentStaticScope.previous;
+        } else {
+            currentInstanceScope = currentInstanceScope.previous;
         }
     }
 
@@ -65,9 +66,9 @@ final class Scopes {
         assert property != null;
 
         if (property.isStatic) {
-            currentStatic.putProperty(property);
+            currentStaticScope.putProperty(property);
         } else {
-            currentInstance.putProperty(property);
+            currentInstanceScope.putProperty(property);
         }
     }
 
@@ -79,18 +80,18 @@ final class Scopes {
         assert type != null;
 
         if (isStatic) {
-            currentStatic.putVariable(name, type, isFinal);
+            currentStaticScope.putVariable(name, type, isFinal);
         } else {
-            currentInstance.putVariable(name, type, isFinal);
+            currentInstanceScope.putVariable(name, type, isFinal);
         }
     }
 
     @Nullable Variable resolveVariable(final @NonNull String name) {
         assert name != null;
 
-        var variable = resolveVariable(name, currentInstance);
+        var variable = resolveVariable(name, currentInstanceScope);
         if (variable == null) {
-            variable = resolveVariable(name, currentStatic);
+            variable = resolveVariable(name, currentStaticScope);
         }
         return variable;
     }
@@ -112,11 +113,14 @@ final class Scopes {
     }
 
     static final class Scope {
-        private final @NonNull Map<@NonNull String, @NonNull Variable> variables = new HashMap<>();
         private int slot;
+        private final @Nullable Scope previous;
 
-        private Scope(final int slot) {
-            this.slot = slot;
+        private final @NonNull Map<@NonNull String, @NonNull Variable> variables = new HashMap<>();
+
+        private Scope(final @Nullable Scope previous) {
+            this.slot = (previous != null) ? previous.slot : 0;
+            this.previous = previous;
         }
 
         private void putProperty(final @NonNull Property property) {
@@ -134,7 +138,5 @@ final class Scopes {
             variables.put(name, new SimpleVariable(type, isFinal, slot));
             slot += (type == LONG_KLASS || type == DOUBLE_KLASS) ? 2 : 1;
         }
-
-        private @Nullable Scope previous = null;
     }
 }

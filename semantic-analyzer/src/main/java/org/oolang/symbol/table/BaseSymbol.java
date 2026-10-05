@@ -7,6 +7,7 @@ package org.oolang.symbol.table;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.lang.constant.ConstantDescs;
 import java.lang.invoke.TypeDescriptor;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -141,17 +142,21 @@ public sealed class BaseSymbol permits BaseSymbol.Property, BaseSymbol.Function,
 
         Function(final @NonNull Klass declaringKlass,
                  final @NonNull BaseSymbol baseSymbol,
-                 final @NonNull LazyType lazyReturnType,
+                 final @Nullable LazyType lazyReturnType,
                  final @NonNull List<@NonNull Parameter> parameters) {
             assert declaringKlass != null;
             assert baseSymbol != null;
-            assert lazyReturnType != null;
             assert parameters != null;
             super(baseSymbol);
 
             this.declaringKlass = declaringKlass;
-            this.lazyReturnType = lazyReturnType;
-            this.returnType = null;
+            if (lazyReturnType != null) {
+                this.lazyReturnType = lazyReturnType;
+                this.returnType = null;
+            } else {
+                this.lazyReturnType = null;
+                this.returnType = declaringKlass;
+            }
             this.parameters = parameters;
         }
 
@@ -194,12 +199,13 @@ public sealed class BaseSymbol permits BaseSymbol.Property, BaseSymbol.Function,
         }
 
         private @NonNull String buildTypeDescriptorString() {
+            final var suffix = (name.equals(ConstantDescs.INIT_NAME)) ? ")V" : ")" + buildDescriptorString();
             return parameters.stream()
                     .map(parameter -> TypeResolver.getKlassFromType(parameter.type()).descriptorString())
                     .collect(Collectors.joining(
                             /*delimiter*/ "",
                             /*prefix*/ "(",
-                            /*suffix*/ ")" + buildDescriptorString()));
+                            suffix));
         }
 
         @Override

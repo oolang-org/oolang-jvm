@@ -10,11 +10,11 @@ import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 
 public abstract class AbstractAst implements Ast {
-    private @Nullable AstInfo info;
+    private @Nullable AstInfo info = null;
 
     @Override
-    public final @NonNull AstInfo info() {
-        return Objects.requireNonNull(this.info);
+    public final @Nullable AstInfo info() {
+        return this.info;
     }
 
     @Override
