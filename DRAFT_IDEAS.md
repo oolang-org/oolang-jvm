@@ -78,3 +78,8 @@ linked against by other classes nor discovered through reflection.
 * Support extending an access control nest with non-discoverable classes.
 * Support aggressive unloading of non-discoverable classes, so that frameworks have the flexibility to define as many as
 they need.
+
+# Inspirations
+
+* A nice article listing
+[20 Coolest Features of Non-Java JVM Languages](https://dev.to/awwsmm/20-coolest-features-of-non-java-jvm-languages-2p4h)
