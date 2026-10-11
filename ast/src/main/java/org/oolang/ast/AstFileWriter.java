@@ -49,7 +49,7 @@ public final class AstFileWriter {
         }
         indent(appendable, depth);
         appendable.append(ast.description()).append(System.lineSeparator());
-        if (ast instanceof AstNode astNode) {
+        if (ast instanceof Ast.Node astNode) {
             for (final var child : astNode.content()) {
                 write(child, appendable, depth + 1, withAstInfo);
             }

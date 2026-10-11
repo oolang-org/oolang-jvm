@@ -12,7 +12,7 @@ import java.util.List;
 
 import static org.oolang.ast.Identifier.*;
 
-public final class AstType extends AbstractAst implements AstNode {
+public final class AstType extends AbstractAst implements Ast.Node {
     public final @NonNull Identifier identifier;
     public final @Nullable List<@NonNull AstType> parameters;
 

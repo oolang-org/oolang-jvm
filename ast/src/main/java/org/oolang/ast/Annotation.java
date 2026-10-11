@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
-public final class Annotation extends AbstractAst implements AstNode {
+public final class Annotation extends AbstractAst implements Ast.Node {
     public final @NonNull AstType type;
     public @Nullable UseSiteTarget useSiteTarget;
 

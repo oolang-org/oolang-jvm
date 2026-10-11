@@ -10,7 +10,7 @@ import org.oolang.ast.element.RealElement;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class AstFile extends AbstractAst implements AstNode {
+public final class AstFile extends AbstractAst implements Ast.Node {
     public /* lateinit */ PackageHeader packageHeader;
     public final @NonNull List<@NonNull Import> imports = new ArrayList<>();
     public final @NonNull List<@NonNull RealElement> rootElements = new ArrayList<>();

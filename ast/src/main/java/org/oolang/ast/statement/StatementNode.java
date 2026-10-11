@@ -4,8 +4,8 @@
 
 package org.oolang.ast.statement;
 
-import org.oolang.ast.AstNode;
+import org.oolang.ast.Ast;
 
-public sealed interface StatementNode extends Statement, AstNode
+public sealed interface StatementNode extends Statement, Ast.Node
         permits CodeBlock, ConstructorCodeBlock, RealStatement {
 }

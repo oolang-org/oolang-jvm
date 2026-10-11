@@ -11,7 +11,7 @@ import org.oolang.ast.Ast;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class ClassBody extends AbstractAst implements ElementNode {
+public final class ClassBody extends AbstractAst implements Element.Node {
     public final @NonNull List<@NonNull RealElement> children = new ArrayList<>();
 
     @Override

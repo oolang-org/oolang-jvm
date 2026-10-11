@@ -17,7 +17,7 @@ import java.util.Locale;
 
 import static org.oolang.ast.Identifier.SimpleIdentifier;
 
-public non-sealed class RealExpression extends AbstractAst implements ExpressionNode {
+public non-sealed class RealExpression extends AbstractAst implements Expression.Node {
     public /* lateinit */ ExpressionType expressionType;
     public final @NonNull List<@NonNull SimpleIdentifier> identifiers = new ArrayList<>();
     public @Nullable AstType type = null;

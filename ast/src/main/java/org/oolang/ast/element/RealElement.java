@@ -19,7 +19,7 @@ import java.util.Objects;
 
 import static org.oolang.ast.Identifier.SimpleIdentifier;
 
-public final class RealElement extends AbstractAst implements ElementNode, TypeDescriptor {
+public final class RealElement extends AbstractAst implements Element.Node, TypeDescriptor {
     public final @NonNull ElementType elementType;
     public @Nullable SimpleIdentifier identifier = null;
     public @Nullable AstType type = null;

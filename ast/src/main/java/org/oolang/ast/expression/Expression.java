@@ -9,5 +9,7 @@ import org.oolang.ast.Ast;
 import java.lang.invoke.TypeDescriptor;
 
 public sealed interface Expression extends Ast, TypeDescriptor
-        permits ConstantExpression, ExpressionNode, LoadExpression {
+        permits ConstantExpression, Expression.Node, LoadExpression {
+    sealed interface Node extends Expression, Ast.Node permits RealExpression {
+    }
 }

@@ -6,5 +6,7 @@ package org.oolang.ast.element;
 
 import org.oolang.ast.Ast;
 
-public sealed interface Element extends Ast permits ElementModifier, ElementNode {
+public sealed interface Element extends Ast permits ElementModifier, Element.Node {
+    sealed interface Node extends Element, Ast.Node permits ClassBody, RealElement {
+    }
 }
