@@ -77,9 +77,7 @@ public non-sealed class RealExpression extends AbstractAst implements Expression
         this.descriptorString = descriptorString;
     }
 
-    /**
-     * Replace all properties of this expression with those of the other expression.
-     */
+    /// Replace all properties of this expression with those of the other expression.
     public void replaceWith(final @NonNull RealExpression other) {
         assert other != null;
 
@@ -99,13 +97,9 @@ public non-sealed class RealExpression extends AbstractAst implements Expression
     }
 
     public enum ExpressionType {
-        /**
-         * Semantic analysis will replace this undetermined type with either a
-         * <ul>
-         * <li><b>property access</b> = a {@link RealExpression} with a {@link #PROP_ACCESS} type.
-         * <li><b>variable access</b> = a {@link LoadExpression}.
-         * </ul>
-         */
+        /// Semantic analysis will replace this undetermined type with either a
+        /// - **property access** = a [RealExpression] with a [#PROP_ACCESS] type.
+        /// - **variable access** = a [LoadExpression].
         VARIABLE_OR_PROP_ACCESS,
         CHAINABLE,
         PROP_ACCESS,

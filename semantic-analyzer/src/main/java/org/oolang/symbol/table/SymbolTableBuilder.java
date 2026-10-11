@@ -27,12 +27,11 @@ public final class SymbolTableBuilder {
     private SymbolTableBuilder() {
     }
 
-    /**
-     * @return a virtual {@linkplain OolangKlass class} representing the symbol table of the given {@link AstFile}.
-     */
+    /// @return a virtual [class][OolangKlass] representing the symbol table of the given [AstFile].
     public static @NonNull OolangKlass build(final @NonNull AstFile ast,
                                              final @NonNull Map<@NonNull String, @NonNull String> imports) {
         assert ast != null;
+        assert imports != null;
 
         final var symbolTable = OolangKlass.createRoot(ast.packageHeader.raw(), imports);
         for (final var element : ast.rootElements) {

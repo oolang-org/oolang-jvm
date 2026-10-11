@@ -21,24 +21,18 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, Type
 
     @NonNull String packageName();
 
-    /**
-     * @return all superclasses; empty if this klass is an interface, {@link Object}, a primitive class, or void.
-     */
+    /// @return all superclasses; empty if this klass is an interface, [Object], a primitive class, or void.
     @NonNull SequencedCollection<@NonNull Type> genericSuperKlasses();
 
-    /**
-     * @return all superinterfaces.
-     */
+    /// @return all superinterfaces.
     @NonNull SequencedCollection<@NonNull Type> genericSuperInterfaces();
 
     @NonNull Map<@NonNull String, @NonNull Property> properties();
 
-    /**
-     * A {@link TreeSet} allows quick O(log n) range search by function name.
-     * <p>
-     * If we stored the functions with a regular collection, a {@linkplain java.util.stream.Stream} could be used to
-     * filter the functions by name, but with a worse 0(n) performance.
-     */
+    /// A [TreeSet] allows quick O(log n) range search by function name.
+    ///
+    /// If we stored the functions with a regular collection, a [java.util.stream.Stream] could be used to filter the
+    /// functions by name, but with a worse 0(n) performance.
     @NonNull SortedSet<@NonNull BaseFunction> functions();
 
     @Override
@@ -219,9 +213,7 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, Type
     record SimpleFunction(@NonNull String name) implements BaseFunction {
     }
 
-    /**
-     * The cache of all resolved {@linkplain Klass classes}.
-     */
+    /// The cache of all resolved [classes][Klass].
     @NonNull ScopedValue<@NonNull ConcurrentHashMap<@NonNull String, @NonNull Klass>> KLASSES_CACHE =
             ScopedValue.newInstance();
 

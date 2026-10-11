@@ -8,9 +8,7 @@ import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
 
-/**
- * The parent class of all Oolang compilation exceptions.
- */
+/// The parent class of all Oolang compilation exceptions.
 public abstract class OolangException extends RuntimeException {
     public OolangException(final @NonNull String message) {
         super(Objects.requireNonNull(message));

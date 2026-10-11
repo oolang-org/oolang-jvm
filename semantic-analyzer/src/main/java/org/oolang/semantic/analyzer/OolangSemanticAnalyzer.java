@@ -118,9 +118,7 @@ public final class OolangSemanticAnalyzer {
         }
     }
 
-    /**
-     * If this property is not static (= instance) and has an initializer, return the inline assignment for constructors
-     */
+    /// If this property is not static (= instance) and has an initializer, return the inline assignment for constructors
     private static @Nullable RealStatement visitProperty(final @NonNull RealElement propertyElement,
                                                          final @NonNull Scopes scopes,
                                                          final @NonNull OolangKlass currentKlass) {
@@ -306,9 +304,7 @@ public final class OolangSemanticAnalyzer {
         }
     }
 
-    /**
-     * @param applicableKlass the {@link Klass} this expression applies to. If null, the scope's current klass is used.
-     */
+    /// @param applicableKlass the [Klass] this expression applies to. If null, the scope's current klass is used.
     private static @NonNull Type visitExpression(final @NonNull Expression expression,
                                                  final @NonNull Scopes scopes,
                                                  final @NonNull OolangKlass currentKlass,
