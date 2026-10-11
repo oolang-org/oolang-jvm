@@ -29,7 +29,10 @@ class UserService(private val repository: UserRepository) {
 
 You can read our [draft ideas page](DRAFT_IDEAS.md).
 
-## Oolang compiler
+*Contributions are very welcome, simply clone this repo and submit a PR when your fix, new feature, or optimization is
+ready!*
+
+## Oolang compilation
 Compiling Oolang source code involves 3 stages
 1. lexer + parser
 2. semantic analyzer
@@ -48,3 +51,10 @@ During this phase the AST is enriched with the resolved types, function signatur
 ### Compiler
 The compiler phase transforms the enriched Oolang AST to JVM bytecode using
 [Java Class-File API](https://docs.oracle.com/en/java/javase/24/docs/api/java.base/java/lang/classfile/package-summary.html).
+
+## License
+
+[Apache-2.0](https://opensource.org/license/apache-2-0)
+
+Copyright (c) 2026-present, Oolang contributors.
+
