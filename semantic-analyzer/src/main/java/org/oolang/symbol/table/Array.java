@@ -12,9 +12,7 @@ import java.util.Map;
 import java.util.SequencedCollection;
 import java.util.SortedSet;
 
-/**
- * The Array pseudo-class represents an array type in the Oolang language.
- */
+/// This Array pseudo-class represents an array type in the Oolang language.
 final class Array implements Klass {
     private static /* lateinit */ Array INSTANCE;
 

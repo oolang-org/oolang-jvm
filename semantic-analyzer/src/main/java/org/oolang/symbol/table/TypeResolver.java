@@ -166,10 +166,8 @@ public final class TypeResolver {
         return getKlassFromName("java.lang." + simpleKlassName);
     }
 
-    /**
-     * <b>Important note:</b> this method requires that the symbol table was built for all Oolang files, and therefore
-     * the corresponding {@link OolangKlass} is present in the {@linkplain Klass#KLASSES_CACHE klass cache}.
-     */
+    /// **Important note:** this method requires that the symbol table was built for all Oolang files, and therefore
+    /// the corresponding [OolangKlass] is present in the [klass cache][Klass#KLASSES_CACHE].
     public static @Nullable Klass getKlassFromName(final @NonNull String klassName) {
         assert klassName != null;
 

@@ -104,11 +104,9 @@ typeConstraint
 // SECTION: classMembers
 
 classMemberDeclaration
-    : (
-        declaration
-        | anonymousInitializer
-        | secondaryConstructor
-    ) anysemi+
+    : (declaration
+    | anonymousInitializer
+    | secondaryConstructor ) anysemi+
     ;
 
 anonymousInitializer

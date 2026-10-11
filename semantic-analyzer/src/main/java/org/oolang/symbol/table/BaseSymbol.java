@@ -116,9 +116,7 @@ public sealed class BaseSymbol permits BaseSymbol.Property, BaseSymbol.Function,
         }
     }
 
-    /**
-     * An interface representing the most basic function symbol, to allow quick O(log n) range search by name.
-     */
+    /// An interface representing the most basic function symbol, to allow quick O(log n) range search by name.
     public sealed interface BaseFunction extends Comparable<BaseFunction> permits Function, Klass.SimpleFunction {
         @NonNull String name();
 

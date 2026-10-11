@@ -30,9 +30,7 @@ public sealed abstract class Identifier extends AbstractAst implements Ast {
         }
     }
 
-    /**
-     * Must never contain less than 2 identifiers, else use SimpleIdentifier
-     */
+    /// Must never contain less than 2 identifiers, else use SimpleIdentifier
     public static final class MultipleIdentifier extends Identifier {
         public final @NonNull List<@NonNull SimpleIdentifier> identifiers = new ArrayList<>();
 

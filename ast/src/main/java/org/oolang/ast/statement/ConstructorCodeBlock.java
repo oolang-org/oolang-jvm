@@ -5,7 +5,6 @@
 package org.oolang.ast.statement;
 
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 import org.oolang.ast.AbstractAst;
 import org.oolang.ast.Ast;
 import org.oolang.ast.expression.RealExpression;
@@ -15,11 +14,9 @@ import java.util.List;
 
 public final class ConstructorCodeBlock extends AbstractAst implements StatementNode {
     public final @NonNull List<@NonNull Statement> earlyLarvalStatements = new ArrayList<>();
-    /**
-     * Expression to another constructor in the current class or a super constructor.
-     * <p>
-     * If null, an implicit call to the no-arg super constructor is built during semantic analysis.
-     */
+    /// Expression to another constructor in the current class or a super constructor.
+    ///
+    /// If null, an implicit call to the no-arg super constructor is built during semantic analysis.
     public /* lateinit */ RealExpression initCall = null;
     public final @NonNull List<@NonNull Statement> lateLarvalStatements = new ArrayList<>();
 

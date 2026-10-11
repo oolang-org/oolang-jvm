@@ -37,12 +37,10 @@ final class StringCompilationUtils {
                     ConstantDescs.CD_Object.arrayType()
             );
 
-    /**
-     * Transform a string concatenation of several expressions into a dynamic function call of
-     * {@link StringConcatFactory#makeConcatWithConstants}.
-     *
-     * @see <a href="https://www.baeldung.com/java-string-concatenation-invoke-dynamic">string-concatenation</a>
-     */
+    /// Transform a string concatenation of several expressions into a dynamic function call of
+    /// [StringConcatFactory#makeConcatWithConstants].
+    ///
+    /// @see <a href="https://www.baeldung.com/java-string-concatenation-invoke-dynamic">string-concatenation</a>
     static void stringConcatenation(final @NonNull List<@NonNull Expression> children,
                                     final @NonNull CodeBuilder codeBuilder) {
         assert children != null;

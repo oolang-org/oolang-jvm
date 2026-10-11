@@ -383,9 +383,7 @@ public class OolangSemanticAnalyzerTest {
         return astFile;
     }
 
-    /**
-     * Expose this package-protected function to other tests
-     */
+    /// Expose this package-protected function to other tests
     public static Map<String, String> buildImports(final List<Import> astImports) {
         return OolangSemanticAnalyzer.buildImports(astImports);
     }

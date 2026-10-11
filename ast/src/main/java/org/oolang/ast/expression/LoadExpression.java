@@ -10,10 +10,8 @@ import org.oolang.ast.AstInfo;
 
 import static org.oolang.ast.Identifier.SimpleIdentifier;
 
-/**
- * An expression that loads a value from a variable or a field into the operand stack. It is set during the semantic
- * analysis phase.
- */
+/// An expression that loads a value from a variable or a field into the operand stack. It is set during the semantic
+/// analysis phase.
 public record LoadExpression(
         @NonNull SimpleIdentifier identifier,
         int slot,

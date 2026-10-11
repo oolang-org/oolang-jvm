@@ -33,9 +33,7 @@ final class ExistingKlass implements Klass {
         this.javaClass = javaClass;
     }
 
-    /**
-     * Recursively finds all superclasses and interfaces {@link #javaClass} extends/implements.
-     */
+    /// Recursively finds all superclasses and interfaces [#javaClass] extends/implements.
     private @NonNull Parents getAllParents() {
         final var parents = new Parents();
         // Traverse superclasses (recursively)
