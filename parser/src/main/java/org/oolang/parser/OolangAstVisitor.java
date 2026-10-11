@@ -43,6 +43,9 @@ import static org.oolang.ast.statement.RealStatement.StatementType.ASSIGNMENT;
 import static org.oolang.ast.statement.RealStatement.StatementType.EXPRESSION;
 
 public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
+    /// ```
+    /// packageHeader? importList anysemi* classDeclaration (anysemi+ classDeclaration?)* EOF
+    /// ```
     @Override
     public @NonNull AstFile visitOolangFile(final @NonNull OolangFileContext ctx) {
         assert ctx != null;
@@ -64,6 +67,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return addAstInfo(astFile, ctx);
     }
 
+    /// ```
+    /// PACKAGE identifier semi?
+    /// ```
     @Override
     public @NonNull PackageHeader visitPackageHeader(final @NonNull PackageHeaderContext ctx) {
         assert ctx != null;
@@ -75,6 +81,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return addAstInfo(packageHeader, ctx);
     }
 
+    /// ```
+    /// IMPORT identifier importAlias? semi?
+    /// ```
     @Override
     public @NonNull Import visitImportHeader(final @NonNull ImportHeaderContext ctx) {
         assert ctx != null;
@@ -86,6 +95,10 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return addAstInfo(importHeader, ctx);
     }
 
+    /// ```
+    /// modifiers? (CLASS | (FUN NL*)? INTERFACE) NL* simpleIdentifier (NL* typeParameters)? (NL* primaryConstructor)?
+    /// (NL* COLON NL* delegationSpecifiers)? (NL* typeConstraints)? (NL* classBody | NL* enumClassBody)?
+    /// ```
     @Override
     public @NonNull RealElement visitClassDeclaration(final @NonNull ClassDeclarationContext ctx) {
         assert ctx != null;
@@ -107,6 +120,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return addAstInfo(clazz, ctx);
     }
 
+    /// ```
+    /// modifiers? (CONSTRUCTOR NL*)? classParameters
+    /// ```
     @Override
     public @NonNull RealElement visitPrimaryConstructor(final @NonNull PrimaryConstructorContext ctx) {
         assert ctx != null;
@@ -122,6 +138,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return addAstInfo(constructor, ctx);
     }
 
+    /// ```
+    /// modifiers? (VAL | VAR)? NL* simpleIdentifier COLON NL* type (NL* ASSIGNMENT NL* expression)?
+    /// ```
     @Override
     public @NonNull RealElement visitClassParameter(final @NonNull ClassParameterContext ctx) {
         assert ctx != null;
@@ -142,6 +161,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return addAstInfo(classParam, ctx);
     }
 
+    /// ```
+    /// LCURL NL* classMemberDeclaration* NL* RCURL
+    /// ```
     @Override
     public @NonNull ClassBody visitClassBody(final @NonNull ClassBodyContext ctx) {
         assert ctx != null;
@@ -153,6 +175,11 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return addAstInfo(classBody, ctx);
     }
 
+    /// ```
+    /// : (declaration
+    /// | anonymousInitializer
+    /// | secondaryConstructor ) anysemi+
+    /// ```
     @Override
     public @NonNull RealElement visitClassMemberDeclaration(final @NonNull ClassMemberDeclarationContext ctx) {
         assert ctx != null;
@@ -163,6 +190,11 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         throw new UnsupportedOperationException();
     }
 
+    /// ```
+    /// : classDeclaration
+    /// | functionDeclaration
+    /// | propertyDeclaration
+    /// ```
     @Override
     public @NonNull RealElement visitDeclaration(final @NonNull DeclarationContext ctx) {
         assert ctx != null;
@@ -179,6 +211,11 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         throw new UnsupportedOperationException();
     }
 
+    /// ``````
+    /// modifiers? (VAL | VAR) (NL* typeParameters)? (NL* receiverType NL* DOT)? (NL* variableDeclaration)
+    /// (NL* typeConstraints)? (NL* (BY | ASSIGNMENT) NL* expression)? (NL* SEMICOLON)? NL*
+    /// (getter (NL* semi? setter)? | setter (NL* semi? getter))?
+    /// ``````
     @Override
     public @NonNull RealElement visitPropertyDeclaration(final @NonNull PropertyDeclarationContext ctx) {
         assert ctx != null;
@@ -215,6 +252,10 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return addAstInfo(property, ctx);
     }
 
+    /// ```
+    /// modifiers? FUN (NL* typeParameters)? (NL* receiverType NL* DOT)? NL* simpleIdentifier NL*
+    /// functionValueParameters (NL* COLON NL* type)? (NL* typeConstraints)? (NL* functionBody)?
+    /// ```
     @Override
     public @NonNull RealElement visitFunctionDeclaration(final @NonNull FunctionDeclarationContext ctx) {
         assert ctx != null;
@@ -237,6 +278,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return addAstInfo(function, ctx);
     }
 
+    /// ```
+    /// parameterModifiers? parameter (NL* ASSIGNMENT NL* expression)?
+    /// ```
     @Override
     public @NonNull RealElement visitFunctionValueParameter(final @NonNull FunctionValueParameterContext ctx) {
         assert ctx != null;
@@ -256,6 +300,10 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return addAstInfo(funParam, ctx);
     }
 
+    /// ```
+    /// : block
+    /// | ASSIGNMENT NL* expression
+    /// ```
     @Override
     public @NonNull CodeBlock visitFunctionBody(final @NonNull FunctionBodyContext ctx) {
         assert ctx != null;
@@ -272,6 +320,10 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return addAstInfo(functionBody, ctx);
     }
 
+    /// ```
+    /// : blockLevelExpression
+    /// | blockLevelDeclaration
+    /// ```
     @Override
     public @NonNull Statement visitStatement(final @NonNull StatementContext ctx) {
         assert ctx != null;
@@ -286,6 +338,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return addAstInfo(visitBlockLevelDeclaration(blockLevelDeclarationCtx), ctx);
     }
 
+    /// ```
+    /// annotation* NL* expression
+    /// ```
     @Override
     public @NonNull Statement visitBlockLevelExpression(final @NonNull BlockLevelExpressionContext ctx) {
         assert ctx != null;
@@ -296,6 +351,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return statement;
     }
 
+    /// ```
+    /// label* ( declaration | assignment | loopStatement)
+    /// ```
     @Override
     public @NonNull RealStatement visitBlockLevelDeclaration(final @NonNull BlockLevelDeclarationContext ctx) {
         assert ctx != null;
@@ -315,6 +373,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return statement;
     }
 
+    /// ```
+    /// (directlyAssignableExpression ASSIGNMENT | prefixUnaryExpression assignmentAndOperator) NL* expression
+    /// ```
     @Override
     public @NonNull RealStatement visitAssignment(final @NonNull AssignmentContext ctx) {
         assert ctx != null;
@@ -358,6 +419,39 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         throw new UnsupportedOperationException("postfixUnaryExpression assignableSuffix");
     }
 
+    /// ```
+    /// expression
+    ///     : disjunction
+    ///     ;
+    ///
+    /// disjunction
+    ///     : conjunction (NL* DISJ NL* conjunction)*
+    ///     ;
+    ///
+    /// conjunction
+    ///     : equality (NL* CONJ NL* equality)*
+    ///     ;
+    ///
+    /// equality
+    ///     : comparison (equalityOperator NL* comparison)*
+    ///     ;
+    ///
+    /// comparison
+    ///     : genericCallLikeComparison (comparisonOperator NL* genericCallLikeComparison)*
+    ///     ;
+    ///
+    /// genericCallLikeComparison
+    ///     : isExpression callSuffix*
+    ///     ;
+    ///
+    /// isExpression
+    ///     : elvisExpression (isOperator NL* type)?
+    ///     ;
+    ///
+    /// elvisExpression
+    ///     : additiveExpression (NL* elvis NL* additiveExpression)*
+    ///     ;
+    /// ```
     @Override
     public @NonNull Expression visitExpression(final @NonNull ExpressionContext ctx) {
         assert ctx != null;
@@ -378,6 +472,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         throw new UnsupportedOperationException();
     }
 
+    /// ```
+    /// multiplicativeExpression (additiveOperator NL* multiplicativeExpression)*
+    /// ```
     @Override
     public @NonNull Expression visitAdditiveExpression(final @NonNull AdditiveExpressionContext ctx) {
         assert ctx != null;
@@ -414,6 +511,19 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return addAstInfo(expression, ctx);
     }
 
+    /// ```
+    /// multiplicativeExpression
+    ///     : typeRHS (multiplicativeOperator NL* typeRHS)*
+    ///     ;
+    ///
+    /// typeRHS
+    ///     : prefixUnaryExpression (NL* typeOperation prefixUnaryExpression)*
+    ///     ;
+    ///
+    /// prefixUnaryExpression
+    ///     : unaryPrefix* postfixUnaryExpression
+    ///     ;
+    /// ```
     @Override
     public @NonNull Expression visitMultiplicativeExpression(final @NonNull MultiplicativeExpressionContext ctx) {
         for (final var typeRhsCtx : ctx.typeRHS()) {
@@ -424,6 +534,28 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         throw new UnsupportedOperationException();
     }
 
+    /// ```
+    /// postfixUnaryExpression
+    ///     : atomicExpression postfixUnarySuffix*
+    ///     ;
+    ///
+    /// atomicExpression
+    ///     : parenthesizedExpression
+    ///     | collectionLiteral
+    ///     | simpleIdentifier
+    ///     | literalConstant
+    ///     | stringLiteral
+    ///     | callableReference
+    ///     | functionLiteral
+    ///     | thisExpression
+    ///     | superExpression
+    ///     | NEW constructorInvocation
+    ///     | ifExpression
+    ///     | whenExpression
+    ///     | tryExpression
+    ///     | jumpExpression
+    ///     ;
+    /// ```
     @Override
     public @NonNull Expression visitPostfixUnaryExpression(final @NonNull PostfixUnaryExpressionContext ctx) {
         assert ctx != null;
@@ -480,6 +612,16 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return expression;
     }
 
+    /// ```
+    /// : BooleanLiteral
+    /// | IntegerLiteral
+    /// | HexLiteral
+    /// | BinLiteral
+    /// | CharacterLiteral
+    /// | RealLiteral
+    /// | NullLiteral
+    /// | LongLiteral
+    /// ```
     @Override
     public @NonNull Expression visitLiteralConstant(final @NonNull LiteralConstantContext ctx) {
         assert ctx != null;
@@ -496,6 +638,10 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return addAstInfo(new ConstantExpression(value), ctx);
     }
 
+    /// ```
+    /// : lineStringLiteral
+    /// | multiLineStringLiteral
+    /// ```
     @Override
     public @NonNull Expression visitStringLiteral(final @NonNull StringLiteralContext ctx) {
         assert ctx != null;
@@ -507,6 +653,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         throw new UnsupportedOperationException();
     }
 
+    /// ```
+    /// QUOTE_OPEN (lineStringContent | lineStringExpression)* QUOTE_CLOSE
+    /// ```
     @Override
     public @NonNull Expression visitLineStringLiteral(final @NonNull LineStringLiteralContext ctx) {
         assert ctx != null;
@@ -518,6 +667,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         throw new UnsupportedOperationException();
     }
 
+    /// ```
+    /// userType NL* callSuffix
+    /// ```
     @Override
     public @NonNull RealExpression visitConstructorInvocation(final @NonNull ConstructorInvocationContext ctx) {
         assert ctx != null;
@@ -532,6 +684,13 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return addAstInfo(constructorCall, ctx);
     }
 
+    /// ```
+    /// : postfixUnaryOperator
+    /// | typeArguments
+    /// | callSuffix
+    /// | indexingSuffix
+    /// | navigationSuffix
+    /// ```
     private @NonNull RealExpression visitPostfixUnarySuffixes(
             final @NonNull List<@NonNull PostfixUnarySuffixContext> postfixUnarySuffixesCtx,
             final @NonNull Expression expression,
@@ -606,6 +765,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         chainableExpression.children.add(childExpression);
     }
 
+    /// ```
+    /// typeArguments? (valueArguments? annotatedLambda | valueArguments)
+    /// ```
     private void addFunCallParameters(final @NonNull RealExpression expression,
                                       final @NonNull CallSuffixContext callSuffixCtx) {
         assert expression != null;
@@ -625,6 +787,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         }
     }
 
+    /// ```
+    /// annotation* (functionType | parenthesizedType | nullableType | userType)
+    /// ```
     @Override
     public @NonNull AstType visitType(final @NonNull TypeContext ctx) {
         assert ctx != null;
@@ -639,6 +804,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return type;
     }
 
+    /// ```
+    /// simpleUserType (NL* DOT NL* simpleUserType)*
+    /// ```
     @Override
     public @NonNull AstType visitUserType(final @NonNull UserTypeContext ctx) {
         assert ctx != null;
@@ -663,6 +831,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         );
     }
 
+    /// ```
+    /// simpleIdentifier (NL* typeArguments)?
+    /// ```
     private @Nullable List<@NonNull AstType> genericParameters(final @NonNull SimpleUserTypeContext ctx) {
         assert ctx != null;
 
@@ -677,6 +848,10 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return parameters;
     }
 
+    /// ```
+    /// : typeProjectionModifiers? type
+    /// | MULT
+    /// ```
     @Override
     public @NonNull AstType visitTypeProjection(final @NonNull TypeProjectionContext ctx) {
         assert ctx != null;
@@ -688,6 +863,13 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         return addAstInfo(type, ctx);
     }
 
+    /// ```
+    /// : (classModifier
+    /// | memberModifier
+    /// | visibilityModifier
+    /// | inheritanceModifier
+    /// | VARARG ) NL*
+    /// ```
     @Override
     public @NonNull ElementModifier visitModifier(final @NonNull ModifierContext ctx) {
         assert ctx != null;
@@ -721,6 +903,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         element.annotations = visitAnnotations(ctx.annotation());
     }
 
+    /// ```
+    /// (singleAnnotation | multiAnnotations) NL*
+    /// ```
     private @Nullable List<@NonNull Annotation> visitAnnotations(
             final @NonNull List<@NonNull AnnotationContext> annotationsCtx) {
         assert annotationsCtx != null;
