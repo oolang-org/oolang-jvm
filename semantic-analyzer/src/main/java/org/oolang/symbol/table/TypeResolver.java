@@ -7,6 +7,8 @@ package org.oolang.symbol.table;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.oolang.ast.AstType;
+import org.oolang.ast.expression.ConstantExpression;
+import org.oolang.ast.expression.Expression;
 import org.oolang.semantic.analyzer.OolangSemanticException;
 import org.oolang.symbol.table.Type.GenericType;
 
@@ -191,6 +193,13 @@ public final class TypeResolver {
             case Klass klass -> klass;
             case GenericType genericType -> genericType.klass();
         };
+    }
+
+    static @Nullable Klass inferKlass(final Expression expression) {
+        if (expression instanceof ConstantExpression constantExpression) {
+            return getKlassFromConstantDesc(constantExpression.value);
+        }
+        return null;
     }
 
     public static @NonNull Klass getKlassFromConstantDesc(final @NonNull ConstantDesc value) {

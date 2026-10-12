@@ -9,6 +9,7 @@ import org.oolang.ast.AstFile;
 import org.oolang.ast.Identifier;
 import org.oolang.ast.element.ClassBody;
 import org.oolang.ast.element.RealElement;
+import org.oolang.ast.expression.Expression;
 import org.oolang.ast.statement.ConstructorCodeBlock;
 import org.oolang.symbol.table.BaseSymbol.Function;
 import org.oolang.symbol.table.BaseSymbol.Function.Parameter;
@@ -19,8 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static org.oolang.ast.element.RealElement.ElementType.CONSTRUCTOR;
-import static org.oolang.ast.element.RealElement.ElementType.PARAMETER;
+import static org.oolang.ast.element.RealElement.ElementType.*;
 
 public final class SymbolTableBuilder {
     // un-instantiable
@@ -131,11 +131,25 @@ public final class SymbolTableBuilder {
         final var baseSymbol = baseSymbol(propertyElement, false,
                 propertyElement.elementType == RealElement.ElementType.VAL);
 
-        // type can be explicit or will be inferred by the expression type during semantic analysis
-        final LazyType propType = (propertyElement.type != null)
-                ? new LazyType(propertyElement.type, klass)
-                : null;
-        final var property = new Property(klass, baseSymbol, propType);
+        final Property property;
+        // 1) type is explicit
+        if (propertyElement.type != null) {
+            final var propType = new LazyType(propertyElement.type, klass);
+            property = new Property(klass, baseSymbol, propType);
+        } else {
+            // 2) type can be directly inferred for some cases, or it will have to be resolved during semantic analysis
+            Klass klassOrNull = null;
+            for (final var child : propertyElement.children) {
+                if (child instanceof RealElement realElement && realElement.elementType == PROPERTY_INITIALIZER) {
+                    klassOrNull = TypeResolver.inferKlass((Expression) realElement.children.getFirst());
+                }
+            }
+            if (klassOrNull != null) {
+                propertyElement.setDescriptorString(klassOrNull.descriptorString());
+            }
+            property = new Property(klass, baseSymbol, klassOrNull);
+        }
+
         klass.properties().put(baseSymbol.name, property);
         return property;
     }

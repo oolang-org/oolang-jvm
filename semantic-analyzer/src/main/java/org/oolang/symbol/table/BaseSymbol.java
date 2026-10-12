@@ -54,14 +54,27 @@ public sealed class BaseSymbol permits BaseSymbol.Property, BaseSymbol.Function,
 
         Property(final @NonNull Klass declaringKlass,
                  final @NonNull BaseSymbol baseSymbol,
-                 final @Nullable LazyType lazyType) {
+                 final @NonNull LazyType lazyType) {
             assert declaringKlass != null;
             assert baseSymbol != null;
+            assert lazyType != null;
             super(baseSymbol);
 
             this.declaringKlass = declaringKlass;
             this.lazyType = lazyType;
             this.type = null;
+        }
+
+        Property(final @NonNull Klass declaringKlass,
+                 final @NonNull BaseSymbol baseSymbol,
+                 final @Nullable Type type) {
+            assert declaringKlass != null;
+            assert baseSymbol != null;
+            super(baseSymbol);
+
+            this.declaringKlass = declaringKlass;
+            this.type = type;
+            this.lazyType = null;
         }
 
         Property(final @NonNull Klass declaringKlass,
