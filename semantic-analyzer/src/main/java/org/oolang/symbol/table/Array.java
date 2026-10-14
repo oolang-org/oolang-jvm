@@ -38,12 +38,12 @@ final class Array implements Klass {
     }
 
     @Override
-    public @NonNull SequencedCollection<@NonNull Type> genericSuperKlasses() {
+    public @NonNull SequencedCollection<@NonNull ActualType> genericSuperKlasses() {
         throw new IllegalCallerException("Array is a pseudo-class, don't call it!");
     }
 
     @Override
-    public @NonNull SequencedCollection<@NonNull Type> genericSuperInterfaces() {
+    public @NonNull SequencedCollection<@NonNull ActualType> genericSuperInterfaces() {
         throw new IllegalCallerException("Array is a pseudo-class, don't call it!");
     }
 

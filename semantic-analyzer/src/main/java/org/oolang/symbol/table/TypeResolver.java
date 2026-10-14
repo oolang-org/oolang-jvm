@@ -10,7 +10,7 @@ import org.oolang.ast.AstType;
 import org.oolang.ast.expression.ConstantExpression;
 import org.oolang.ast.expression.Expression;
 import org.oolang.semantic.analyzer.OolangSemanticException;
-import org.oolang.symbol.table.Type.GenericType;
+import org.oolang.symbol.table.ActualType.GenericType;
 
 import java.lang.constant.ConstantDesc;
 import java.lang.constant.ConstantDescs;
@@ -27,7 +27,7 @@ public final class TypeResolver {
     private TypeResolver() {
     }
 
-    static @NonNull Type resolveType(final java.lang.reflect.@NonNull Type javaType) {
+    static @NonNull ActualType resolveType(final java.lang.reflect.@NonNull Type javaType) {
         assert javaType != null;
 
         return switch (javaType) {
@@ -45,7 +45,7 @@ public final class TypeResolver {
         return KLASSES_CACHE.get().computeIfAbsent(javaClass.getName(), ignored -> new ExistingKlass(javaClass));
     }
 
-    private static @NonNull Type resolveParameterizedType(final @NonNull ParameterizedType parameterizedType) {
+    private static @NonNull ActualType resolveParameterizedType(final @NonNull ParameterizedType parameterizedType) {
         assert parameterizedType != null;
 
         if (!(parameterizedType.getRawType() instanceof Class<?> javaClass)) {
@@ -58,7 +58,7 @@ public final class TypeResolver {
         return new GenericType(resolveKlass(javaClass), parameters);
     }
 
-    private static @NonNull Type resolveWildcardType(final @NonNull WildcardType wildcardType) {
+    private static @NonNull ActualType resolveWildcardType(final @NonNull WildcardType wildcardType) {
         assert wildcardType != null;
 
         // todo proper implementation
@@ -68,9 +68,9 @@ public final class TypeResolver {
         return resolveType(wildcardType.getUpperBounds()[0]);
     }
 
-    public static @NonNull Type resolveType(final @Nullable AstType astType,
-                                            final @NonNull OolangKlass oolangKlass,
-                                            final boolean isArray) {
+    public static @NonNull ActualType resolveType(final @Nullable AstType astType,
+                                                  final @NonNull OolangKlass oolangKlass,
+                                                  final boolean isArray) {
         assert oolangKlass != null;
 
         // no type = void
@@ -186,7 +186,7 @@ public final class TypeResolver {
         }
     }
 
-    public static @NonNull Klass getKlassFromType(final @NonNull Type type) {
+    public static @NonNull Klass getKlassFromType(final @NonNull ActualType type) {
         assert type != null;
 
         return switch (type) {

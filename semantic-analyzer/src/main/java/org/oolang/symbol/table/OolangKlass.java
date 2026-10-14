@@ -123,12 +123,12 @@ public final class OolangKlass extends BaseSymbol implements Klass {
     }
 
     @Override
-    public @NonNull SequencedCollection<@NonNull Type> genericSuperKlasses() {
+    public @NonNull SequencedCollection<@NonNull ActualType> genericSuperKlasses() {
         return List.of(OBJECT_KLASS); // todo real implementation
     }
 
     @Override
-    public @NonNull SequencedCollection<@NonNull Type> genericSuperInterfaces() {
+    public @NonNull SequencedCollection<@NonNull ActualType> genericSuperInterfaces() {
         return List.of();
     }
 }

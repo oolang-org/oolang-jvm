@@ -10,7 +10,7 @@ import org.oolang.ast.AstType;
 
 @SuppressWarnings("preview")
 final class LazyType {
-    private final @NonNull LazyConstant<@NonNull Type> lazyType;
+    private final @NonNull LazyConstant<@NonNull ActualType> lazyType;
 
     LazyType(final @Nullable AstType astType, final @NonNull OolangKlass oolangKlass) {
         assert oolangKlass != null;
@@ -27,7 +27,7 @@ final class LazyType {
         });
     }
 
-    @NonNull Type type() {
+    @NonNull ActualType type() {
         return lazyType.get();
     }
 }

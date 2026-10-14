@@ -150,6 +150,11 @@ public final class SymbolTableBuilder {
             property = new Property(klass, baseSymbol, klassOrNull);
         }
 
+        // if not private, also add a function
+//        if (property.visibility != Visibility.PRIVATE) {
+//            klass.functions().add(new Function(klass, baseSymbol, klassOrNull));
+//        }
+
         klass.properties().put(baseSymbol.name, property);
         return property;
     }

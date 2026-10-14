@@ -14,7 +14,7 @@ import java.lang.invoke.TypeDescriptor;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public sealed interface Klass extends TypeDescriptor.OfField<Klass>, Type
+public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
         permits Array, ExistingKlass, OolangKlass {
 
     boolean isInterface();
@@ -22,10 +22,10 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, Type
     @NonNull String packageName();
 
     /// @return all superclasses; empty if this klass is an interface, [Object], a primitive class, or void.
-    @NonNull SequencedCollection<@NonNull Type> genericSuperKlasses();
+    @NonNull SequencedCollection<@NonNull ActualType> genericSuperKlasses();
 
     /// @return all superinterfaces.
-    @NonNull SequencedCollection<@NonNull Type> genericSuperInterfaces();
+    @NonNull SequencedCollection<@NonNull ActualType> genericSuperInterfaces();
 
     @NonNull Map<@NonNull String, @NonNull Property> properties();
 
@@ -36,7 +36,7 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, Type
     @NonNull SortedSet<@NonNull BaseFunction> functions();
 
     @Override
-    default boolean isAssignableFrom(final @NonNull Type otherType) {
+    default boolean isAssignableFrom(final @NonNull ActualType otherType) {
         if (!(otherType instanceof Klass otherKlass)) {
             return false;
         }
@@ -45,7 +45,7 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, Type
                 || hasAssignableParent(genericSuperInterfaces(), otherKlass);
     }
 
-    private static boolean hasAssignableParent(final @NonNull SequencedCollection<@NonNull Type> parents,
+    private static boolean hasAssignableParent(final @NonNull SequencedCollection<@NonNull ActualType> parents,
                                                final @NonNull Klass otherKlass) {
         return parents.stream()
                 .map(TypeResolver::getKlassFromType)
@@ -116,7 +116,7 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, Type
     }
 
     default @Nullable Function accessibleFunction(final @NonNull String name,
-                                                  final @NonNull List<@NonNull Type> parameterTypes,
+                                                  final @NonNull List<@NonNull ActualType> parameterTypes,
                                                   final boolean includeProtected) {
         assert name != null;
         assert parameterTypes != null;
@@ -145,7 +145,7 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, Type
     }
 
     private @Nullable Function accessibleFunction(final @NonNull String name,
-                                                  final @NonNull List<@NonNull Type> parameterTypes,
+                                                  final @NonNull List<@NonNull ActualType> parameterTypes,
                                                   final boolean includeProtected,
                                                   final boolean includePrivate,
                                                   final @NonNull Klass klass) {
@@ -193,7 +193,7 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, Type
     }
 
     private static boolean compatibleParameters(final @NonNull Function candidateFunction,
-                                                final @NonNull List<@NonNull Type> parameterTypes) {
+                                                final @NonNull List<@NonNull ActualType> parameterTypes) {
         assert candidateFunction != null;
         assert parameterTypes != null;
 
