@@ -305,10 +305,10 @@ public final class OolangSemanticAnalyzer {
     }
 
     /// @param applicableKlass the [Klass] this expression applies to. If null, the scope's current klass is used.
-    private static @NonNull Type visitExpression(final @NonNull Expression expression,
-                                                 final @NonNull Scopes scopes,
-                                                 final @NonNull OolangKlass currentKlass,
-                                                 final @Nullable Klass applicableKlass) {
+    private static @NonNull ActualType visitExpression(final @NonNull Expression expression,
+                                                       final @NonNull Scopes scopes,
+                                                       final @NonNull OolangKlass currentKlass,
+                                                       final @Nullable Klass applicableKlass) {
         assert expression != null;
         assert scopes != null;
         assert currentKlass != null;
@@ -325,10 +325,10 @@ public final class OolangSemanticAnalyzer {
         };
     }
 
-    private static @NonNull Type visitRealExpression(final @NonNull RealExpression realExpression,
-                                                     final @NonNull Scopes scopes,
-                                                     final @NonNull OolangKlass currentKlass,
-                                                     final @Nullable Klass applicableKlass) {
+    private static @NonNull ActualType visitRealExpression(final @NonNull RealExpression realExpression,
+                                                           final @NonNull Scopes scopes,
+                                                           final @NonNull OolangKlass currentKlass,
+                                                           final @Nullable Klass applicableKlass) {
         assert realExpression != null;
         assert scopes != null;
         assert currentKlass != null;
@@ -345,16 +345,16 @@ public final class OolangSemanticAnalyzer {
         };
     }
 
-    private static @NonNull Type visitChainableExpression(final @NonNull RealExpression chainableExpression,
-                                                          final @NonNull Scopes scopes,
-                                                          final @NonNull OolangKlass currentKlass) {
+    private static @NonNull ActualType visitChainableExpression(final @NonNull RealExpression chainableExpression,
+                                                                final @NonNull Scopes scopes,
+                                                                final @NonNull OolangKlass currentKlass) {
         assert chainableExpression != null;
         assert !chainableExpression.children.isEmpty();
         assert scopes != null;
         assert currentKlass != null;
 
         // iterate on a copy of chained expressions, because this chain may be updated while iterating
-        Type lastType = null;
+        ActualType lastType = null;
         for (final var child : List.copyOf(chainableExpression.children)) {
             lastType = visitExpression(
                     child,
@@ -375,9 +375,9 @@ public final class OolangSemanticAnalyzer {
         return lastType;
     }
 
-    private static @NonNull Type visitAdditiveExpression(final @NonNull RealExpression additiveExpression,
-                                                         final @NonNull Scopes scopes,
-                                                         final @NonNull OolangKlass currentKlass) {
+    private static @NonNull ActualType visitAdditiveExpression(final @NonNull RealExpression additiveExpression,
+                                                               final @NonNull Scopes scopes,
+                                                               final @NonNull OolangKlass currentKlass) {
         assert additiveExpression != null;
         assert scopes != null;
         assert currentKlass != null;
@@ -397,10 +397,10 @@ public final class OolangSemanticAnalyzer {
         throw new UnsupportedOperationException("Unsupported non string additive expression");
     }
 
-    private static @NonNull Type visitIndexingExpression(final @NonNull RealExpression indexingExpression,
-                                                         final @NonNull Scopes scopes,
-                                                         final @NonNull OolangKlass currentKlass,
-                                                         final @Nullable Klass applicableKlass) {
+    private static @NonNull ActualType visitIndexingExpression(final @NonNull RealExpression indexingExpression,
+                                                               final @NonNull Scopes scopes,
+                                                               final @NonNull OolangKlass currentKlass,
+                                                               final @Nullable Klass applicableKlass) {
         assert indexingExpression != null;
         assert scopes != null;
         assert currentKlass != null;
@@ -424,7 +424,7 @@ public final class OolangSemanticAnalyzer {
         throw new UnsupportedOperationException("todo List / Map indexing operations");
     }
 
-    private static @NonNull Type visitVariableOrPropAccessExpression(
+    private static @NonNull ActualType visitVariableOrPropAccessExpression(
             final @NonNull RealExpression variableOrPropAccessExpression,
             final @NonNull Scopes scopes,
             final @NonNull OolangKlass currentKlass,
@@ -438,10 +438,10 @@ public final class OolangSemanticAnalyzer {
                 variableOrPropAccessExpression, scopes, currentKlass, applicableKlass, true);
     }
 
-    private static @NonNull Type visitFunCallExpression(final @NonNull RealExpression funCallExpression,
-                                                        final @NonNull Scopes scopes,
-                                                        final @NonNull OolangKlass currentKlass,
-                                                        final @Nullable Klass applicableKlass) {
+    private static @NonNull ActualType visitFunCallExpression(final @NonNull RealExpression funCallExpression,
+                                                              final @NonNull Scopes scopes,
+                                                              final @NonNull OolangKlass currentKlass,
+                                                              final @Nullable Klass applicableKlass) {
         assert funCallExpression != null;
         assert scopes != null;
         assert currentKlass != null;
@@ -468,7 +468,7 @@ public final class OolangSemanticAnalyzer {
         }
 
         // resolve the function to call and its parameters
-        final var funParameters = new ArrayList<@NonNull Type>();
+        final var funParameters = new ArrayList<@NonNull ActualType>();
         for (final var rawFunChild : funCallExpression.children) {
             if (rawFunChild instanceof RealExpression funChild && funChild.expressionType == FUN_CALL_PARAMETER) {
                 if (!funChild.identifiers.isEmpty()) {
@@ -500,9 +500,9 @@ public final class OolangSemanticAnalyzer {
         return function.returnType();
     }
 
-    private static @NonNull Type visitFunCallParameter(final @NonNull RealExpression funChild,
-                                                       final @NonNull Scopes scopes,
-                                                       final @NonNull OolangKlass currentKlass) {
+    private static @NonNull ActualType visitFunCallParameter(final @NonNull RealExpression funChild,
+                                                             final @NonNull Scopes scopes,
+                                                             final @NonNull OolangKlass currentKlass) {
         assert funChild != null;
         assert scopes != null;
         assert currentKlass != null;
@@ -530,11 +530,11 @@ public final class OolangSemanticAnalyzer {
         // todo INVOKE_DYNAMIC
     }
 
-    private static @NonNull Type visitVariableOrPropAccessChain(final @NonNull RealExpression expression,
-                                                                final @NonNull Scopes scopes,
-                                                                final @NonNull OolangKlass currentKlass,
-                                                                final @Nullable Klass applicableKlass,
-                                                                final boolean untilLast) {
+    private static @NonNull ActualType visitVariableOrPropAccessChain(final @NonNull RealExpression expression,
+                                                                      final @NonNull Scopes scopes,
+                                                                      final @NonNull OolangKlass currentKlass,
+                                                                      final @Nullable Klass applicableKlass,
+                                                                      final boolean untilLast) {
         assert expression != null;
         assert scopes != null;
         assert currentKlass != null;

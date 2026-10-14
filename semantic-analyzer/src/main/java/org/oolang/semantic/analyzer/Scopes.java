@@ -8,11 +8,10 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.oolang.symbol.table.BaseSymbol.Property;
 import org.oolang.symbol.table.OolangKlass;
-import org.oolang.symbol.table.Type;
+import org.oolang.symbol.table.ActualType;
 import org.oolang.symbol.table.Variable;
 import org.oolang.symbol.table.Variable.SimpleVariable;
 
-import java.lang.constant.ConstantDescs;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -73,7 +72,7 @@ final class Scopes {
     }
 
     void putVariable(final @NonNull String name,
-                     final @NonNull Type type,
+                     final @NonNull ActualType type,
                      final boolean isFinal,
                      final boolean isStatic) {
         assert name != null;
@@ -130,7 +129,7 @@ final class Scopes {
         }
 
         private void putVariable(final @NonNull String name,
-                                 final @NonNull Type type,
+                                 final @NonNull ActualType type,
                                  final boolean isFinal) {
             assert name != null;
             assert type != null;

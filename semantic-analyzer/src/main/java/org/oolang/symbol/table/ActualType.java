@@ -8,20 +8,20 @@ import org.jspecify.annotations.NonNull;
 
 import java.util.List;
 
-public sealed interface Type extends Comparable<Type> permits Klass, Type.GenericType {
+public sealed interface ActualType extends Comparable<ActualType> permits Klass, ActualType.GenericType {
 
-    boolean isAssignableFrom(final @NonNull Type otherType);
+    boolean isAssignableFrom(final @NonNull ActualType otherType);
 
-    record GenericType(@NonNull Klass klass, @NonNull List<@NonNull Type> parameters) implements Type {
+    record GenericType(@NonNull Klass klass, @NonNull List<@NonNull ActualType> parameters) implements ActualType {
         @Override
-        public boolean isAssignableFrom(final @NonNull Type otherType) {
+        public boolean isAssignableFrom(final @NonNull ActualType otherType) {
             assert otherType != null;
 
             throw new UnsupportedOperationException();
         }
     }
 
-    default int compareTo(final @NonNull Type other) {
+    default int compareTo(final @NonNull ActualType other) {
         assert other != null;
 
         final var thisKlass = TypeResolver.getKlassFromType(this);

@@ -108,12 +108,12 @@ final class ExistingKlass implements Klass {
     }
 
     @Override
-    public @NonNull SequencedCollection<@NonNull Type> genericSuperKlasses() {
+    public @NonNull SequencedCollection<@NonNull ActualType> genericSuperKlasses() {
         return parents.get().genericSuperKlasses;
     }
 
     @Override
-    public @NonNull SequencedCollection<@NonNull Type> genericSuperInterfaces() {
+    public @NonNull SequencedCollection<@NonNull ActualType> genericSuperInterfaces() {
         return parents.get().genericSuperInterfaces;
     }
 
@@ -197,7 +197,7 @@ final class ExistingKlass implements Klass {
     }
 
     private static class Parents {
-        private final @NonNull SequencedCollection<@NonNull Type> genericSuperKlasses = new ArrayList<>();
-        private final @NonNull SequencedCollection<@NonNull Type> genericSuperInterfaces = new TreeSet<>();
+        private final @NonNull SequencedCollection<@NonNull ActualType> genericSuperKlasses = new ArrayList<>();
+        private final @NonNull SequencedCollection<@NonNull ActualType> genericSuperInterfaces = new TreeSet<>();
     }
 }
