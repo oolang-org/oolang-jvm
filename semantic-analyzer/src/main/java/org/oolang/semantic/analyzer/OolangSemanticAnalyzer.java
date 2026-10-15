@@ -20,9 +20,9 @@ import org.oolang.ast.statement.CodeBlock;
 import org.oolang.ast.statement.ConstructorCodeBlock;
 import org.oolang.ast.statement.RealStatement;
 import org.oolang.ast.statement.Statement;
+import org.oolang.symbol.table.*;
 import org.oolang.symbol.table.BaseSymbol.Function;
 import org.oolang.symbol.table.BaseSymbol.Property;
-import org.oolang.symbol.table.*;
 import org.oolang.symbol.table.Variable.SimpleVariable;
 
 import java.lang.constant.ConstantDescs;
@@ -126,51 +126,65 @@ public final class OolangSemanticAnalyzer {
         assert scopes != null;
         assert currentKlass != null;
 
-        final var propertyName = elementName(propertyElement);
-        final var property = currentKlass.properties().get(propertyName);
+        final var property = currentKlass.properties().get(elementName(propertyElement));
         scopes.putProperty(property);
 
-        final var typeOrNull = property.typeOrNull(); // resolve property type if explicit
+        try {
+            for (final var child : propertyElement.children) {
+                if (child instanceof RealElement realElement && realElement.elementType == PROPERTY_INITIALIZER) {
+                    final var propertyExpression = (Expression) realElement.children.getFirst();
+                    final var propertyType = visitExpression(propertyExpression, scopes, currentKlass, null);
 
-        for (final var child : propertyElement.children) {
-            if (child instanceof RealElement realElement && realElement.elementType == PROPERTY_INITIALIZER) {
-                final var propertyExpression = (Expression) realElement.children.getFirst();
-                final var propertyType = visitExpression(propertyExpression, scopes, currentKlass, null);
+                    final var lateinitType = property.lateinitTypeOrNull();
+                    if (lateinitType != null) { // infer type from the property's expression
+                        lateinitType.setType(propertyType);
+                        // also set the property's descriptor string
+                        propertyElement.setDescriptorString(getKlassFromType(propertyType).descriptorString());
+                    }
 
-                if (typeOrNull == null) { // infer type from the property's expression
-                    property.setType(propertyType);
-                    // also set the property's descriptor string
-                    propertyElement.setDescriptorString(TypeResolver.getKlassFromType(propertyType).descriptorString());
-                }
-
-                // if property is not static (= instance), build and return the inline assignment for constructors
-                if (!property.isStatic) {
-                    final var assignment = new RealStatement(ASSIGNMENT);
-
-                    // build the assigned property
-                    final var assignedPart = new RealExpression(CHAINABLE);
-                    // 1) load this
-                    loadThis(assignedPart, scopes);
-                    // 2) resolve value to assign to the property = the prop initializer expression
-                    assignedPart.children.add(propertyExpression);
-                    // 3) assign property to its value
-                    final var propAssignmentExpression = new RealExpression(PROP_ASSIGNMENT);
-                    propAssignmentExpression.identifiers.add(new SimpleIdentifier(propertyName));
-                    propAssignmentExpression.ownerDescriptorString = currentKlass.descriptorString();
-                    propAssignmentExpression.invocation = PUT_FIELD;
-                    final var propDescriptorString = propertyElement.descriptorString();
-                    assert propDescriptorString != null;
-                    propAssignmentExpression.setDescriptorString(propDescriptorString);
-                    propAssignmentExpression.parent = assignedPart;
-                    assignedPart.children.add(propAssignmentExpression);
-
-                    assignment.children.add(assignedPart);
-                    return assignment;
+                    // if property is not static (= instance), build and return the inline assignment for constructors
+                    if (!property.isStatic) {
+                        return buildAssignmentForConstructor(propertyExpression, propertyElement, scopes, currentKlass);
+                    }
                 }
             }
+        } finally {
+            // always resolve the property's type
+            property.type();
         }
 
         return null;
+    }
+
+    private static @NonNull RealStatement buildAssignmentForConstructor(final @NonNull Expression propertyExpression,
+                                                                        final @NonNull RealElement propertyElement,
+                                                                        final @NonNull Scopes scopes,
+                                                                        final @NonNull OolangKlass currentKlass) {
+        assert propertyExpression != null;
+        assert propertyElement != null;
+        assert scopes != null;
+        assert currentKlass != null;
+
+        // build the assigned property
+        final var assignedPart = new RealExpression(CHAINABLE);
+        // 1) load this
+        loadThis(assignedPart, scopes);
+        // 2) resolve value to assign to the property = the prop initializer expression
+        assignedPart.children.add(propertyExpression);
+        // 3) assign property to its value
+        final var propAssignmentExpression = new RealExpression(PROP_ASSIGNMENT);
+        propAssignmentExpression.identifiers.add(new SimpleIdentifier(elementName(propertyElement)));
+        propAssignmentExpression.ownerDescriptorString = currentKlass.descriptorString();
+        propAssignmentExpression.invocation = PUT_FIELD;
+        final var propDescriptorString = propertyElement.descriptorString();
+        assert propDescriptorString != null;
+        propAssignmentExpression.setDescriptorString(propDescriptorString);
+        propAssignmentExpression.parent = assignedPart;
+        assignedPart.children.add(propAssignmentExpression);
+
+        final var assignment = new RealStatement(ASSIGNMENT);
+        assignment.children.add(assignedPart);
+        return assignment;
     }
 
     private static void visitFunction(final @NonNull RealElement funElement,
@@ -185,7 +199,6 @@ public final class OolangSemanticAnalyzer {
 
         assert currentKlass.functions != null;
         final var function = currentKlass.functions.get(funIndex);
-        //noinspection ResultOfMethodCallIgnored
         function.returnType(); // resolve function's return type
 
         final Scopes effectiveScopes = (function.isStatic)
