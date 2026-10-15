@@ -79,6 +79,31 @@ linked against by other classes nor discovered through reflection.
 * Support aggressive unloading of non-discoverable classes, so that frameworks have the flexibility to define as many as
 they need.
 
+## Kotlin type inference
+
+### How the Inference Engine Works
+
+The Kotlin compiler resolves types through a deterministic, bottom-up tree evaluation and a type constraint solver:
+1. **Abstract Syntax Tree (AST) Generation:** The compiler parses the initialization expression into a tree structure.
+2. **Bottom-Up Type Evaluation:** It evaluates the types of the leaf nodes (literals, variable references) and bubbles
+   them up through operators, function calls, and control structures.
+3. **Constraint Solving:** For complex statements, it creates a set of subtyping equations and solves them to find the
+   most specific valid type.
+
+### Type Resolution Scenarios
+
+* **Least Upper Bound:** When a property is initialized using an if or when block, the compiler evaluates all possible
+  return branches and finds their Least Upper Bound (LUB)—the closest common supertype shared by all branches.
+* **Single-Expression Functions:** If it calls a single-expression function that also lacks a type, the compiler
+  recursively checks that function's inner expression to infer both the function's return type and the property's type.
+
+### Key Technical Rules & Limitations
+* **The Initializer is Required:** You cannot use type inference without an assignment. Writing `val x` without an
+  explicit type or an initial value causes a compile error because the type solver has zero equations to work with.
+* **Immutability of Inferred Types:** Once a type is inferred, it is strictly fixed. You cannot reassign a variable to a
+  different type later.
+* **Nullability Inference:** The compiler infers nullability based on whether the expression can yield a null value.
+
 # Inspirations
 
 * A nice article listing
