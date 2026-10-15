@@ -110,14 +110,14 @@ public final class SymbolTableBuilder {
                 assert element.identifier != null;
                 final var paramName = element.identifier.identifier; // a function parameter has a simple identifier
                 assert element.type != null;
-                parameters.add(new Parameter(paramName, new LazyType(element.type, klass)));
+                parameters.add(new Parameter(paramName, new Type.Lazy(element.type, klass)));
             }
         }
 
         final var function = new Function(
                 klass,
                 baseSymbol(funElement, false, true),
-                isConstructor ? null : new LazyType(funElement.type, klass),
+                isConstructor ? null : new Type.Lazy(funElement.type, klass),
                 parameters);
         klass.functions.add(function);
         return function;
@@ -131,24 +131,28 @@ public final class SymbolTableBuilder {
         final var baseSymbol = baseSymbol(propertyElement, false,
                 propertyElement.elementType == RealElement.ElementType.VAL);
 
-        final Property property;
+        final Type propType;
         // 1) type is explicit
         if (propertyElement.type != null) {
-            final var propType = new LazyType(propertyElement.type, klass);
-            property = new Property(klass, baseSymbol, propType);
+            propType = new Type.Lazy(propertyElement.type, klass);
         } else {
             // 2) type can be directly inferred for some cases, or it will have to be resolved during semantic analysis
             Klass klassOrNull = null;
             for (final var child : propertyElement.children) {
                 if (child instanceof RealElement realElement && realElement.elementType == PROPERTY_INITIALIZER) {
                     klassOrNull = TypeResolver.inferKlass((Expression) realElement.children.getFirst());
+                    break;
                 }
             }
             if (klassOrNull != null) {
                 propertyElement.setDescriptorString(klassOrNull.descriptorString());
+                propType = klassOrNull;
+            } else {
+                propType = new Type.Lateinit();
             }
-            property = new Property(klass, baseSymbol, klassOrNull);
         }
+
+        final var property = new Property(klass, baseSymbol, propType);
 
         // if not private, also add a function
 //        if (property.visibility != Visibility.PRIVATE) {

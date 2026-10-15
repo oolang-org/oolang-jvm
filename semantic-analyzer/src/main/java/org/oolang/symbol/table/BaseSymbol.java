@@ -46,35 +46,21 @@ public sealed class BaseSymbol permits BaseSymbol.Property, BaseSymbol.Function,
     @SuppressWarnings("preview")
     public static final class Property extends BaseSymbol implements Variable, TypeDescriptor {
         public final @NonNull Klass declaringKlass;
-        private final @Nullable LazyType lazyType;
+        private final @NonNull Type type;
 
-        private @Nullable ActualType type;
         private final @NonNull LazyConstant<@NonNull String> descriptorString =
                 LazyConstant.of(this::buildDescriptorString);
 
         Property(final @NonNull Klass declaringKlass,
                  final @NonNull BaseSymbol baseSymbol,
-                 final @NonNull LazyType lazyType) {
+                 final @NonNull Type type) {
             assert declaringKlass != null;
             assert baseSymbol != null;
-            assert lazyType != null;
-            super(baseSymbol);
-
-            this.declaringKlass = declaringKlass;
-            this.lazyType = lazyType;
-            this.type = null;
-        }
-
-        Property(final @NonNull Klass declaringKlass,
-                 final @NonNull BaseSymbol baseSymbol,
-                 final @Nullable ActualType type) {
-            assert declaringKlass != null;
-            assert baseSymbol != null;
+            assert type != null;
             super(baseSymbol);
 
             this.declaringKlass = declaringKlass;
             this.type = type;
-            this.lazyType = null;
         }
 
         Property(final @NonNull Klass declaringKlass,
@@ -92,31 +78,19 @@ public sealed class BaseSymbol permits BaseSymbol.Property, BaseSymbol.Function,
 
             this.declaringKlass = declaringKlass;
             this.type = type;
-            this.lazyType = null;
-        }
-
-        public void setType(final @NonNull ActualType type) {
-            assert type != null;
-            this.type = type;
-        }
-
-        public @Nullable ActualType typeOrNull() {
-            if (type != null) {
-                return type;
-            }
-            if (lazyType != null) {
-                return lazyType.type();
-            }
-            return null;
         }
 
         @Override
         public @NonNull ActualType type() {
-            final var typeOrNull = typeOrNull();
-            if (typeOrNull == null) {
-                throw new IllegalStateException("Type not set");
-            }
-            return typeOrNull;
+            return switch (type) {
+                case ActualType actualType -> actualType;
+                case Type.Lazy lazyType -> lazyType.type();
+                case Type.Lateinit lateinitType -> lateinitType.type();
+            };
+        }
+
+        public Type.@Nullable Lateinit lateinitTypeOrNull() {
+            return (type instanceof Type.Lateinit lateinitType) ? lateinitType : null;
         }
 
         private @NonNull String buildDescriptorString() {
@@ -143,17 +117,17 @@ public sealed class BaseSymbol permits BaseSymbol.Property, BaseSymbol.Function,
     @SuppressWarnings("preview")
     public static final class Function extends BaseSymbol implements BaseFunction, TypeDescriptor {
         public final @NonNull Klass declaringKlass;
-        private final @Nullable LazyType lazyReturnType;
-        private final @Nullable ActualType returnType;
+        private final @NonNull Type returnType;
         public final @NonNull List<@NonNull Parameter> parameters;
         private final @NonNull LazyConstant<@NonNull String> descriptorString =
                 LazyConstant.of(this::buildDescriptorString);
         private final @NonNull LazyConstant<@NonNull String> typeDescriptorString =
                 LazyConstant.of(this::buildTypeDescriptorString);
 
+        /// @param lazyReturnType a lazy type, or null for constructors. The type will resolve to `declaringKlass`
         Function(final @NonNull Klass declaringKlass,
                  final @NonNull BaseSymbol baseSymbol,
-                 final @Nullable LazyType lazyReturnType,
+                 final Type.@Nullable Lazy lazyReturnType,
                  final @NonNull List<@NonNull Parameter> parameters) {
             assert declaringKlass != null;
             assert baseSymbol != null;
@@ -161,13 +135,7 @@ public sealed class BaseSymbol permits BaseSymbol.Property, BaseSymbol.Function,
             super(baseSymbol);
 
             this.declaringKlass = declaringKlass;
-            if (lazyReturnType != null) {
-                this.lazyReturnType = lazyReturnType;
-                this.returnType = null;
-            } else {
-                this.lazyReturnType = null;
-                this.returnType = declaringKlass;
-            }
+            this.returnType = (lazyReturnType != null) ? lazyReturnType : declaringKlass;
             this.parameters = parameters;
         }
 
@@ -188,16 +156,15 @@ public sealed class BaseSymbol permits BaseSymbol.Property, BaseSymbol.Function,
 
             this.declaringKlass = declaringKlass;
             this.returnType = returnType;
-            this.lazyReturnType = null;
             this.parameters = parameters;
         }
 
         public @NonNull ActualType returnType() {
-            if (returnType != null) {
-                return returnType;
-            }
-            assert lazyReturnType != null;
-            return lazyReturnType.type();
+            return switch (returnType) {
+                case ActualType actualType -> actualType;
+                case Type.Lazy lazyType -> lazyType.type();
+                case Type.Lateinit lateinitType -> lateinitType.type();
+            };
         }
 
         @Override
@@ -230,10 +197,10 @@ public sealed class BaseSymbol permits BaseSymbol.Property, BaseSymbol.Function,
 
         public static final class Parameter {
             public final @NonNull String name;
-            private final @Nullable LazyType lazyType;
+            private final Type.@Nullable Lazy lazyType;
             private final @Nullable ActualType type;
 
-            Parameter(final @NonNull String name, final @NonNull LazyType lazyType) {
+            Parameter(final @NonNull String name, final Type.@NonNull Lazy lazyType) {
                 assert name != null;
                 assert lazyType != null;
 

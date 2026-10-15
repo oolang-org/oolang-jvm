@@ -8,7 +8,7 @@ import org.jspecify.annotations.NonNull;
 
 import java.util.List;
 
-public sealed interface ActualType extends Comparable<ActualType> permits Klass, ActualType.GenericType {
+public sealed interface ActualType extends Type, Comparable<ActualType> permits Klass, ActualType.GenericType {
 
     boolean isAssignableFrom(final @NonNull ActualType otherType);
 

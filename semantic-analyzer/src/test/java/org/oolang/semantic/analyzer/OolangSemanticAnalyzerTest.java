@@ -242,6 +242,7 @@ public class OolangSemanticAnalyzerTest {
         assertThat(funCallParam.identifiers).isEmpty();
         assertThat(funCallParam.typeDescriptorString).isNull();
         assertThat(funCallParam.children).hasSize(1);
+
         var funCallParamPropAccess = (RealExpression) funCallParam.children.getFirst();
         assertThat(funCallParamPropAccess.expressionType).isEqualTo(PROP_ACCESS);
         assertThat(funCallParamPropAccess.description()).isEqualTo("Expression(prop_access PROP)");
@@ -277,51 +278,9 @@ public class OolangSemanticAnalyzerTest {
         var propertyExpression = (ConstantExpression) propertyInit.children.getFirst();
         assertThat(propertyExpression.descriptorString()).isEqualTo("Ljava/lang/String;");
 
-        // we do not check everything this time, full verification is done in previous tests
-        var funDeclaration = classBody.children.get(1);
-        var codeBlock = (CodeBlock) funDeclaration.children.getLast();
-        var statement = (RealStatement) codeBlock.statements.getFirst();
-        var chainable = (RealExpression) statement.children.getFirst();
-        var funCall = (RealExpression) chainable.children.getLast();
-        var funCallParam = (RealExpression) funCall.children.getLast();
-        assertThat(funCallParam.expressionType).isEqualTo(FUN_CALL_PARAMETER);
-        assertThat(funCallParam.ownerDescriptorString).isNull();
-        assertThat(funCallParam.identifiers).isEmpty();
-        assertThat(funCallParam.typeDescriptorString).isNull();
-        assertThat(funCallParam.children).hasSize(1);
-        var funCallParamChainable = (RealExpression) funCallParam.content().getFirst();
-        assertThat(funCallParamChainable.expressionType).isEqualTo(CHAINABLE);
-        assertThat(funCallParamChainable.content()).hasSize(3);
+        verifyMainWithPropUsage(classBody);
 
-        var funCallParamNew = (RealExpression) funCallParamChainable.content().get(0);
-        assertThat(funCallParamNew.expressionType).isEqualTo(NEW);
-        assertThat(funCallParamNew.parent).isEqualTo(funCallParamChainable);
-        assertThat(funCallParamNew.descriptorString()).isEqualTo("Lcom/example/Example;");
-
-        var funCallParamClassInstantiation = (RealExpression) funCallParamChainable.content().get(1);
-        assertThat(funCallParamClassInstantiation.expressionType).isEqualTo(FUN_CALL);
-        assertThat(funCallParamClassInstantiation.parent).isEqualTo(funCallParamChainable);
-        assertThat(funCallParamClassInstantiation.type).isNotNull();
-        assertThat(funCallParamClassInstantiation.type.description()).isEqualTo("Type(Example)");
-        assertThat(funCallParamClassInstantiation.invocation).isEqualTo(INVOKE_SPECIAL);
-        assertThat(funCallParamClassInstantiation.ownerDescriptorString).isEqualTo("Lcom/example/Example;");
-        assertThat(funCallParamClassInstantiation.identifiers).hasSize(1);
-        assertThat(funCallParamClassInstantiation.identifiers.getFirst().identifier).isEqualTo(ConstantDescs.INIT_NAME);
-        assertThat(funCallParamClassInstantiation.descriptorString()).isEqualTo("Lcom/example/Example;");
-        assertThat(funCallParamClassInstantiation.typeDescriptorString).isEqualTo("()V");
-        assertThat(funCallParamClassInstantiation.content()).isEmpty();
-
-        var funCallParamPropAccess = (RealExpression) funCallParamChainable.content().get(2);
-        assertThat(funCallParamPropAccess.expressionType).isEqualTo(PROP_ACCESS);
-        assertThat(funCallParamClassInstantiation.parent).isEqualTo(funCallParamChainable);
-        assertThat(funCallParamPropAccess.description()).isEqualTo("Expression(prop_access prop)");
-        assertThat(funCallParamPropAccess.ownerDescriptorString).isEqualTo("Lcom/example/Example;");
-        assertThat(funCallParamPropAccess.invocation).isEqualTo("getField");
-        assertThat(funCallParamPropAccess.identifiers).hasSize(1);
-        assertThat(funCallParamPropAccess.descriptorString()).isEqualTo("Ljava/lang/String;");
-        assertThat(funCallParamPropAccess.children).isEmpty();
-
-        var defaultConstructor = classBody.children.get(2);
+        var defaultConstructor = classBody.children.getLast();
         assertThat(defaultConstructor.type).isNull();
         assertThat(defaultConstructor.description()).isEqualTo("Element(constructor <init>)");
         assertThat(defaultConstructor.modifiers).hasSize(1);
@@ -372,6 +331,146 @@ public class OolangSemanticAnalyzerTest {
         assertThat(superFunCall.content()).isEmpty();
 
         print(astFile);
+    }
+
+    @Test
+    public void parseClassWithMainFunctionAndStaticAndInstancePropertiesUsage() {
+        var astFile = astForCode("""
+                package com.example
+                class Example {
+                private static val HELLO = "Hello, "
+                val prop = HELLO + "World!"
+                static fun main(args: Array<String>) {
+                System.out.println(new Example().prop)
+                }
+                }""");
+
+        var root = astFile.rootElements.getFirst();
+        var classBody = (ClassBody) root.children.getFirst();
+        assertThat(classBody.children).hasSize(4);
+        var property = classBody.children.getFirst();
+        assertThat(property.type).isNull();
+        assertThat(property.descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(property.children).hasSize(1);
+        var propertyInit = (RealElement) property.children.getFirst();
+        assertThat(propertyInit.elementType).isEqualTo(PROPERTY_INITIALIZER);
+        var propertyExpression = (ConstantExpression) propertyInit.children.getFirst();
+        assertThat(propertyExpression.descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        verifyMainWithPropUsage(classBody);
+
+        var defaultConstructor = classBody.children.getLast();
+        assertThat(defaultConstructor.type).isNull();
+        assertThat(defaultConstructor.description()).isEqualTo("Element(constructor <init>)");
+        assertThat(defaultConstructor.modifiers).hasSize(1);
+        assertThat(defaultConstructor.modifiers.getFirst().modifier).isEqualTo("open");
+        assertThat(defaultConstructor.children).hasSize(1);
+        var constructorCodeBlock = (ConstructorCodeBlock) defaultConstructor.children.getFirst();
+        assertThat(constructorCodeBlock.earlyLarvalStatements).hasSize(1);
+        var assignmentStatement = (RealStatement) constructorCodeBlock.earlyLarvalStatements.getFirst();
+        assertThat(assignmentStatement.children).hasSize(1);
+
+        var assignmentChainable = (RealExpression) assignmentStatement.children.getFirst();
+        assertThat(assignmentChainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(assignmentChainable.content()).hasSize(3);
+
+        var assignmentLoad = (LoadExpression) assignmentChainable.content().get(0);
+        assertThat(assignmentLoad.description()).isEqualTo("LoadExpression(this, 0)");
+        assertThat(assignmentLoad.descriptorString()).isEqualTo("Lcom/example/Example;");
+
+        var assignmentConcat = (RealExpression) assignmentChainable.content().get(1);
+        assertThat(assignmentConcat.expressionType).isEqualTo(ADD);
+        assertThat(assignmentConcat.children).hasSize(2);
+
+        var assignmentPropAccess = (RealExpression) assignmentConcat.children.getFirst();
+        assertThat(assignmentPropAccess.expressionType).isEqualTo(PROP_ACCESS);
+        assertThat(assignmentPropAccess.description()).isEqualTo("Expression(prop_access HELLO)");
+        assertThat(assignmentPropAccess.ownerDescriptorString).isEqualTo("Lcom/example/Example;");
+        assertThat(assignmentPropAccess.invocation).isEqualTo("getStatic");
+        assertThat(assignmentPropAccess.identifiers).hasSize(1);
+        assertThat(assignmentPropAccess.descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(assignmentPropAccess.children).isEmpty();
+
+        var constant = (ConstantExpression) assignmentConcat.children.getLast();
+        assertThat(constant.value).isEqualTo("World!");
+
+        var propAssignment = (RealExpression) assignmentChainable.content().get(2);
+        assertThat(propAssignment.expressionType).isEqualTo(PROP_ASSIGNMENT);
+        assertThat(propAssignment.description()).isEqualTo("Expression(prop_assignment prop)");
+        assertThat(propAssignment.ownerDescriptorString).isEqualTo("Lcom/example/Example;");
+        assertThat(propAssignment.descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(propAssignment.invocation).isEqualTo(PUT_FIELD);
+        assertThat(propAssignment.content()).isEmpty();
+
+        assertThat(constructorCodeBlock.initCall).isNotNull();
+        var superCall = constructorCodeBlock.initCall;
+        assertThat(superCall.expressionType).isEqualTo(CHAINABLE);
+        assertThat(superCall.content()).hasSize(2);
+
+        var superCallLoad = (LoadExpression) superCall.content().getFirst();
+        assertThat(superCallLoad.description()).isEqualTo("LoadExpression(this, 0)");
+        assertThat(superCallLoad.descriptorString()).isEqualTo("Lcom/example/Example;");
+
+        var superFunCall = (RealExpression) superCall.content().getLast();
+        assertThat(superFunCall.expressionType).isEqualTo(FUN_CALL);
+        assertThat(superFunCall.type).isNull();
+        assertThat(superFunCall.invocation).isEqualTo(INVOKE_SPECIAL);
+        assertThat(superFunCall.ownerDescriptorString).isEqualTo("Ljava/lang/Object;");
+        assertThat(superFunCall.identifiers).hasSize(1);
+        assertThat(superFunCall.identifiers.getFirst().identifier).isEqualTo(ConstantDescs.INIT_NAME);
+        assertThat(superFunCall.descriptorString()).isNull();
+        assertThat(superFunCall.typeDescriptorString).isEqualTo("()V");
+        assertThat(superFunCall.content()).isEmpty();
+
+        print(astFile);
+    }
+
+    private void verifyMainWithPropUsage(ClassBody classBody) {
+        // we do not check everything this time, full verification is done in previous tests
+        var funDeclaration = classBody.children.get(classBody.children.size() - 2);
+        var codeBlock = (CodeBlock) funDeclaration.children.getLast();
+        var statement = (RealStatement) codeBlock.statements.getFirst();
+        var chainable = (RealExpression) statement.children.getFirst();
+        var funCall = (RealExpression) chainable.children.getLast();
+
+        var funCallParam = (RealExpression) funCall.children.getLast();
+        assertThat(funCallParam.expressionType).isEqualTo(FUN_CALL_PARAMETER);
+        assertThat(funCallParam.ownerDescriptorString).isNull();
+        assertThat(funCallParam.identifiers).isEmpty();
+        assertThat(funCallParam.typeDescriptorString).isNull();
+        assertThat(funCallParam.children).hasSize(1);
+
+        var funCallParamChainable = (RealExpression) funCallParam.content().getFirst();
+        assertThat(funCallParamChainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(funCallParamChainable.content()).hasSize(3);
+
+        var funCallParamNew = (RealExpression) funCallParamChainable.content().get(0);
+        assertThat(funCallParamNew.expressionType).isEqualTo(NEW);
+        assertThat(funCallParamNew.parent).isEqualTo(funCallParamChainable);
+        assertThat(funCallParamNew.descriptorString()).isEqualTo("Lcom/example/Example;");
+
+        var funCallParamClassInstantiation = (RealExpression) funCallParamChainable.content().get(1);
+        assertThat(funCallParamClassInstantiation.expressionType).isEqualTo(FUN_CALL);
+        assertThat(funCallParamClassInstantiation.parent).isEqualTo(funCallParamChainable);
+        assertThat(funCallParamClassInstantiation.type).isNotNull();
+        assertThat(funCallParamClassInstantiation.type.description()).isEqualTo("Type(Example)");
+        assertThat(funCallParamClassInstantiation.invocation).isEqualTo(INVOKE_SPECIAL);
+        assertThat(funCallParamClassInstantiation.ownerDescriptorString).isEqualTo("Lcom/example/Example;");
+        assertThat(funCallParamClassInstantiation.identifiers).hasSize(1);
+        assertThat(funCallParamClassInstantiation.identifiers.getFirst().identifier).isEqualTo(ConstantDescs.INIT_NAME);
+        assertThat(funCallParamClassInstantiation.descriptorString()).isEqualTo("Lcom/example/Example;");
+        assertThat(funCallParamClassInstantiation.typeDescriptorString).isEqualTo("()V");
+        assertThat(funCallParamClassInstantiation.content()).isEmpty();
+
+        var funCallParamPropAccess = (RealExpression) funCallParamChainable.content().get(2);
+        assertThat(funCallParamPropAccess.expressionType).isEqualTo(PROP_ACCESS);
+        assertThat(funCallParamClassInstantiation.parent).isEqualTo(funCallParamChainable);
+        assertThat(funCallParamPropAccess.description()).isEqualTo("Expression(prop_access prop)");
+        assertThat(funCallParamPropAccess.ownerDescriptorString).isEqualTo("Lcom/example/Example;");
+        assertThat(funCallParamPropAccess.invocation).isEqualTo("getField");
+        assertThat(funCallParamPropAccess.identifiers).hasSize(1);
+        assertThat(funCallParamPropAccess.descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(funCallParamPropAccess.children).isEmpty();
     }
 
     private static AstFile astForCode(String code) {

@@ -81,6 +81,41 @@ public class SymbolTableBuilderTest {
     }
 
     @Test
+    public void symbolTableOfClassWithProperties() {
+        var symbolTable = symbolTableForCode("""
+                package com.example
+                class Example {
+                static val HELLO = "Hello"
+                val foo = HELLO + ", World!"
+                }""");
+        assertThat(symbolTable.klasses).hasSize(1);
+        var rootKlass = symbolTable.klasses.values().iterator().next();
+        assertThat(rootKlass.name).isEqualTo("Example");
+        assertThat(rootKlass.properties()).hasSize(2);
+        var propertiesIterator = rootKlass.properties().values().iterator();
+
+        var childProperty1 = propertiesIterator.next();
+        assertThat(childProperty1.name).isEqualTo("HELLO");
+        assertThat(childProperty1.visibility).isEqualTo(PUBLIC);
+        assertThat(childProperty1.isStatic).isTrue();
+        assertThat(childProperty1.isAbstract).isFalse();
+        assertThat(childProperty1.isFinal()).isTrue();
+        var klass = (Klass) childProperty1.type();
+        assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        var childProperty2 = propertiesIterator.next();
+        assertThat(childProperty2.name).isEqualTo("foo");
+        assertThat(childProperty2.visibility).isEqualTo(PUBLIC);
+        assertThat(childProperty2.isStatic).isFalse();
+        assertThat(childProperty2.isAbstract).isFalse();
+        assertThat(childProperty2.isFinal()).isTrue();
+        assertThat(childProperty2.lateinitTypeOrNull()).isNotNull();
+
+        assertThat(rootKlass.functions).hasSize(1);
+        verifyDefaultConstructor(rootKlass);
+    }
+
+    @Test
     public void symbolTableOfClassWithStaticProperty() {
         var symbolTable = symbolTableForCode("""
                 package com.example
