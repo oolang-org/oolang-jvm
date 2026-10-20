@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 
 public sealed class BaseSymbol permits BaseSymbol.Property, BaseSymbol.Function, OolangKlass {
     public final @NonNull String name;
-    public final @NonNull Visibility visibility;
+    public @NonNull Visibility visibility;
     public final boolean isStatic;
     public final boolean isAbstract;
     private final boolean isFinal;
@@ -47,6 +47,7 @@ public sealed class BaseSymbol permits BaseSymbol.Property, BaseSymbol.Function,
     public static final class Property extends BaseSymbol implements Variable, TypeDescriptor {
         public final @NonNull Klass declaringKlass;
         private final @NonNull Type type;
+        public @Nullable Function getter = null;
 
         private final @NonNull LazyConstant<@NonNull String> descriptorString =
                 LazyConstant.of(this::buildDescriptorString);
@@ -124,10 +125,10 @@ public sealed class BaseSymbol permits BaseSymbol.Property, BaseSymbol.Function,
         private final @NonNull LazyConstant<@NonNull String> typeDescriptorString =
                 LazyConstant.of(this::buildTypeDescriptorString);
 
-        /// @param lazyReturnType a lazy type, or null for constructors. The type will resolve to `declaringKlass`
+        /// @param returnType a type, or null for constructors. The type will resolve to `declaringKlass`
         Function(final @NonNull Klass declaringKlass,
                  final @NonNull BaseSymbol baseSymbol,
-                 final Type.@Nullable Lazy lazyReturnType,
+                 final @Nullable Type returnType,
                  final @NonNull List<@NonNull Parameter> parameters) {
             assert declaringKlass != null;
             assert baseSymbol != null;
@@ -135,7 +136,7 @@ public sealed class BaseSymbol permits BaseSymbol.Property, BaseSymbol.Function,
             super(baseSymbol);
 
             this.declaringKlass = declaringKlass;
-            this.returnType = (lazyReturnType != null) ? lazyReturnType : declaringKlass;
+            this.returnType = (returnType != null) ? returnType : declaringKlass;
             this.parameters = parameters;
         }
 

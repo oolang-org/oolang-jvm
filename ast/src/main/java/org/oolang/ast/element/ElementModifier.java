@@ -12,7 +12,7 @@ import java.util.Objects;
 
 public final class ElementModifier extends AbstractAst implements Element {
     public final @NonNull ModifierType type;
-    public final @NonNull String modifier;
+    public @NonNull String modifier;
 
     public ElementModifier(final @NonNull ModifierType type, final @NonNull String modifier) {
         this.type = Objects.requireNonNull(type);

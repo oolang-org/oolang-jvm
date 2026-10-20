@@ -58,7 +58,7 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
         final var includeProtected = !includeSelf;
 
         if (includeSelf) {
-            final var property = accessibleProperty(name, false, this);
+            final var property = accessibleProperty(name, true, this);
             if (property != null) {
                 return property;
             }
@@ -94,19 +94,24 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
                 case PUBLIC -> {
                     return property;
                 }
-                case JAVA_PACKAGE_PRIVATE -> {
-                    if (this.packageName().equals(klass.packageName())) { // within the same package
-                        return property;
-                    }
-                }
                 case JAVA_PROTECTED -> {
-                    if (includeProtected // protected in a superclass
+                    if (includeProtected // protected in a superclass or itself
                             || this.packageName().equals(klass.packageName())) { // within the same package
                         return property;
                     }
                 }
                 case OOLANG_PROTECTED -> {
                     if (includeProtected) { // protected in a superclass
+                        return property;
+                    }
+                }
+                case JAVA_PACKAGE_PRIVATE -> {
+                    if (this.packageName().equals(klass.packageName())) { // within the same package
+                        return property;
+                    }
+                }
+                case PRIVATE -> {
+                    if (this.descriptorString().equals(klass.descriptorString())) { // the current class
                         return property;
                     }
                 }

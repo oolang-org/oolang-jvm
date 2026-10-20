@@ -5,11 +5,14 @@
 package org.oolang.symbol.table;
 
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.oolang.ast.AstFile;
-import org.oolang.ast.Identifier;
+import org.oolang.ast.Identifier.SimpleIdentifier;
 import org.oolang.ast.element.ClassBody;
+import org.oolang.ast.element.ElementModifier;
 import org.oolang.ast.element.RealElement;
 import org.oolang.ast.expression.Expression;
+import org.oolang.ast.expression.RealExpression;
 import org.oolang.ast.statement.ConstructorCodeBlock;
 import org.oolang.symbol.table.BaseSymbol.Function;
 import org.oolang.symbol.table.BaseSymbol.Function.Parameter;
@@ -20,7 +23,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static org.oolang.ast.element.ElementModifier.ModifierType.VISIBILITY;
 import static org.oolang.ast.element.RealElement.ElementType.*;
+import static org.oolang.ast.expression.ExpressionUtils.addExpressionToChain;
+import static org.oolang.ast.expression.RealExpression.ExpressionType.CHAINABLE;
+import static org.oolang.ast.expression.RealExpression.ExpressionType.VARIABLE_OR_PROP_ACCESS;
 
 public final class SymbolTableBuilder {
     // un-instantiable
@@ -63,44 +70,50 @@ public final class SymbolTableBuilder {
 
         var hasConstructor = false;
         var hasInstanceFunOrProp = false;
+        // first iteration without properties
         for (final var child : children) {
             switch (child.elementType) {
                 case CONSTRUCTOR -> {
                     hasConstructor = true;
-                    visitFunction(child, klass, true);
+                    visitFunction(child, klass, klass);
                 }
                 case FUN -> {
-                    final var function = visitFunction(child, klass, false);
+                    final var function = visitFunction(child, klass, null);
                     if (!function.isStatic) {
-                        hasInstanceFunOrProp = true;
-                    }
-                }
-                case VAR, VAL -> {
-                    final var property = visitProperty(child, klass);
-                    if (!property.isStatic) {
                         hasInstanceFunOrProp = true;
                     }
                 }
                 case CLASS -> visitClass(child,
                         klass.addKlass(baseSymbol(child, true, true), false));
                 case INTERFACE -> throw new UnsupportedOperationException("interface");
-                default -> throw new IllegalStateException("Unknown element: " + child.elementType);
+            }
+        }
+        // second iteration for properties only on a copy of children, because this list may be updated with new
+        // functions while iterating
+        for (final var child : List.copyOf(children)) {
+            switch (child.elementType) {
+                case VAR, VAL -> {
+                    final var property = visitProperty(child, children, klass);
+                    if (!property.isStatic) {
+                        hasInstanceFunOrProp = true;
+                    }
+                }
             }
         }
 
         // if no explicit constructor was found, add a public empty default constructor and visit it
         if (!hasConstructor && hasInstanceFunOrProp) {
             final var defaultConstructor = new RealElement(CONSTRUCTOR);
-            defaultConstructor.identifier = new Identifier.SimpleIdentifier(ConstantDescs.INIT_NAME);
+            defaultConstructor.identifier = new SimpleIdentifier(ConstantDescs.INIT_NAME);
             defaultConstructor.children.add(new ConstructorCodeBlock());
             children.add(defaultConstructor);
-            visitFunction(defaultConstructor, klass, true);
+            visitFunction(defaultConstructor, klass, klass);
         }
     }
 
     private static @NonNull Function visitFunction(final @NonNull RealElement funElement,
                                                    final @NonNull OolangKlass klass,
-                                                   final boolean isConstructor) {
+                                                   final @Nullable Type returnType) {
         assert funElement != null;
         assert klass != null;
 
@@ -117,15 +130,24 @@ public final class SymbolTableBuilder {
         final var function = new Function(
                 klass,
                 baseSymbol(funElement, false, true),
-                isConstructor ? null : new Type.Lazy(funElement.type, klass),
+                (returnType != null) ? returnType : new Type.Lazy(funElement.type, klass),
                 parameters);
         klass.functions.add(function);
         return function;
     }
 
+    /// Visit a property, optionally adding functions for getter and setter
+    ///
+    /// @param propertyElement the element
+    /// @param children        The child nodes of the current class, where we add the property and optional getter and
+    ///                        setter functions.
+    /// @param klass           the current class we are building
+    /// @return the property
     private static @NonNull Property visitProperty(final @NonNull RealElement propertyElement,
+                                                   final @NonNull List<@NonNull RealElement> children,
                                                    final @NonNull OolangKlass klass) {
         assert propertyElement != null;
+        assert children != null;
         assert klass != null;
 
         final var baseSymbol = baseSymbol(propertyElement, false,
@@ -154,21 +176,53 @@ public final class SymbolTableBuilder {
 
         final var property = new Property(klass, baseSymbol, propType);
 
-        // if not private, also add a function
-//        if (property.visibility != Visibility.PRIVATE) {
-//            klass.functions().add(new Function(klass, baseSymbol, klassOrNull));
-//        }
+        // if not private, also add a getter function and visit it
+        if (!property.isStatic && property.visibility != Visibility.PRIVATE) {
+            final var getterFunction = buildAndVisitGetterFunction(propertyElement, klass, property, propType);
+            children.add(getterFunction);
+        }
 
         klass.properties().put(baseSymbol.name, property);
         return property;
+    }
+
+    private static @NonNull RealElement buildAndVisitGetterFunction(final @NonNull RealElement propertyElement,
+                                                                    final @NonNull OolangKlass klass,
+                                                                    final @NonNull Property property,
+                                                                    final @NonNull Type propType) {
+
+
+        final var getterFunction = new RealElement(FUN);
+        getterFunction.identifier = new SimpleIdentifier(property.name);
+        final var chainableExpression = new RealExpression(CHAINABLE);
+        final var propAccessExpression = new RealExpression(VARIABLE_OR_PROP_ACCESS);
+        propAccessExpression.identifiers.add(new SimpleIdentifier(property.name));
+        addExpressionToChain(chainableExpression, propAccessExpression);
+        getterFunction.children.add(chainableExpression);
+
+        property.getter = visitFunction(getterFunction, klass, propType);
+
+        // the AST property element becomes private
+        var hasVisibility = false;
+        for (final var modifier : propertyElement.modifiers) {
+            if (modifier.type == VISIBILITY) {
+                modifier.modifier = "private";
+                hasVisibility = true;
+            }
+        }
+        if (!hasVisibility) {
+            propertyElement.modifiers.add(new ElementModifier(VISIBILITY, "private"));
+        }
+
+        return getterFunction;
     }
 
     private static @NonNull BaseSymbol baseSymbol(final @NonNull RealElement element,
                                                   final boolean defaultStatic,
                                                   final boolean defaultFinal) {
         assert element != null;
-
         assert element.identifier != null;
+
         final var name = element.identifier.identifier; // a function, property or class has a simple identifier
 
         Visibility visibility = null;

@@ -36,6 +36,7 @@ import static org.oolang.ast.element.RealElement.ElementType.CONSTRUCTOR;
 import static org.oolang.ast.element.RealElement.ElementType.FUN;
 import static org.oolang.ast.element.RealElement.ElementType.VAL;
 import static org.oolang.ast.element.RealElement.ElementType.VAR;
+import static org.oolang.ast.expression.ExpressionUtils.addExpressionToChain;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.*;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.ADD;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.SUB;
@@ -305,23 +306,28 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     /// | ASSIGNMENT NL* expression
     /// ```
     @Override
-    public @NonNull CodeBlock visitFunctionBody(final @NonNull FunctionBodyContext ctx) {
+    public @NonNull Ast visitFunctionBody(final @NonNull FunctionBodyContext ctx) {
         assert ctx != null;
 
-        final var functionBody = new CodeBlock();
-        if (ctx.block() != null) {
-            for (final var statementCtx : ctx.block().statements().statement()) {
+        // 1) function with code block
+        final var blockCtx = ctx.block();
+        if (blockCtx != null) {
+            final var functionBody = new CodeBlock();
+            for (final var statementCtx : blockCtx.statements().statement()) {
                 functionBody.statements.add(visitStatement(statementCtx));
             }
-        } else {
-            Objects.requireNonNull(ctx.expression());
-            throw new UnsupportedOperationException();
+            return addAstInfo(functionBody, ctx);
         }
-        return addAstInfo(functionBody, ctx);
+
+        // 2) function with single expression assignment
+        final var expression = ctx.expression();
+        assert expression != null;
+        return visitExpression(expression);
     }
 
     /// ```
     /// : blockLevelExpression
+    /// | jumpExpression
     /// | blockLevelDeclaration
     /// ```
     @Override
@@ -553,7 +559,6 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     ///     | ifExpression
     ///     | whenExpression
     ///     | tryExpression
-    ///     | jumpExpression
     ///     ;
     /// ```
     @Override
@@ -752,17 +757,6 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         }
 
         return chainableExpression;
-    }
-
-    private static void addExpressionToChain(final @NonNull RealExpression chainableExpression,
-                                             final @NonNull Expression childExpression) {
-        assert chainableExpression != null;
-        assert childExpression != null;
-
-        if (childExpression instanceof RealExpression childRealExpression) {
-            childRealExpression.parent = chainableExpression;
-        }
-        chainableExpression.children.add(childExpression);
     }
 
     /// ```
