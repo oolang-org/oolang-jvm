@@ -41,6 +41,7 @@ public final class RealStatement extends AbstractAst implements StatementNode {
 
     public enum StatementType {
         EXPRESSION,
-        ASSIGNMENT
+        ASSIGNMENT,
+        RETURN,
     }
 }

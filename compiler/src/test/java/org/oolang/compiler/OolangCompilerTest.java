@@ -263,15 +263,15 @@ public class OolangCompilerTest {
         assertThat(classModel.fields()).hasSize(1);
         var fieldModel = classModel.fields().getFirst();
         assertThat(fieldModel.flags().flags()).containsExactlyInAnyOrder(
-                AccessFlag.PUBLIC,
+                AccessFlag.PRIVATE,
                 AccessFlag.FINAL
         );
         assertThat(fieldModel.fieldName().stringValue()).isEqualTo("prop");
         assertThat(fieldModel.fieldTypeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
 
-        assertThat(classModel.methods()).hasSize(2);
+        assertThat(classModel.methods()).hasSize(3);
 
-        verifyMainWithPropUsage(classModel);
+        verifyMainWithPropUsageAndPropGetter(classModel);
 
         // default constructor is added after everything
         var constructorMethodModel = classModel.methods().getLast();
@@ -313,48 +313,6 @@ public class OolangCompilerTest {
         assertThat(constructorExpression6.typeKind()).isEqualTo(TypeKind.VOID);
     }
 
-    private void verifyMainWithPropUsage(ClassModel classModel) {
-        var methodModel = classModel.methods().getFirst();
-        var methodCode = methodModel.code().get();
-        var codeElements = methodCode.elementList();
-        assertThat(codeElements).hasSize(7);
-
-        var expression1 = (FieldInstruction) codeElements.get(0);
-        assertThat(expression1.opcode()).isEqualTo(Opcode.GETSTATIC);
-        assertThat(expression1.name().stringValue()).isEqualTo("out");
-        assertThat(expression1.owner().asInternalName()).isEqualTo("java/lang/System");
-        assertThat(expression1.typeSymbol().descriptorString()).isEqualTo("Ljava/io/PrintStream;");
-
-        var expression2 = (NewObjectInstruction) codeElements.get(1);
-        assertThat(expression2.opcode()).isEqualTo(Opcode.NEW);
-        assertThat(expression2.className().asInternalName()).isEqualTo("com/example/Example");
-
-        var expression3 = (StackInstruction) codeElements.get(2);
-        assertThat(expression3.opcode()).isEqualTo(Opcode.DUP);
-
-        var expression4 = (InvokeInstruction) codeElements.get(3);
-        assertThat(expression4.opcode()).isEqualTo(Opcode.INVOKESPECIAL);
-        assertThat(expression4.name().stringValue()).isEqualTo(ConstantDescs.INIT_NAME);
-        assertThat(expression4.owner().asInternalName()).isEqualTo("com/example/Example");
-        assertThat(expression4.typeSymbol().descriptorString()).isEqualTo("()V");
-
-        var expression5 = (FieldInstruction) codeElements.get(4);
-        assertThat(expression5.opcode()).isEqualTo(Opcode.GETFIELD);
-        assertThat(expression5.name().stringValue()).isEqualTo("prop");
-        assertThat(expression5.owner().asInternalName()).isEqualTo("com/example/Example");
-        assertThat(expression5.typeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
-
-        var expression6 = (InvokeInstruction) codeElements.get(5);
-        assertThat(expression6.opcode()).isEqualTo(Opcode.INVOKEVIRTUAL);
-        assertThat(expression6.name().stringValue()).isEqualTo("println");
-        assertThat(expression6.owner().asInternalName()).isEqualTo("java/io/PrintStream");
-        assertThat(expression6.typeSymbol().descriptorString()).isEqualTo("(Ljava/lang/String;)V");
-
-        var expression7 = (ReturnInstruction) codeElements.get(6);
-        assertThat(expression7.opcode()).isEqualTo(Opcode.RETURN);
-        assertThat(expression7.typeKind()).isEqualTo(TypeKind.VOID);
-    }
-
     @Test
     public void parseClassWithMainFunctionAndStaticAndInstancePropertiesUsage() {
         var astFile = astForCode("""
@@ -379,15 +337,15 @@ public class OolangCompilerTest {
         assertThat(staticField.fieldTypeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
         var instanceField = classModel.fields().getLast();
         assertThat(instanceField.flags().flags()).containsExactlyInAnyOrder(
-                AccessFlag.PUBLIC,
+                AccessFlag.PRIVATE,
                 AccessFlag.FINAL
         );
         assertThat(instanceField.fieldName().stringValue()).isEqualTo("prop");
         assertThat(instanceField.fieldTypeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
 
-        assertThat(classModel.methods()).hasSize(2);
+        assertThat(classModel.methods()).hasSize(3);
 
-        verifyMainWithPropUsage(classModel);
+        verifyMainWithPropUsageAndPropGetter(classModel);
 
         // default constructor is added after everything
         var constructorMethodModel = classModel.methods().getLast();
@@ -438,6 +396,71 @@ public class OolangCompilerTest {
         var constructorExpression7 = (ReturnInstruction) constructorCodeElements.get(6);
         assertThat(constructorExpression7.opcode()).isEqualTo(Opcode.RETURN);
         assertThat(constructorExpression7.typeKind()).isEqualTo(TypeKind.VOID);
+    }
+
+    private void verifyMainWithPropUsageAndPropGetter(ClassModel classModel) {
+        verifyMainWithPropUsage(classModel);
+
+        var methodModel = classModel.methods().get(1);
+        var methodCode = methodModel.code().get();
+        var codeElements = methodCode.elementList();
+        assertThat(codeElements).hasSize(3);
+
+        var expression1 = (LoadInstruction) codeElements.get(0);
+        assertThat(expression1.opcode()).isEqualTo(Opcode.ALOAD_0);
+        assertThat(expression1.typeKind()).isEqualTo(TypeKind.REFERENCE);
+
+        var expression2 = (FieldInstruction) codeElements.get(1);
+        assertThat(expression2.opcode()).isEqualTo(Opcode.GETFIELD);
+        assertThat(expression2.name().stringValue()).isEqualTo("prop");
+        assertThat(expression2.owner().asInternalName()).isEqualTo("com/example/Example");
+        assertThat(expression2.typeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        var expression3 = (ReturnInstruction) codeElements.get(2);
+        assertThat(expression3.opcode()).isEqualTo(Opcode.ARETURN);
+        assertThat(expression3.typeKind()).isEqualTo(TypeKind.REFERENCE);
+    }
+
+    private void verifyMainWithPropUsage(ClassModel classModel) {
+        var methodModel = classModel.methods().getFirst();
+        var methodCode = methodModel.code().get();
+        var codeElements = methodCode.elementList();
+        assertThat(codeElements).hasSize(7);
+
+        var expression1 = (FieldInstruction) codeElements.get(0);
+        assertThat(expression1.opcode()).isEqualTo(Opcode.GETSTATIC);
+        assertThat(expression1.name().stringValue()).isEqualTo("out");
+        assertThat(expression1.owner().asInternalName()).isEqualTo("java/lang/System");
+        assertThat(expression1.typeSymbol().descriptorString()).isEqualTo("Ljava/io/PrintStream;");
+
+        var expression2 = (NewObjectInstruction) codeElements.get(1);
+        assertThat(expression2.opcode()).isEqualTo(Opcode.NEW);
+        assertThat(expression2.className().asInternalName()).isEqualTo("com/example/Example");
+
+        var expression3 = (StackInstruction) codeElements.get(2);
+        assertThat(expression3.opcode()).isEqualTo(Opcode.DUP);
+
+        var expression4 = (InvokeInstruction) codeElements.get(3);
+        assertThat(expression4.opcode()).isEqualTo(Opcode.INVOKESPECIAL);
+        assertThat(expression4.name().stringValue()).isEqualTo(ConstantDescs.INIT_NAME);
+        assertThat(expression4.owner().asInternalName()).isEqualTo("com/example/Example");
+        assertThat(expression4.typeSymbol().descriptorString()).isEqualTo("()V");
+
+        var expression5 = (FieldInstruction) codeElements.get(4);
+        assertThat(expression5.opcode()).isEqualTo(Opcode.GETFIELD);
+        assertThat(expression5.name().stringValue()).isEqualTo("prop");
+        assertThat(expression5.owner().asInternalName()).isEqualTo("com/example/Example");
+        assertThat(expression5.typeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        var expression6 = (InvokeInstruction) codeElements.get(5);
+        assertThat(expression6.opcode()).isEqualTo(Opcode.INVOKEVIRTUAL);
+        assertThat(expression6.name().stringValue()).isEqualTo("println");
+        assertThat(expression6.owner().asInternalName()).isEqualTo("java/io/PrintStream");
+        assertThat(expression6.typeSymbol().descriptorString()).isEqualTo("(Ljava/lang/String;)V");
+
+        var expression7 = (ReturnInstruction) codeElements.get(6);
+        assertThat(expression7.opcode()).isEqualTo(Opcode.RETURN);
+        assertThat(expression7.typeKind()).isEqualTo(TypeKind.VOID);
     }
 
     private @NonNull ClassModel compileAst(AstFile ast) {

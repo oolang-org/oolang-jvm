@@ -76,7 +76,17 @@ public class SymbolTableBuilderTest {
         var klass = (Klass) childProperty.type();
         assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
 
-        assertThat(rootKlass.functions).hasSize(1);
+        assertThat(rootKlass.functions).hasSize(2);
+        var propertyGetter = rootKlass.functions.getFirst();
+        assertThat(propertyGetter.name).isEqualTo("foo");
+        assertThat(propertyGetter.visibility).isEqualTo(PUBLIC);
+        assertThat(propertyGetter.isStatic).isFalse();
+        assertThat(propertyGetter.isAbstract).isFalse();
+        assertThat(propertyGetter.isFinal()).isTrue();
+        klass = (Klass) propertyGetter.returnType();
+        assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(propertyGetter.parameters).isEmpty();
+
         verifyDefaultConstructor(rootKlass);
     }
 
@@ -111,7 +121,15 @@ public class SymbolTableBuilderTest {
         assertThat(childProperty2.isFinal()).isTrue();
         assertThat(childProperty2.lateinitTypeOrNull()).isNotNull();
 
-        assertThat(rootKlass.functions).hasSize(1);
+        assertThat(rootKlass.functions).hasSize(2);
+        var propertyGetter = rootKlass.functions.getFirst();
+        assertThat(propertyGetter.name).isEqualTo("foo");
+        assertThat(propertyGetter.visibility).isEqualTo(PUBLIC);
+        assertThat(propertyGetter.isStatic).isFalse();
+        assertThat(propertyGetter.isAbstract).isFalse();
+        assertThat(propertyGetter.isFinal()).isTrue();
+        assertThat(propertyGetter.parameters).isEmpty();
+
         verifyDefaultConstructor(rootKlass);
     }
 

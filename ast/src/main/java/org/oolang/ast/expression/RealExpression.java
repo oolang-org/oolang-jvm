@@ -109,6 +109,6 @@ public non-sealed class RealExpression extends AbstractAst implements Expression
         NEW,
         ADD,
         SUB,
-        INDEXING
+        INDEXING,
     }
 }

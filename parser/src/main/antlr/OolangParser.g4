@@ -255,11 +255,21 @@ statements
 
 statement
     : blockLevelExpression
+    | jumpExpression
     | blockLevelDeclaration
     ;
 
 blockLevelExpression
     : annotation* NL* expression
+    ;
+
+jumpExpression
+    : THROW NL* expression
+    | /* (RETURN | RETURN_AT) */ RETURN expression?
+    | CONTINUE
+/*  | CONTINUE_AT
+    | BREAK
+    | BREAK_AT */
     ;
 
 blockLevelDeclaration
@@ -375,7 +385,6 @@ atomicExpression
     | ifExpression
     | whenExpression
     | tryExpression
-    | jumpExpression
     ;
 
 parenthesizedExpression
@@ -498,15 +507,6 @@ catchBlock
 
 finallyBlock
     : FINALLY NL* block
-    ;
-
-jumpExpression
-    : THROW NL* expression
-    | /* (RETURN | RETURN_AT) */ RETURN expression?
-    | CONTINUE
-/*    | CONTINUE_AT
-    | BREAK
-    | BREAK_AT */
     ;
 
 callableReference

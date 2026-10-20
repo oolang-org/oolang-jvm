@@ -33,6 +33,7 @@ import static org.oolang.ast.element.RealElement.ElementType.PROPERTY_INITIALIZE
 import static org.oolang.ast.expression.JvmInvocationUtils.*;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.*;
 import static org.oolang.ast.statement.RealStatement.StatementType.ASSIGNMENT;
+import static org.oolang.ast.statement.RealStatement.StatementType.RETURN;
 import static org.oolang.symbol.table.TypeResolver.*;
 import static org.oolang.symbol.table.Visibility.PRIVATE;
 
@@ -227,6 +228,20 @@ public final class OolangSemanticAnalyzer {
                     // add initialized property assignments upfront in early larval
                     constructorCodeBlock.earlyLarvalStatements.addAll(0, initializedPropAssignments);
                 }
+                case RealExpression realExpression -> {
+                    // 1) visit the expression
+                    final var expressionType = visitRealExpression(realExpression, effectiveScopes, currentKlass,
+                            null);
+                    funElement.setDescriptorString(getKlassFromType(expressionType).descriptorString());
+
+                    // 2) add a body function with a single return expression
+                    final var codeBlock = new CodeBlock();
+                    final var statement = new RealStatement(RETURN);
+                    codeBlock.statements.add(statement);
+                    statement.children.add(realExpression);
+                    // replace the single expression with the new code block
+                    funElement.children.set(funElement.children.size() - 1, codeBlock);
+                }
                 default -> throw new IllegalStateException("Unexpected value: " + funElement.children.getLast());
             }
             effectiveScopes.popFunction(function.isStatic);
@@ -261,8 +276,8 @@ public final class OolangSemanticAnalyzer {
             visitFunCallExpression(constructorCodeBlock.initCall, scopes, currentKlass, null);
         } else {
             // Build an implicit call to no-arg super constructor
-            final var chainable = new RealExpression(CHAINABLE);
-            loadThis(chainable, scopes);
+            final var chainableExpression = new RealExpression(CHAINABLE);
+            loadThis(chainableExpression, scopes);
 
             final var implicitSuperConstructorCall = new RealExpression(FUN_CALL);
             implicitSuperConstructorCall.identifiers.add(new SimpleIdentifier(ConstantDescs.INIT_NAME));
@@ -270,9 +285,9 @@ public final class OolangSemanticAnalyzer {
             implicitSuperConstructorCall.ownerDescriptorString = getKlassFromType(superType).descriptorString();
             implicitSuperConstructorCall.invocation = INVOKE_SPECIAL;
             implicitSuperConstructorCall.typeDescriptorString = "()V";
-            chainable.children.add(implicitSuperConstructorCall);
+            chainableExpression.children.add(implicitSuperConstructorCall);
 
-            constructorCodeBlock.initCall = chainable;
+            constructorCodeBlock.initCall = chainableExpression;
         }
 
         for (final var lateLarvalStatement : constructorCodeBlock.lateLarvalStatements) {
@@ -280,6 +295,7 @@ public final class OolangSemanticAnalyzer {
         }
     }
 
+    /// Add a load of the current klass in the provided expression if it is a `chainable`, else add it upfront.
     private static void loadThis(final @NonNull RealExpression expression, final @NonNull Scopes scopes) {
         assert expression != null;
         assert scopes != null;
@@ -469,6 +485,7 @@ public final class OolangSemanticAnalyzer {
             // mutate AST to add NEW expression upfront
             addNewExpressionInAst(funCallExpression, newExpression);
         } else if (funCallExpression.identifiers.size() == 1) {
+            // a simple fun call without prefix
             if (applicableKlass != null) {
                 caller = applicableKlass;
             } else {
@@ -476,6 +493,7 @@ public final class OolangSemanticAnalyzer {
                 caller = currentKlass;
             }
         } else {
+            // a fun call with prefix, like 'System.out.println'
             caller = getKlassFromType(visitVariableOrPropAccessChain(
                     funCallExpression, scopes, currentKlass, applicableKlass, false));
         }
@@ -627,12 +645,22 @@ public final class OolangSemanticAnalyzer {
         }
 
         if (variableOrProperty != null) {
-            final var variableOrPropertyExpression = switch (variableOrProperty) {
-                case SimpleVariable variable -> loadExpression(variable, id);
-                case Property property -> propAccessExpression(property, id);
-            };
-            // mutate AST to add variable or property access call expression upfront
-            addNewExpressionInAst(expression, variableOrPropertyExpression);
+            switch (variableOrProperty) {
+                case SimpleVariable variable -> {
+                    final var variableAccess = loadExpression(variable, id);
+                    // mutate AST to add variable access call expression upfront
+                    addNewExpressionInAst(expression, variableAccess);
+                }
+                case Property property -> {
+                    final var propertyAccess = propAccessExpression(property, id);
+                    // mutate AST to add variable access call expression upfront
+                    addNewExpressionInAst(expression, propertyAccess);
+                    if (!property.isStatic) {
+                        // must load current klass
+                        loadThis(propertyAccess, scopes);
+                    }
+                }
+            }
 
             return getKlassFromType(variableOrProperty.type());
         }
@@ -691,9 +719,10 @@ public final class OolangSemanticAnalyzer {
         propAccessExpression.invocation = property.isStatic ? GET_STATIC : GET_FIELD;
         propAccessExpression.ownerDescriptorString = property.declaringKlass.descriptorString();
         propAccessExpression.setDescriptorString(property.descriptorString());
-        // set AST info from the identifier
-        assert id.info() != null;
-        propAccessExpression.setInfo(id.info());
+        // set AST info from the identifier, if any
+        if (id.info() != null) {
+            propAccessExpression.setInfo(id.info());
+        }
 
         return propAccessExpression;
     }

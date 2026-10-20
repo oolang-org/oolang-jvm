@@ -341,6 +341,12 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitBlockLevelExpression(OolangParser.BlockLevelExpressionContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link OolangParser#jumpExpression}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitJumpExpression(OolangParser.JumpExpressionContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link OolangParser#blockLevelDeclaration}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -634,12 +640,6 @@ public interface OolangParserVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitFinallyBlock(OolangParser.FinallyBlockContext ctx);
-	/**
-	 * Visit a parse tree produced by {@link OolangParser#jumpExpression}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitJumpExpression(OolangParser.JumpExpressionContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link OolangParser#callableReference}.
 	 * @param ctx the parse tree

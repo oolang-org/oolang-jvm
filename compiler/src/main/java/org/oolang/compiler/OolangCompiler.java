@@ -24,6 +24,7 @@ import java.io.UncheckedIOException;
 import java.lang.classfile.ClassBuilder;
 import java.lang.classfile.ClassFile;
 import java.lang.classfile.CodeBuilder;
+import java.lang.classfile.TypeKind;
 import java.lang.classfile.attribute.ConstantValueAttribute;
 import java.lang.constant.*;
 import java.lang.reflect.AccessFlag;
@@ -40,6 +41,7 @@ import static org.oolang.ast.element.RealElement.ElementType.PARAMETER;
 import static org.oolang.ast.element.RealElement.ElementType.PROPERTY_INITIALIZER;
 import static org.oolang.ast.expression.JvmInvocationUtils.*;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.PROP_ACCESS;
+import static org.oolang.ast.statement.RealStatement.StatementType.RETURN;
 import static org.oolang.compiler.Descriptors.*;
 import static org.oolang.compiler.StringCompilationUtils.stringConcatenation;
 
@@ -207,11 +209,28 @@ public final class OolangCompiler {
         assert codeBlock != null;
         assert codeBuilder != null;
 
+        var hasReturned = false;
         for (final var statement : codeBlock.statements) {
-            visitStatement(statement, codeBuilder);
+            if (statement instanceof RealStatement realStatement && realStatement.statementType == RETURN) {
+                if (realStatement.children.size() == 1) {
+                    // return with value. Visit the only child expression, then return
+                    final var childExpression = realStatement.children.getFirst();
+                    visitExpression(childExpression, codeBuilder);
+
+                    assert childExpression.descriptorString() != null;
+                    codeBuilder.return_(TypeKind.fromDescriptor(childExpression.descriptorString()));
+                } else {
+                    codeBuilder.return_();
+                }
+                hasReturned = true;
+            } else {
+                visitStatement(statement, codeBuilder);
+            }
         }
-        // add implicit return unless a previous explicit one was declared (todo).
-        codeBuilder.return_();
+        // add implicit return unless a previous explicit one was declared.
+        if (!hasReturned) {
+            codeBuilder.return_();
+        }
     }
 
     private static void visitStatement(final @NonNull Statement statement, final @NonNull CodeBuilder codeBuilder) {
