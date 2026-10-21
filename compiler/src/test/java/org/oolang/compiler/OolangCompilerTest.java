@@ -40,8 +40,6 @@ public class OolangCompilerTest {
                 package com.example
                 class Example""");
         var classModel = compileAst(astFile);
-        assertThat(classModel.minorVersion()).isEqualTo(0);
-        assertThat(classModel.majorVersion()).isEqualTo(70);
         assertThat(classModel.flags().flags()).containsExactlyInAnyOrder(
                 AccessFlag.PUBLIC,
                 AccessFlag.FINAL
@@ -172,8 +170,6 @@ public class OolangCompilerTest {
 
     private @NonNull List<@NonNull CodeElement> verifyMainUntilStatement(AstFile astFile) {
         var classModel = compileAst(astFile);
-        assertThat(classModel.minorVersion()).isEqualTo(0);
-        assertThat(classModel.majorVersion()).isEqualTo(70);
         assertThat(classModel.flags().flags()).containsExactlyInAnyOrder(
                 AccessFlag.PUBLIC,
                 AccessFlag.FINAL
@@ -470,9 +466,11 @@ public class OolangCompilerTest {
         System.out.println("java -cp " + classPath.getParent().getParent().getParent() + " com.example.Example");
         var classFile = ClassFile.of();
         try {
-            final var model = classFile.parse(classPath);
-            printBytecode(model);
-            return model;
+            final var classModel = classFile.parse(classPath);
+            assertThat(classModel.minorVersion()).isEqualTo(0);
+            assertThat(classModel.majorVersion()).isEqualTo(71);
+            printBytecode(classModel);
+            return classModel;
         } catch (IOException e) {
             fail(e);
             return null;

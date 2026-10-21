@@ -1,6 +1,6 @@
 [versions]
 
-java = "26"
+java = "27"
 
 # main
 # https://github.com/jspecify/jspecify/releases
