@@ -12,10 +12,7 @@ import org.oolang.ast.Ast;
 import org.oolang.ast.AstType;
 
 import java.lang.invoke.TypeDescriptor;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
+import java.util.*;
 
 import static org.oolang.ast.Identifier.SimpleIdentifier;
 
@@ -25,6 +22,7 @@ public final class RealElement extends AbstractAst implements Element.Node, Type
     public @Nullable AstType type = null;
     public @Nullable List<@NonNull Annotation> annotations = null;
     public @NonNull List<@NonNull ElementModifier> modifiers = new ArrayList<>();
+    public @NonNull Map<@NonNull String, @Nullable String> customAttributes = new HashMap<>();
     public @NonNull List<@NonNull Ast> children = new ArrayList<>();
 
     // can be set during semantic analysis phase.

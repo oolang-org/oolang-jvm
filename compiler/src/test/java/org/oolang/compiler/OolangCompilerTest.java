@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.oolang.KlassesCacheInterceptor;
+import org.oolang.OolangCustomAttribute;
 import org.oolang.ast.AstFile;
 import org.oolang.parser.OolangAstVisitor;
 import org.oolang.parser.generated.OolangLexer;
@@ -398,6 +399,10 @@ public class OolangCompilerTest {
         verifyMainWithPropUsage(classModel);
 
         var methodModel = classModel.methods().get(1);
+        assertThat(methodModel.attributes()).hasSize(2);
+        var oolangGetAttribute = (OolangCustomAttribute) methodModel.attributes().getFirst();
+        assertThat(oolangGetAttribute.name()).isEqualTo("oolang-get");
+        assertThat(oolangGetAttribute.value()).isNull();
         var methodCode = methodModel.code().get();
         var codeElements = methodCode.elementList();
         assertThat(codeElements).hasSize(3);
@@ -464,7 +469,14 @@ public class OolangCompilerTest {
         var classPath = OolangCompiler.compile(ast.packageHeader, ast.imports, ast.rootElements.getFirst(), tempDir);
         System.out.println("breakpoint here, then execute with");
         System.out.println("java -cp " + classPath.getParent().getParent().getParent() + " com.example.Example");
-        var classFile = ClassFile.of();
+
+        var options = ClassFile.AttributeMapperOption.of(utf8Entry ->
+                utf8Entry.equalsString(OolangCustomAttribute.NAME)
+                        ? new OolangCustomAttribute("", null).attributeMapper()
+                        : null
+        );
+
+        var classFile = ClassFile.of(options);
         try {
             final var classModel = classFile.parse(classPath);
             assertThat(classModel.minorVersion()).isEqualTo(0);

@@ -28,6 +28,8 @@ import static org.oolang.ast.expression.RealExpression.ExpressionType.CHAINABLE;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.VARIABLE_OR_PROP_ACCESS;
 
 public final class SymbolTableBuilder {
+    public static final @NonNull String OOLANG_GET = "oolang-get";
+
     // un-instantiable
     private SymbolTableBuilder() {
     }
@@ -192,6 +194,7 @@ public final class SymbolTableBuilder {
 
         final var getterFunction = new RealElement(FUN);
         getterFunction.identifier = new SimpleIdentifier(property.name);
+        getterFunction.customAttributes.put(OOLANG_GET, null);
         final var chainableExpression = new RealExpression(CHAINABLE);
         final var propAccessExpression = new RealExpression(VARIABLE_OR_PROP_ACCESS);
         propAccessExpression.identifiers.add(new SimpleIdentifier(property.name));
