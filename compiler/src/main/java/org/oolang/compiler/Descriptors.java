@@ -21,5 +21,4 @@ final class Descriptors {
 
 
     static final @NonNull String STRING = "Ljava/lang/String;";
-    static final @NonNull String OBJECT = "Ljava/lang/Object;";
 }
