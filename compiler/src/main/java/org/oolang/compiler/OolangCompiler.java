@@ -5,6 +5,7 @@
 package org.oolang.compiler;
 
 import org.jspecify.annotations.NonNull;
+import org.oolang.OolangPropCustomAttribute;
 import org.oolang.ast.Import;
 import org.oolang.ast.PackageHeader;
 import org.oolang.ast.element.ClassBody;
@@ -21,20 +22,14 @@ import org.oolang.ast.statement.Statement;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.lang.classfile.ClassBuilder;
-import java.lang.classfile.ClassFile;
-import java.lang.classfile.CodeBuilder;
-import java.lang.classfile.TypeKind;
+import java.lang.classfile.*;
 import java.lang.classfile.attribute.ConstantValueAttribute;
 import java.lang.constant.*;
 import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
+import java.util.*;
 
 import static java.lang.System.Logger.Level.DEBUG;
 import static org.oolang.JvmInvocationUtils.*;
@@ -193,14 +188,19 @@ public final class OolangCompiler {
 
         final var modifiers = computeModifiers(funElement.modifiers);
         assert funElement.identifier != null;
-        classBuilder.withMethodBody(
+        classBuilder.withMethod(
                 funElement.identifier.identifier,
                 MethodTypeDesc.of(/* returnDesc */ computeType(funElement), paramDescs),
                 modifiers,
-                codeBuilder -> {
+                methodBuilder -> {
+                    if (funElement.hasCustomAttribute) {
+                        methodBuilder.with(new OolangPropCustomAttribute());
+                    }
                     if (!Modifier.isAbstract(modifiers)) {
-                        // code block is the last child of a non-abstract function
-                        visitCodeBlock((CodeBlock) funElement.children.getLast(), codeBuilder);
+                        methodBuilder.withCode(codeBuilder -> {
+                            // code block is the last child of a non-abstract function
+                            visitCodeBlock((CodeBlock) funElement.children.getLast(), codeBuilder);
+                        });
                     }
                 });
     }

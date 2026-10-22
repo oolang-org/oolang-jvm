@@ -31,6 +31,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.oolang.JvmInvocationUtils.*;
+import static org.oolang.ast.element.RealElement.ElementType.FUN;
 import static org.oolang.ast.element.RealElement.ElementType.PROPERTY_INITIALIZER;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.*;
 import static org.oolang.ast.statement.RealStatement.StatementType.RETURN;
@@ -474,10 +475,12 @@ public class OolangSemanticAnalyzerTest {
         assertThat(funCallParamPropAccess.children).isEmpty();
 
         var propertyGetter = classBody.children.get(classBody.children.size() - 2);
+        assertThat(propertyGetter.elementType).isEqualTo(FUN);
         assertThat(propertyGetter.type).isNull();
         assertThat(propertyGetter.description()).isEqualTo("Element(fun prop)");
         assertThat(propertyGetter.modifiers).isEmpty();
         assertThat(propertyGetter.descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(propertyGetter.hasCustomAttribute).isTrue();
         assertThat(propertyGetter.children).hasSize(1);
         var propertyGetterCodeBlock = (CodeBlock) propertyGetter.children.getFirst();
         assertThat(propertyGetterCodeBlock.statements).hasSize(1);
