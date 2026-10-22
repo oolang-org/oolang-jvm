@@ -25,6 +25,7 @@ public final class RealElement extends AbstractAst implements Element.Node, Type
     public @Nullable AstType type = null;
     public @Nullable List<@NonNull Annotation> annotations = null;
     public @NonNull List<@NonNull ElementModifier> modifiers = new ArrayList<>();
+    public boolean hasCustomAttribute = false;
     public @NonNull List<@NonNull Ast> children = new ArrayList<>();
 
     // can be set during semantic analysis phase.

@@ -192,6 +192,7 @@ public final class SymbolTableBuilder {
 
         final var getterFunction = new RealElement(FUN);
         getterFunction.identifier = new SimpleIdentifier(property.name);
+        getterFunction.hasCustomAttribute = true;
         final var chainableExpression = new RealExpression(CHAINABLE);
         final var propAccessExpression = new RealExpression(VARIABLE_OR_PROP_ACCESS);
         propAccessExpression.identifiers.add(new SimpleIdentifier(property.name));

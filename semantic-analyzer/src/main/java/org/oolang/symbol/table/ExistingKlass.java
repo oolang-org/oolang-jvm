@@ -5,6 +5,7 @@
 package org.oolang.symbol.table;
 
 import org.jspecify.annotations.NonNull;
+import org.oolang.OolangPropCustomAttribute;
 import org.oolang.symbol.table.Function.Parameter;
 
 import java.io.IOException;
@@ -45,10 +46,10 @@ final class ExistingKlass implements Klass {
         assert javaClass != null;
 
         // 1) Convert the class name to its expected resource path format
-        String resourceName = javaClass.getSimpleName() + ".class";
+        final var resourceName = javaClass.getSimpleName() + ".class";
 
         // 2) Read the raw bytecode bytes using the class loader
-        byte[] classBytes;
+        final byte[] classBytes;
         try (final var is = javaClass.getResourceAsStream(resourceName)) {
             if (is == null) {
                 return null;
@@ -58,8 +59,15 @@ final class ExistingKlass implements Klass {
             throw new UncheckedIOException(e);
         }
 
-        // 3) Parse the bytes into a ClassModel using the Class-File API
-        return ClassFile.of().parse(classBytes);
+        // 3) Add an option that allows reading the Oolang custom attribute
+        final var options = ClassFile.AttributeMapperOption.of(utf8Entry ->
+                utf8Entry.equalsString(OolangPropCustomAttribute.NAME)
+                        ? new OolangPropCustomAttribute().attributeMapper()
+                        : null
+        );
+
+        // 4) Parse the bytes into a ClassModel using the Class-File API
+        return ClassFile.of(options).parse(classBytes);
     }
 
     // Recursively collect all superclasses and their superinterfaces
