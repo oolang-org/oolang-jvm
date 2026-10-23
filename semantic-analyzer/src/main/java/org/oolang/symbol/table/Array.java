@@ -5,9 +5,6 @@
 package org.oolang.symbol.table;
 
 import org.jspecify.annotations.NonNull;
-import org.oolang.symbol.table.BaseSymbol.BaseFunction;
-import org.oolang.symbol.table.BaseSymbol.Property;
-
 import java.util.Map;
 import java.util.SequencedCollection;
 import java.util.SortedSet;

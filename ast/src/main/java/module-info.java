@@ -3,9 +3,10 @@
  */
 
 module oolang.ast {
+    requires transitive oolang.base;
+
     requires static org.jspecify;
 
-    exports org.oolang;
     exports org.oolang.ast;
     exports org.oolang.ast.element;
     exports org.oolang.ast.expression;

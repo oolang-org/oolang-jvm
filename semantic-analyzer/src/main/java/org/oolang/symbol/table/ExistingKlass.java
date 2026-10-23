@@ -5,10 +5,7 @@
 package org.oolang.symbol.table;
 
 import org.jspecify.annotations.NonNull;
-import org.oolang.symbol.table.BaseSymbol.BaseFunction;
-import org.oolang.symbol.table.BaseSymbol.Function;
-import org.oolang.symbol.table.BaseSymbol.Function.Parameter;
-import org.oolang.symbol.table.BaseSymbol.Property;
+import org.oolang.symbol.table.Function.Parameter;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -148,9 +145,10 @@ final class ExistingKlass implements Klass {
                 .filter(method -> !Modifier.isPrivate(method.getModifiers()))
                 .map(method -> {
                     final var parameters = Arrays.stream(method.getParameters())
-                            .map(p ->
-                                    new Parameter(p.getName(), TypeResolver.resolveType(p.getParameterizedType())))
-                            .toList();
+                            .map(p -> {
+                                final var paramName = p.isNamePresent() ? p.getName() : null;
+                                return new Parameter(paramName, TypeResolver.resolveType(p.getParameterizedType()));
+                            }).toList();
 
                     final var name = method.getName();
                     final var mod = method.getModifiers();

@@ -30,8 +30,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.oolang.JvmInvocationUtils.*;
 import static org.oolang.ast.element.RealElement.ElementType.PROPERTY_INITIALIZER;
-import static org.oolang.ast.expression.JvmInvocationUtils.*;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.*;
 import static org.oolang.ast.statement.RealStatement.StatementType.RETURN;
 

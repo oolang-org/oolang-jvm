@@ -14,9 +14,7 @@ import org.oolang.ast.element.RealElement;
 import org.oolang.ast.expression.Expression;
 import org.oolang.ast.expression.RealExpression;
 import org.oolang.ast.statement.ConstructorCodeBlock;
-import org.oolang.symbol.table.BaseSymbol.Function;
-import org.oolang.symbol.table.BaseSymbol.Function.Parameter;
-import org.oolang.symbol.table.BaseSymbol.Property;
+import org.oolang.symbol.table.Function.Parameter;
 
 import java.lang.constant.ConstantDescs;
 import java.util.ArrayList;

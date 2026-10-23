@@ -37,9 +37,9 @@ import java.util.Locale;
 import java.util.Objects;
 
 import static java.lang.System.Logger.Level.DEBUG;
+import static org.oolang.JvmInvocationUtils.*;
 import static org.oolang.ast.element.RealElement.ElementType.PARAMETER;
 import static org.oolang.ast.element.RealElement.ElementType.PROPERTY_INITIALIZER;
-import static org.oolang.ast.expression.JvmInvocationUtils.*;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.PROP_ACCESS;
 import static org.oolang.ast.statement.RealStatement.StatementType.RETURN;
 import static org.oolang.compiler.Descriptors.*;

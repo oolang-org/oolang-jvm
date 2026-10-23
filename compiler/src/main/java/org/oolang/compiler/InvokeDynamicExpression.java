@@ -12,7 +12,7 @@ import java.lang.constant.DirectMethodHandleDesc;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.oolang.ast.expression.JvmInvocationUtils.INVOKE_DYNAMIC;
+import static org.oolang.JvmInvocationUtils.INVOKE_DYNAMIC;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.FUN_CALL;
 
 final class InvokeDynamicExpression extends RealExpression {

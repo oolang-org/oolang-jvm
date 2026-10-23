@@ -6,9 +6,6 @@ package org.oolang.symbol.table;
 
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-import org.oolang.symbol.table.BaseSymbol.BaseFunction;
-import org.oolang.symbol.table.BaseSymbol.Function;
-import org.oolang.symbol.table.BaseSymbol.Property;
 
 import java.lang.invoke.TypeDescriptor;
 import java.util.*;
@@ -215,7 +212,7 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
         return true;
     }
 
-    record SimpleFunction(@NonNull String name) implements BaseFunction {
+    record SimpleFunction(@NonNull String name) implements org.oolang.symbol.table.BaseFunction {
     }
 
     /// The cache of all resolved [classes][Klass].

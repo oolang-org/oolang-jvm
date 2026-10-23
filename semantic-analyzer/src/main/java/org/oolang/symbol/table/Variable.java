@@ -6,7 +6,7 @@ package org.oolang.symbol.table;
 
 import org.jspecify.annotations.NonNull;
 
-public sealed interface Variable permits BaseSymbol.Property, Variable.SimpleVariable {
+public sealed interface Variable permits Property, Variable.SimpleVariable {
     @NonNull ActualType type();
 
     boolean isFinal();

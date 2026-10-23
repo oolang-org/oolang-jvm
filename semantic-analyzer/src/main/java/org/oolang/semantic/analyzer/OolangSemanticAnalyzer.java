@@ -21,16 +21,14 @@ import org.oolang.ast.statement.ConstructorCodeBlock;
 import org.oolang.ast.statement.RealStatement;
 import org.oolang.ast.statement.Statement;
 import org.oolang.symbol.table.*;
-import org.oolang.symbol.table.BaseSymbol.Function;
-import org.oolang.symbol.table.BaseSymbol.Property;
 import org.oolang.symbol.table.Variable.SimpleVariable;
 
 import java.lang.constant.ConstantDescs;
 import java.util.*;
 
+import static org.oolang.JvmInvocationUtils.*;
 import static org.oolang.ast.element.ElementModifier.ModifierType.INHERITANCE;
 import static org.oolang.ast.element.RealElement.ElementType.PROPERTY_INITIALIZER;
-import static org.oolang.ast.expression.JvmInvocationUtils.*;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.*;
 import static org.oolang.ast.statement.RealStatement.StatementType.ASSIGNMENT;
 import static org.oolang.ast.statement.RealStatement.StatementType.RETURN;
