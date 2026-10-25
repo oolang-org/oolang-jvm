@@ -179,7 +179,7 @@ public final class OolangCompiler {
         assert funElement != null;
         assert classBuilder != null;
 
-        final var paramDescs = new ArrayList<ClassDesc>();
+        final var paramDescs = new ArrayList<@NonNull ClassDesc>();
         for (final var funChild : funElement.children) {
             if (funChild instanceof RealElement funChildElement && funChildElement.elementType == PARAMETER) {
                 paramDescs.add(computeType(funChildElement));
