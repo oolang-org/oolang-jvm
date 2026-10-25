@@ -11,19 +11,23 @@ import java.lang.classfile.*;
 /// A Oolang metadata [CustomAttribute] that indicates that a method is a property (either a getter or a setter).
 public final class OolangPropCustomAttribute extends CustomAttribute<OolangPropCustomAttribute> {
     public static final @NonNull String NAME = "oolang-prop";
-    public static final @NonNull AttributeMapper<OolangPropCustomAttribute> MAPPER = new AttributeMapper<>() {
+    public static final @NonNull AttributeMapper<@NonNull OolangPropCustomAttribute> MAPPER = new AttributeMapper<>() {
         @Override
-        public String name() {
+        public @NonNull String name() {
             return NAME;
         }
 
         @Override
-        public OolangPropCustomAttribute readAttribute(AttributedElement enclosing, ClassReader reader, int offset) {
+        public @NonNull OolangPropCustomAttribute readAttribute(final @NonNull AttributedElement enclosing,
+                                                                final @NonNull ClassReader reader,
+                                                                final int offset) {
             return new OolangPropCustomAttribute();
         }
 
         @Override
-        public void writeAttribute(BufWriter writer, OolangPropCustomAttribute attr) {
+        public void writeAttribute(final @NonNull BufWriter writer, final @NonNull OolangPropCustomAttribute attr) {
+            assert writer != null;
+
             // The mapper is responsible for writing the whole attribute structure:
             // u2 attribute_name_index, u4 attribute_length, then u1 info[attribute_length] = nothing in our case.
             writer.writeIndex(writer.constantPool().utf8Entry(NAME));
@@ -31,7 +35,7 @@ public final class OolangPropCustomAttribute extends CustomAttribute<OolangPropC
         }
 
         @Override
-        public AttributeStability stability() {
+        public @NonNull AttributeStability stability() {
             return AttributeStability.STATELESS;
         }
     };

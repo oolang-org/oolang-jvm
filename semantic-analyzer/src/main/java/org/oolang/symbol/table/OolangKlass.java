@@ -19,7 +19,11 @@ public final class OolangKlass extends BaseSymbol implements Klass {
     private static final @NonNull BaseSymbol VIRTUAL =
             new BaseSymbol("", PUBLIC, false /* whatever */, false /* whatever */, false /* whatever */);
 
-    static @NonNull OolangKlass createRoot(final @NonNull String packageName, @NonNull Map<@NonNull String, @NonNull String> imports) {
+    static @NonNull OolangKlass createRoot(final @NonNull String packageName,
+                                           final @NonNull Map<@NonNull String, @NonNull String> imports) {
+        assert packageName != null;
+        assert imports != null;
+
         return new OolangKlass(VIRTUAL, false /* whatever */, false /* whatever */, packageName, imports);
     }
 
