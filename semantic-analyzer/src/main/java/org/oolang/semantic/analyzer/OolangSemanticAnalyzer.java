@@ -196,7 +196,6 @@ public final class OolangSemanticAnalyzer {
         assert currentKlass != null;
         assert initializedPropAssignments != null;
 
-        assert currentKlass.functions != null;
         final var function = currentKlass.functions.get(funIndex);
         function.returnType(); // resolve function's return type
 
@@ -211,6 +210,7 @@ public final class OolangSemanticAnalyzer {
         for (final var parameter : function.parameters) {
             final var parameterType = parameter.type(); // resolve function param type
             if (!function.isAbstract) {
+                assert parameter.name != null;
                 effectiveScopes.putVariable(parameter.name, parameterType, true, function.isStatic);
             }
         }

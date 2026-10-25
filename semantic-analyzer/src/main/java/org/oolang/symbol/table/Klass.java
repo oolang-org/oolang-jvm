@@ -44,6 +44,9 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
 
     private static boolean hasAssignableParent(final @NonNull SequencedCollection<@NonNull ActualType> parents,
                                                final @NonNull Klass otherKlass) {
+        assert parents != null;
+        assert otherKlass != null;
+
         return parents.stream()
                 .map(TypeResolver::getKlassFromType)
                 .anyMatch(superType -> superType.descriptorString().equals(otherKlass.descriptorString()));
