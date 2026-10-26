@@ -14,7 +14,9 @@ import org.oolang.symbol.table.ActualType.GenericType;
 
 import java.lang.constant.ConstantDesc;
 import java.lang.constant.ConstantDescs;
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.util.Arrays;
 
@@ -34,6 +36,8 @@ public final class TypeResolver {
             case Class<?> javaClass -> resolveKlass(javaClass);
             case ParameterizedType parameterizedType -> resolveParameterizedType(parameterizedType);
             case WildcardType wildcardType -> resolveWildcardType(wildcardType);
+            case TypeVariable<?> typeVariable -> resolveTypeVariable(typeVariable);
+            case GenericArrayType genericArrayType -> resolveGenericArrayType(genericArrayType);
             default -> throw new UnsupportedOperationException("Unsupported type: " + javaType.getClass().getName());
         };
     }
@@ -41,8 +45,33 @@ public final class TypeResolver {
     static @NonNull Klass resolveKlass(final @NonNull Class<?> javaClass) {
         assert javaClass != null;
 
-        // todo fast-path for primitive and most often used classes ?
-        return KLASSES_CACHE.get().computeIfAbsent(javaClass.getName(), ignored -> new ExistingKlass(javaClass));
+        switch (javaClass.getName()) {
+            case "java.lang.String" -> {
+                return STRING_KLASS;
+            }
+            case "int" -> {
+                return INT_PRIMITIVE_KLASS;
+            }
+            case "boolean" -> {
+                return BOOLEAN_PRIMITIVE_KLASS;
+            }
+            case "long" -> {
+                return LONG_PRIMITIVE_KLASS;
+            }
+            case "float" -> {
+                return FLOAT_PRIMITIVE_KLASS;
+            }
+            case "double" -> {
+                return DOUBLE_PRIMITIVE_KLASS;
+            }
+            case "java.lang.Object" -> {
+                return OBJECT_KLASS;
+            }
+            case "void" -> {
+                return VOID_KLASS;
+            }
+        }
+        return KLASSES_CACHE.get().computeIfAbsent(javaClass.getName(), _ -> new ExistingKlass(javaClass));
     }
 
     private static @NonNull ActualType resolveParameterizedType(final @NonNull ParameterizedType parameterizedType) {
@@ -66,6 +95,22 @@ public final class TypeResolver {
             throw new IllegalArgumentException("Problem resolving wildcard type: " + wildcardType);
         }
         return resolveType(wildcardType.getUpperBounds()[0]);
+    }
+
+    private static @NonNull ActualType resolveTypeVariable(final @NonNull TypeVariable<?> typeVariable) {
+        assert typeVariable != null;
+
+        // todo proper implementation
+        if (typeVariable.getBounds().length != 1) {
+            throw new IllegalArgumentException("Problem resolving type variable : " + typeVariable);
+        }
+        return resolveType(typeVariable.getBounds()[0]);
+    }
+
+    private static @NonNull ActualType resolveGenericArrayType(final @NonNull GenericArrayType genericArrayType) {
+        assert genericArrayType != null;
+
+        return resolveType(genericArrayType.getGenericComponentType());
     }
 
     public static @NonNull ActualType resolveType(final @Nullable AstType astType,
@@ -147,6 +192,9 @@ public final class TypeResolver {
             case INT_KLASS_NAME -> {
                 return INT_PRIMITIVE_KLASS;
             }
+            case BOOLEAN_KLASS_NAME -> {
+                return BOOLEAN_PRIMITIVE_KLASS;
+            }
             case LONG_KLASS_NAME -> {
                 return LONG_PRIMITIVE_KLASS;
             }
@@ -226,33 +274,43 @@ public final class TypeResolver {
     // Array pseudo-class
     private static final @NonNull String ARRAY_KLASS_NAME = "Array";
 
-    // --------------------------------------
-    // Primitive and most often used classes.
-    // --------------------------------------
+    // ---------------------------------------
+    // Primitives and most often used classes.
+    // ---------------------------------------
 
+    // Boolean
+    static final @NonNull Klass BOOLEAN_PRIMITIVE_KLASS = initKlass(Boolean.TYPE);
+    static final @NonNull Klass BOOLEAN_WRAPPER_KLASS = initKlass(Boolean.class);
+    private static final @NonNull String BOOLEAN_KLASS_NAME = "Boolean";
     // Int
-    public static final @NonNull Klass INT_PRIMITIVE_KLASS = resolveKlass(Integer.TYPE);
-    private static final @NonNull Klass INT_WRAPPER_KLASS = resolveKlass(Integer.class);
+    public static final @NonNull Klass INT_PRIMITIVE_KLASS = initKlass(Integer.TYPE);
+    private static final @NonNull Klass INT_WRAPPER_KLASS = initKlass(Integer.class);
     private static final @NonNull String INT_KLASS_NAME = "Int";
     // Long
-    public static final @NonNull Klass LONG_PRIMITIVE_KLASS = resolveKlass(Long.TYPE);
-    private static final @NonNull Klass LONG_WRAPPER_KLASS = resolveKlass(Long.class);
+    public static final @NonNull Klass LONG_PRIMITIVE_KLASS = initKlass(Long.TYPE);
+    private static final @NonNull Klass LONG_WRAPPER_KLASS = initKlass(Long.class);
     private static final @NonNull String LONG_KLASS_NAME = "Long";
     // Float
-    public static final @NonNull Klass FLOAT_PRIMITIVE_KLASS = resolveKlass(Float.TYPE);
-    private static final @NonNull Klass FLOAT_WRAPPER_KLASS = resolveKlass(Float.class);
+    public static final @NonNull Klass FLOAT_PRIMITIVE_KLASS = initKlass(Float.TYPE);
+    private static final @NonNull Klass FLOAT_WRAPPER_KLASS = initKlass(Float.class);
     private static final @NonNull String FLOAT_KLASS_NAME = "Float";
     // Double
-    public static final @NonNull Klass DOUBLE_PRIMITIVE_KLASS = resolveKlass(Double.TYPE);
-    private static final @NonNull Klass DOUBLE_WRAPPER_KLASS = resolveKlass(Double.class);
+    public static final @NonNull Klass DOUBLE_PRIMITIVE_KLASS = initKlass(Double.TYPE);
+    private static final @NonNull Klass DOUBLE_WRAPPER_KLASS = initKlass(Double.class);
     private static final @NonNull String DOUBLE_KLASS_NAME = "Double";
     // String
-    public static final @NonNull Klass STRING_KLASS = resolveKlass(String.class);
+    public static final @NonNull Klass STRING_KLASS = initKlass(String.class);
     private static final @NonNull String STRING_KLASS_NAME = "String";
     // Object
-    public static final @NonNull Klass OBJECT_KLASS = resolveKlass(Object.class);
+    public static final @NonNull Klass OBJECT_KLASS = initKlass(Object.class);
     private static final @NonNull String OBJECT_KLASS_NAME = "Object";
     // Void
-    private static final @NonNull Klass VOID_KLASS = resolveKlass(Void.TYPE);
+    static final @NonNull Klass VOID_KLASS = initKlass(Void.TYPE);
     private static final @NonNull String VOID_KLASS_NAME = "Void";
+
+    private static @NonNull Klass initKlass(final @NonNull Class<?> javaClass) {
+        final var klass = new ExistingKlass(javaClass);
+        KLASSES_CACHE.get().put(javaClass.getName(), klass);
+        return klass;
+    }
 }

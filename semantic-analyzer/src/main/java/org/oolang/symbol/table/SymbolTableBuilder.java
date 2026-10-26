@@ -178,6 +178,19 @@ public final class SymbolTableBuilder {
         if (!property.isStatic && property.visibility != Visibility.PRIVATE) {
             final var getterFunction = buildAndVisitGetterFunction(propertyElement, klass, property, propType);
             children.add(getterFunction);
+
+            // the property becomes private, also in the AST
+            property.visibility = Visibility.PRIVATE;
+            var hasVisibility = false;
+            for (final var modifier : propertyElement.modifiers) {
+                if (modifier.type == VISIBILITY) {
+                    modifier.modifier = "private";
+                    hasVisibility = true;
+                }
+            }
+            if (!hasVisibility) {
+                propertyElement.modifiers.add(new ElementModifier(VISIBILITY, "private"));
+            }
         }
 
         klass.properties().put(baseSymbol.name, property);
@@ -188,8 +201,6 @@ public final class SymbolTableBuilder {
                                                                     final @NonNull OolangKlass klass,
                                                                     final @NonNull Property property,
                                                                     final @NonNull Type propType) {
-
-
         final var getterFunction = new RealElement(FUN);
         getterFunction.identifier = new SimpleIdentifier(property.name);
         getterFunction.hasCustomAttribute = true;
@@ -198,21 +209,7 @@ public final class SymbolTableBuilder {
         propAccessExpression.identifiers.add(new SimpleIdentifier(property.name));
         addExpressionToChain(chainableExpression, propAccessExpression);
         getterFunction.children.add(chainableExpression);
-
         property.getter = visitFunction(getterFunction, klass, propType);
-
-        // the AST property element becomes private
-        var hasVisibility = false;
-        for (final var modifier : propertyElement.modifiers) {
-            if (modifier.type == VISIBILITY) {
-                modifier.modifier = "private";
-                hasVisibility = true;
-            }
-        }
-        if (!hasVisibility) {
-            propertyElement.modifiers.add(new ElementModifier(VISIBILITY, "private"));
-        }
-
         return getterFunction;
     }
 

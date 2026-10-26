@@ -44,6 +44,8 @@ import static org.oolang.ast.statement.RealStatement.StatementType.ASSIGNMENT;
 import static org.oolang.ast.statement.RealStatement.StatementType.EXPRESSION;
 
 public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
+    private static final @NonNull ConstantExpression EMPTY_STRING_EXPRESSION = new ConstantExpression("");
+
     /// ```
     /// packageHeader? importList anysemi* classDeclaration (anysemi+ classDeclaration?)* EOF
     /// ```
@@ -665,11 +667,21 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     public @NonNull Expression visitLineStringLiteral(final @NonNull LineStringLiteralContext ctx) {
         assert ctx != null;
 
-        // fast-path for single String content
-        if (ctx.lineStringContent().size() == 1 && ctx.lineStringExpression().isEmpty()) {
-            return addAstInfo(new ConstantExpression(ctx.lineStringContent().getFirst().getText()), ctx);
+        // fast-path for single string content
+        final var lineStringContent = ctx.lineStringContent();
+        if (!lineStringContent.isEmpty()) {
+            if (lineStringContent.size() == 1) {
+                return addAstInfo(new ConstantExpression(ctx.lineStringContent().getFirst().getText()), ctx);
+            } else {
+                throw new UnsupportedOperationException();
+            }
         }
-        throw new UnsupportedOperationException();
+        final var lineStringExpression = ctx.lineStringExpression();
+        if (!lineStringExpression.isEmpty()) {
+            throw new UnsupportedOperationException();
+        }
+        // else, empty string
+        return addAstInfo(EMPTY_STRING_EXPRESSION, ctx);
     }
 
     /// ```

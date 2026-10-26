@@ -2,7 +2,6 @@ import kotlin.jvm.optionals.getOrNull
 
 plugins {
     id("oolang-commons")
-    `java-test-fixtures`
 }
 
 val versionCatalog: VersionCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
@@ -16,4 +15,10 @@ dependencies {
     testImplementation(project(":oolang-parser"))
 
     testFixturesImplementation("org.junit.jupiter:junit-jupiter-api:${catalogVersion("junit")}")
+}
+
+tasks {
+    withType<Test> {
+        classpath += files("src/test/resources/oolang-classes")
+    }
 }

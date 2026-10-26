@@ -52,13 +52,14 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
                 .anyMatch(superType -> superType.descriptorString().equals(otherKlass.descriptorString()));
     }
 
-    default @Nullable Property accessibleProperty(final @NonNull String name, final boolean includeSelf) {
+    default @Nullable BaseSymbol accessiblePropertyOrFunctionProperty(final @NonNull String name,
+                                                                      final boolean includeSelf) {
         assert name != null;
 
         final var includeProtected = !includeSelf;
 
         if (includeSelf) {
-            final var property = accessibleProperty(name, true, this);
+            final var property = accessiblePropertyOrFunctionProperty(name, false, this);
             if (property != null) {
                 return property;
             }
@@ -66,13 +67,14 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
 
         // Try all superclasses, then all superinterfaces
         for (final var superKlass : genericSuperKlasses()) {
-            final var property = accessibleProperty(name, includeProtected, TypeResolver.getKlassFromType(superKlass));
+            final var property = accessiblePropertyOrFunctionProperty(name, includeProtected,
+                    TypeResolver.getKlassFromType(superKlass));
             if (property != null) {
                 return property;
             }
         }
         for (final var superInterface : genericSuperInterfaces()) {
-            final var property = accessibleProperty(name, includeProtected,
+            final var property = accessiblePropertyOrFunctionProperty(name, includeProtected,
                     TypeResolver.getKlassFromType(superInterface));
             if (property != null) {
                 return property;
@@ -81,42 +83,65 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
         return null;
     }
 
-    private @Nullable Property accessibleProperty(final @NonNull String name,
-                                                  final boolean includeProtected,
-                                                  final @NonNull Klass klass) {
+    private @Nullable BaseSymbol accessiblePropertyOrFunctionProperty(final @NonNull String name,
+                                                                      final boolean includeProtected,
+                                                                      final @NonNull Klass klass) {
         assert name != null;
         assert klass != null;
 
-        final var properties = klass.properties();
-        if (properties.containsKey(name)) {
-            final var property = properties.get(name);
-            switch (property.visibility) {
-                case PUBLIC -> {
+        final var property = klass.properties().get(name);
+        if (property == null) {
+            return null;
+        }
+        // 1) property is itself accessible
+        switch (property.visibility) {
+            case PUBLIC -> {
+                return property;
+            }
+            case JAVA_PROTECTED -> {
+                if (includeProtected // protected in a superclass or itself
+                        || this.packageName().equals(klass.packageName())) { // within the same package
                     return property;
+                }
+            }
+            case OOLANG_PROTECTED -> {
+                if (includeProtected) { // protected in a superclass
+                    return property;
+                }
+            }
+            case JAVA_PACKAGE_PRIVATE -> {
+                if (this.packageName().equals(klass.packageName())) { // within the same package
+                    return property;
+                }
+            }
+            case PRIVATE -> {
+                if (includeProtected && this.descriptorString().equals(klass.descriptorString())) { // the current class
+                    return property;
+                }
+            }
+        }
+
+        // 2) property has getter
+        final var getterFunction = property.getter;
+        if (getterFunction != null) {
+            switch (getterFunction.visibility) {
+                case PUBLIC -> {
+                    return getterFunction;
                 }
                 case JAVA_PROTECTED -> {
                     if (includeProtected // protected in a superclass or itself
                             || this.packageName().equals(klass.packageName())) { // within the same package
-                        return property;
+                        return getterFunction;
                     }
                 }
                 case OOLANG_PROTECTED -> {
                     if (includeProtected) { // protected in a superclass
-                        return property;
-                    }
-                }
-                case JAVA_PACKAGE_PRIVATE -> {
-                    if (this.packageName().equals(klass.packageName())) { // within the same package
-                        return property;
-                    }
-                }
-                case PRIVATE -> {
-                    if (this.descriptorString().equals(klass.descriptorString())) { // the current class
-                        return property;
+                        return getterFunction;
                     }
                 }
             }
         }
+
         return null;
     }
 

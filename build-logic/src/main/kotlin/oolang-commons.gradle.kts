@@ -4,6 +4,7 @@ import kotlin.jvm.optionals.getOrNull
 
 plugins {
     `java-library`
+    `java-test-fixtures`
     `maven-publish`
     signing
 }

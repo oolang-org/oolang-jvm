@@ -8,7 +8,7 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.oolang.KlassesCacheInterceptor;
+import org.oolang.test.KlassesCacheInterceptor;
 import org.oolang.parser.OolangAstVisitor;
 import org.oolang.parser.generated.OolangLexer;
 import org.oolang.parser.generated.OolangParser;
@@ -69,7 +69,7 @@ public class SymbolTableBuilderTest {
         assertThat(rootKlass.properties()).hasSize(1);
         var childProperty = rootKlass.properties().values().iterator().next();
         assertThat(childProperty.name).isEqualTo("foo");
-        assertThat(childProperty.visibility).isEqualTo(PUBLIC);
+        assertThat(childProperty.visibility).isEqualTo(PRIVATE);
         assertThat(childProperty.isStatic).isFalse();
         assertThat(childProperty.isAbstract).isFalse();
         assertThat(childProperty.isFinal()).isTrue();
@@ -86,6 +86,7 @@ public class SymbolTableBuilderTest {
         klass = (Klass) propertyGetter.returnType();
         assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
         assertThat(propertyGetter.parameters).isEmpty();
+        assertThat(childProperty.getter).isEqualTo(propertyGetter);
 
         verifyDefaultConstructor(rootKlass);
     }
@@ -115,7 +116,7 @@ public class SymbolTableBuilderTest {
 
         var childProperty2 = propertiesIterator.next();
         assertThat(childProperty2.name).isEqualTo("foo");
-        assertThat(childProperty2.visibility).isEqualTo(PUBLIC);
+        assertThat(childProperty2.visibility).isEqualTo(PRIVATE);
         assertThat(childProperty2.isStatic).isFalse();
         assertThat(childProperty2.isAbstract).isFalse();
         assertThat(childProperty2.isFinal()).isTrue();
@@ -129,6 +130,7 @@ public class SymbolTableBuilderTest {
         assertThat(propertyGetter.isAbstract).isFalse();
         assertThat(propertyGetter.isFinal()).isTrue();
         assertThat(propertyGetter.parameters).isEmpty();
+        assertThat(childProperty2.getter).isEqualTo(propertyGetter);
 
         verifyDefaultConstructor(rootKlass);
     }

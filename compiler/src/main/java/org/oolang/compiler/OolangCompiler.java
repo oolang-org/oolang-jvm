@@ -22,17 +22,25 @@ import org.oolang.ast.statement.Statement;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.lang.classfile.*;
+import java.lang.classfile.ClassBuilder;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.CodeBuilder;
+import java.lang.classfile.TypeKind;
 import java.lang.classfile.attribute.ConstantValueAttribute;
+import java.lang.classfile.attribute.SourceDebugExtensionAttribute;
 import java.lang.constant.*;
 import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 
 import static java.lang.System.Logger.Level.DEBUG;
 import static org.oolang.JvmInvocationUtils.*;
+import static org.oolang.OolangUtils.OOLANG_COMPILER_METADATA;
 import static org.oolang.ast.element.RealElement.ElementType.PARAMETER;
 import static org.oolang.ast.element.RealElement.ElementType.PROPERTY_INITIALIZER;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.PROP_ACCESS;
@@ -41,8 +49,8 @@ import static org.oolang.compiler.Descriptors.*;
 import static org.oolang.compiler.StringCompilationUtils.stringConcatenation;
 
 public final class OolangCompiler {
-    private static final String PUBLIC = "public";
-    private static final String FINAL = "final";
+    private static final @NonNull String PUBLIC = "public";
+    private static final @NonNull String FINAL = "final";
 
     // un-instantiable
     private OolangCompiler() {
@@ -69,6 +77,9 @@ public final class OolangCompiler {
             final var className = element.identifier.identifier;
             final var classPath = packagePath.resolve(className + ".class");
             classFile.buildTo(classPath, ClassDesc.ofInternalName(package_ + "/" + className), classBuilder -> {
+                // Add Oolang metadata
+                classBuilder.with(SourceDebugExtensionAttribute.of(OOLANG_COMPILER_METADATA));
+
                 switch (element.elementType) {
                     case CLASS -> visitClass(element, classBuilder);
                     case INTERFACE -> throw new UnsupportedOperationException("interface");
@@ -447,8 +458,10 @@ public final class OolangCompiler {
         final var type = MethodTypeDesc.ofDescriptor(invokeExpression.typeDescriptorString);
 
         switch (invokeExpression.invocation) {
-            case INVOKE_VIRTUAL -> codeBuilder.invokevirtual(owner, name, type);
+            case INVOKE_INTERFACE -> codeBuilder.invokeinterface(owner, name, type);
             case INVOKE_SPECIAL -> codeBuilder.invokespecial(owner, name, type);
+            case INVOKE_STATIC -> codeBuilder.invokestatic(owner, name, type);
+            case INVOKE_VIRTUAL -> codeBuilder.invokevirtual(owner, name, type);
             default -> throw new UnsupportedOperationException(invokeExpression.invocation +
                     " invocation is not supported yet");
         }
