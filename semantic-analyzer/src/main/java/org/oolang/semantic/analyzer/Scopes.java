@@ -15,8 +15,8 @@ import org.oolang.symbol.table.Variable.SimpleVariable;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.oolang.symbol.table.TypeResolver.DOUBLE_KLASS;
-import static org.oolang.symbol.table.TypeResolver.LONG_KLASS;
+import static org.oolang.symbol.table.TypeResolver.DOUBLE_PRIMITIVE_KLASS;
+import static org.oolang.symbol.table.TypeResolver.LONG_PRIMITIVE_KLASS;
 
 final class Scopes {
     private /* lateinit */ Scope currentStaticScope = null;
@@ -135,7 +135,7 @@ final class Scopes {
             assert type != null;
 
             variables.put(name, new SimpleVariable(type, isFinal, slot));
-            slot += (type == LONG_KLASS || type == DOUBLE_KLASS) ? 2 : 1;
+            slot += (type == LONG_PRIMITIVE_KLASS || type == DOUBLE_PRIMITIVE_KLASS) ? 2 : 1;
         }
     }
 }

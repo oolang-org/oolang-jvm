@@ -439,7 +439,7 @@ public final class OolangSemanticAnalyzer {
 
         final var caller = getKlassFromType(callerType);
         if (caller.isArray()) {
-            if (indexType != INT_KLASS) {
+            if (indexType != INT_PRIMITIVE_KLASS) {
                 throw new OolangSemanticException("Indexing expression must be of type Int");
             }
             // get the component type of this array

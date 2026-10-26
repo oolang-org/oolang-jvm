@@ -145,22 +145,25 @@ public final class TypeResolver {
                 return STRING_KLASS;
             }
             case INT_KLASS_NAME -> {
-                return INT_KLASS;
+                return INT_PRIMITIVE_KLASS;
             }
             case LONG_KLASS_NAME -> {
-                return LONG_KLASS;
+                return LONG_PRIMITIVE_KLASS;
             }
             case FLOAT_KLASS_NAME -> {
-                return FLOAT_KLASS;
+                return FLOAT_PRIMITIVE_KLASS;
             }
             case DOUBLE_KLASS_NAME -> {
-                return DOUBLE_KLASS;
+                return DOUBLE_PRIMITIVE_KLASS;
             }
-            case ARRAY_KLASS_NAME -> {
-                return Array.getInstance();
+            case OBJECT_KLASS_NAME -> {
+                return OBJECT_KLASS;
             }
             case VOID_KLASS_NAME -> {
                 return VOID_KLASS;
+            }
+            case ARRAY_KLASS_NAME -> {
+                return Array.getInstance();
             }
         }
 
@@ -211,10 +214,10 @@ public final class TypeResolver {
         }
         return switch (value) {
             case String _ -> STRING_KLASS;
-            case Integer _ -> INT_KLASS;
-            case Long _ -> LONG_KLASS;
-            case Float _ -> FLOAT_KLASS;
-            case Double _ -> DOUBLE_KLASS;
+            case Integer _ -> INT_PRIMITIVE_KLASS;
+            case Long _ -> LONG_PRIMITIVE_KLASS;
+            case Float _ -> FLOAT_PRIMITIVE_KLASS;
+            case Double _ -> DOUBLE_PRIMITIVE_KLASS;
             default -> resolveKlass(value.getClass());
         };
     }
@@ -227,24 +230,29 @@ public final class TypeResolver {
     // Primitive and most often used classes.
     // --------------------------------------
 
-    // Void
-    private static final @NonNull Klass VOID_KLASS = resolveKlass(Void.TYPE);
-    private static final @NonNull String VOID_KLASS_NAME = "Void";
     // Int
-    public static final @NonNull Klass INT_KLASS = resolveKlass(Integer.TYPE);
+    public static final @NonNull Klass INT_PRIMITIVE_KLASS = resolveKlass(Integer.TYPE);
+    private static final @NonNull Klass INT_WRAPPER_KLASS = resolveKlass(Integer.class);
     private static final @NonNull String INT_KLASS_NAME = "Int";
     // Long
-    public static final @NonNull Klass LONG_KLASS = resolveKlass(Long.TYPE);
+    public static final @NonNull Klass LONG_PRIMITIVE_KLASS = resolveKlass(Long.TYPE);
+    private static final @NonNull Klass LONG_WRAPPER_KLASS = resolveKlass(Long.class);
     private static final @NonNull String LONG_KLASS_NAME = "Long";
     // Float
-    public static final @NonNull Klass FLOAT_KLASS = resolveKlass(Float.TYPE);
+    public static final @NonNull Klass FLOAT_PRIMITIVE_KLASS = resolveKlass(Float.TYPE);
+    private static final @NonNull Klass FLOAT_WRAPPER_KLASS = resolveKlass(Float.class);
     private static final @NonNull String FLOAT_KLASS_NAME = "Float";
     // Double
-    public static final @NonNull Klass DOUBLE_KLASS = resolveKlass(Double.TYPE);
+    public static final @NonNull Klass DOUBLE_PRIMITIVE_KLASS = resolveKlass(Double.TYPE);
+    private static final @NonNull Klass DOUBLE_WRAPPER_KLASS = resolveKlass(Double.class);
     private static final @NonNull String DOUBLE_KLASS_NAME = "Double";
     // String
     public static final @NonNull Klass STRING_KLASS = resolveKlass(String.class);
     private static final @NonNull String STRING_KLASS_NAME = "String";
     // Object
     public static final @NonNull Klass OBJECT_KLASS = resolveKlass(Object.class);
+    private static final @NonNull String OBJECT_KLASS_NAME = "Object";
+    // Void
+    private static final @NonNull Klass VOID_KLASS = resolveKlass(Void.TYPE);
+    private static final @NonNull String VOID_KLASS_NAME = "Void";
 }
