@@ -17,13 +17,16 @@ public final class Function extends BaseSymbol implements BaseFunction, TypeDesc
     public final @NonNull Klass declaringKlass;
     private final @NonNull Type returnType;
     public final @NonNull List<@NonNull Parameter> parameters;
+
+    private final @NonNull LazyConstant<@NonNull ActualType> returnActualType =
+            LazyConstant.of(this::buildReturnActualType);
     private final @NonNull LazyConstant<@NonNull String> descriptorString =
             LazyConstant.of(this::buildDescriptorString);
     private final @NonNull LazyConstant<@NonNull String> typeDescriptorString =
             LazyConstant.of(this::buildTypeDescriptorString);
 
     /// @param returnType a type, or null for constructors. The type will then resolve to `declaringKlass`.
-    Function(final @NonNull Klass declaringKlass,
+    Function(final @NonNull OolangKlass declaringKlass,
              final @NonNull BaseSymbol baseSymbol,
              final @Nullable Type returnType,
              final @NonNull List<@NonNull Parameter> parameters) {
@@ -37,7 +40,7 @@ public final class Function extends BaseSymbol implements BaseFunction, TypeDesc
         this.parameters = parameters;
     }
 
-    Function(final @NonNull Klass declaringKlass,
+    Function(final @NonNull ExistingKlass declaringKlass,
              final @NonNull String name,
              final @NonNull Visibility visibility,
              final boolean isStatic,
@@ -57,12 +60,16 @@ public final class Function extends BaseSymbol implements BaseFunction, TypeDesc
         this.parameters = parameters;
     }
 
-    public @NonNull ActualType returnType() {
+    private @NonNull ActualType buildReturnActualType() {
         return switch (returnType) {
             case ActualType actualType -> actualType;
             case Type.Lazy lazyType -> lazyType.type();
             case Type.Lateinit lateinitType -> lateinitType.type();
         };
+    }
+
+    public @NonNull ActualType returnType() {
+        return returnActualType.get();
     }
 
     @Override
@@ -93,6 +100,7 @@ public final class Function extends BaseSymbol implements BaseFunction, TypeDesc
         return typeDescriptorString.get();
     }
 
+    /// The parameter of a function.
     public static final class Parameter {
         public final @Nullable String name;
         private final @NonNull Type type;

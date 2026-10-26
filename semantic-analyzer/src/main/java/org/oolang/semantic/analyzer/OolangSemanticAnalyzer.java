@@ -540,25 +540,6 @@ public final class OolangSemanticAnalyzer {
         return visitExpression(funChild.children.getFirst(), scopes, currentKlass, null);
     }
 
-    private static @NonNull String functionInvocation(final @NonNull Klass caller, final @NonNull Function function) {
-        assert caller != null;
-        assert function != null;
-
-        if (function.isStatic) {
-            return INVOKE_STATIC;
-        }
-        if (function.declaringKlass.isInterface()) {
-            return INVOKE_INTERFACE;
-        }
-        if (function.visibility == PRIVATE
-                || !caller.equals(function.declaringKlass)
-                || function.name.equals(ConstantDescs.INIT_NAME)) {
-            return INVOKE_SPECIAL;
-        }
-        return INVOKE_VIRTUAL;
-        // todo INVOKE_DYNAMIC
-    }
-
     private static @NonNull ActualType visitVariableOrPropAccessChain(final @NonNull RealExpression expression,
                                                                       final @NonNull Scopes scopes,
                                                                       final @NonNull OolangKlass currentKlass,
@@ -574,22 +555,11 @@ public final class OolangSemanticAnalyzer {
         final var lastIdIndex = expression.identifiers.size() - (untilLast ? 0 : 1);
 
         var caller = (applicableKlass != null)
-                ? getFirstPropAccessInApplicableKlass(expression, applicableKlass, idIndex)
+                ? propOrFunPropAccess(expression, applicableKlass, idIndex)
                 : firstVariableOrPropAccessInCurrentKlass(expression, scopes, currentKlass, idIndex, lastIdIndex);
 
         while (idIndex.value < lastIdIndex) { // chained properties until last identifier
-            final var id = expression.identifiers.get(idIndex.value++);
-            final var property = caller.accessibleProperty(id.identifier, true);
-            if (property == null) {
-                throw new OolangSemanticException("Could not resolve property " + id.identifier +
-                        " from class " + caller.descriptorString());
-            }
-            final var propAccessExpression = propAccessExpression(property, id);
-            // mutate AST to add property call expression upfront
-            addNewExpressionInAst(expression, propAccessExpression);
-
-            // caller becomes property's klass
-            caller = getKlassFromType(property.type());
+            caller = propOrFunPropAccess(expression, caller, idIndex);
         }
 
         // clean identifiers after property access(es)
@@ -598,27 +568,36 @@ public final class OolangSemanticAnalyzer {
         return caller;
     }
 
-    private static @NonNull Klass getFirstPropAccessInApplicableKlass(final @NonNull RealExpression expression,
-                                                                      final @NonNull Klass applicableKlass,
-                                                                      final @NonNull IndexHolder idIndex) {
+    @NonNull
+    private static Klass propOrFunPropAccess(final @NonNull RealExpression expression,
+                                             final @NonNull Klass caller,
+                                             final @NonNull IndexHolder idIndex) {
         assert expression != null;
-        assert applicableKlass != null;
+        assert caller != null;
         assert idIndex != null;
 
         final var id = expression.identifiers.get(idIndex.value++);
-        final var identifier = id.identifier;
-
-        final var property = applicableKlass.accessibleProperty(identifier, true);
-        if (property == null) {
-            throw new OolangSemanticException("Property '" + identifier + "' not found in class " +
-                    applicableKlass.descriptorString());
-        }
-
-        final var propertyExpression = propAccessExpression(property, id);
-        // mutate AST to add variable or property access call expression upfront
-        addNewExpressionInAst(expression, propertyExpression);
-
-        return getKlassFromType(property.type());
+        final var propOrFunProp = caller.accessiblePropertyOrFunctionProperty(id.identifier, true);
+        return switch (propOrFunProp) {
+            case Property property -> {
+                final var propAccessExpression = propAccessExpression(property, id);
+                // mutate AST to add property call expression upfront
+                addNewExpressionInAst(expression, propAccessExpression);
+                // caller becomes property's klass
+                yield getKlassFromType(property.type());
+            }
+            case Function functionProperty -> {
+                final var funCallExpression = funCallExpression(functionProperty, id, caller);
+                // mutate AST to add function call expression upfront
+                addNewExpressionInAst(expression, funCallExpression);
+                // caller becomes function's return klass
+                yield getKlassFromType(functionProperty.returnType());
+            }
+            case null -> throw new OolangSemanticException("Could not resolve property " + id.identifier +
+                    " from class " + caller.descriptorString());
+            default -> throw new IllegalStateException("propOrFunProp should be a Property or a Function. Was: " +
+                    propOrFunProp.getClass());
+        };
     }
 
     private static @NonNull Klass firstVariableOrPropAccessInCurrentKlass(final @NonNull RealExpression expression,
@@ -635,19 +614,20 @@ public final class OolangSemanticAnalyzer {
         var identifier = id.identifier;
 
         // 1) first identifier may refer to a property or variable from this class's scope
-        var variableOrProperty = scopes.resolveVariable(identifier);
+        Object variableOrPropOrFunProp = scopes.resolveVariable(identifier);
 
-        if (variableOrProperty == null) {
+        if (variableOrPropOrFunProp == null) {
             // 2) else, first identifier may refer to a property from a parent
-            variableOrProperty = currentKlass.accessibleProperty(identifier, false);
+            variableOrPropOrFunProp = currentKlass.accessiblePropertyOrFunctionProperty(identifier, false);
         }
 
-        if (variableOrProperty != null) {
-            switch (variableOrProperty) {
+        if (variableOrPropOrFunProp != null) {
+            return switch (variableOrPropOrFunProp) {
                 case SimpleVariable variable -> {
                     final var variableAccess = loadExpression(variable, id);
                     // mutate AST to add variable access call expression upfront
                     addNewExpressionInAst(expression, variableAccess);
+                    yield getKlassFromType(variable.type());
                 }
                 case Property property -> {
                     final var propertyAccess = propAccessExpression(property, id);
@@ -657,10 +637,20 @@ public final class OolangSemanticAnalyzer {
                         // must load current klass
                         loadThis(propertyAccess, scopes);
                     }
+                    yield getKlassFromType(property.type());
                 }
-            }
-
-            return getKlassFromType(variableOrProperty.type());
+                case Function function -> {
+                    final var funCall = funCallExpression(function, id, currentKlass);
+                    // mutate AST to add variable access call expression upfront
+                    addNewExpressionInAst(expression, funCall);
+                    // must load current klass
+                    loadThis(funCall, scopes);
+                    yield getKlassFromType(function.returnType());
+                }
+                default -> throw new IllegalStateException(
+                        "variableOrPropOrFunProp should be a Variable, a Property or a Function. Was: " +
+                                variableOrPropOrFunProp.getClass());
+            };
         }
 
         // 3) else, identifier is a static class access
@@ -721,8 +711,45 @@ public final class OolangSemanticAnalyzer {
         if (id.info() != null) {
             propAccessExpression.setInfo(id.info());
         }
-
         return propAccessExpression;
+    }
+
+    private static @NonNull RealExpression funCallExpression(final @NonNull Function function,
+                                                             final @NonNull SimpleIdentifier id,
+                                                             final @NonNull Klass caller) {
+        assert function != null;
+        assert id != null;
+
+        final var funCallExpression = new RealExpression(FUN_CALL);
+        funCallExpression.identifiers.add(id);
+        funCallExpression.invocation = functionInvocation(caller, function);
+        funCallExpression.ownerDescriptorString = function.declaringKlass.descriptorString();
+        funCallExpression.setDescriptorString(function.descriptorString());
+        funCallExpression.typeDescriptorString = function.typeDescriptorString();
+        // set AST info from the identifier, if any
+        if (id.info() != null) {
+            funCallExpression.setInfo(id.info());
+        }
+        return funCallExpression;
+    }
+
+    private static @NonNull String functionInvocation(final @NonNull Klass caller, final @NonNull Function function) {
+        assert caller != null;
+        assert function != null;
+
+        if (function.isStatic) {
+            return INVOKE_STATIC;
+        }
+        if (function.declaringKlass.isInterface()) {
+            return INVOKE_INTERFACE;
+        }
+        if (function.visibility == PRIVATE
+                || !caller.equals(function.declaringKlass)
+                || function.name.equals(ConstantDescs.INIT_NAME)) {
+            return INVOKE_SPECIAL;
+        }
+        return INVOKE_VIRTUAL;
+        // todo INVOKE_DYNAMIC
     }
 
     static @NonNull Map<@NonNull String, @NonNull String> buildImports(

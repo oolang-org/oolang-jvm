@@ -195,6 +195,70 @@ public class OolangSemanticAnalyzerTest {
         print(astFile);
     }
 
+    @Test
+    public void parseClassWithMainFunctionAndTestCall() {
+        var astFile = astForCode("""
+                package com.example
+                import org.oolang.semantic.analyzer.OolangFunctionProperty
+                class Example {
+                static fun main(args: Array<String>) {
+                System.out.println(OolangFunctionProperty.create().name)
+                }
+                }""");
+        var chainable = verifyMainUntilStatement(astFile);
+        assertThat(chainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(chainable.children).hasSize(2);
+        var propAccess = (RealExpression) chainable.children.getFirst();
+        assertThat(propAccess.expressionType).isEqualTo(PROP_ACCESS);
+        assertThat(propAccess.invocation).isEqualTo(GET_STATIC);
+        assertThat(propAccess.ownerDescriptorString).isEqualTo("Ljava/lang/System;");
+        assertThat(propAccess.identifiers).hasSize(1);
+        assertThat(propAccess.identifiers.getFirst().identifier).isEqualTo("out");
+        assertThat(propAccess.descriptorString()).isEqualTo("Ljava/io/PrintStream;");
+        assertThat(propAccess.children).isEmpty();
+
+        var funCall = (RealExpression) chainable.children.getLast();
+        assertThat(funCall.expressionType).isEqualTo(FUN_CALL);
+        assertThat(funCall.invocation).isEqualTo(INVOKE_VIRTUAL);
+        assertThat(funCall.ownerDescriptorString).isEqualTo("Ljava/io/PrintStream;");
+        assertThat(funCall.identifiers).hasSize(1);
+        assertThat(funCall.identifiers.getFirst().identifier).isEqualTo("println");
+        assertThat(funCall.descriptorString()).isEqualTo("V");
+        assertThat(funCall.typeDescriptorString).isEqualTo("(Ljava/lang/String;)V");
+        assertThat(funCall.children).hasSize(1);
+
+        var funCallParam = (RealExpression) funCall.children.getFirst();
+        assertThat(funCallParam.expressionType).isEqualTo(FUN_CALL_PARAMETER);
+        assertThat(funCallParam.ownerDescriptorString).isNull();
+        assertThat(funCallParam.identifiers).isEmpty();
+        assertThat(funCallParam.typeDescriptorString).isNull();
+        assertThat(funCallParam.children).hasSize(1);
+
+        var funCallParamChainable = (RealExpression) funCallParam.content().getFirst();
+        assertThat(funCallParamChainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(funCallParamChainable.content()).hasSize(2);
+
+        var funCallParamFactory = (RealExpression) funCallParamChainable.content().get(0);
+        assertThat(funCallParamFactory.expressionType).isEqualTo(FUN_CALL);
+        assertThat(funCallParamFactory.invocation).isEqualTo(INVOKE_STATIC);
+        assertThat(funCallParamFactory.ownerDescriptorString).isEqualTo("Lorg/oolang/semantic/analyzer/OolangFunctionProperty;");
+        assertThat(funCallParamFactory.identifiers).hasSize(1);
+        assertThat(funCallParamFactory.identifiers.getFirst().identifier).isEqualTo("create");
+        assertThat(funCallParamFactory.descriptorString()).isEqualTo("Lorg/oolang/semantic/analyzer/OolangFunctionProperty;");
+        assertThat(funCallParamFactory.typeDescriptorString).isEqualTo("()Lorg/oolang/semantic/analyzer/OolangFunctionProperty;");
+        assertThat(funCallParamFactory.children).isEmpty();
+
+        var funCallParamFunPropAccess = (RealExpression) funCallParamChainable.content().get(1);
+        assertThat(funCallParamFunPropAccess.expressionType).isEqualTo(FUN_CALL);
+        assertThat(funCallParamFunPropAccess.invocation).isEqualTo(INVOKE_VIRTUAL);
+        assertThat(funCallParamFunPropAccess.ownerDescriptorString).isEqualTo("Lorg/oolang/semantic/analyzer/OolangFunctionProperty;");
+        assertThat(funCallParamFunPropAccess.identifiers).hasSize(1);
+        assertThat(funCallParamFunPropAccess.identifiers.getFirst().identifier).isEqualTo("name");
+        assertThat(funCallParamFunPropAccess.descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(funCallParamFunPropAccess.typeDescriptorString).isEqualTo("()Ljava/lang/String;");
+        assertThat(funCallParamFunPropAccess.children).isEmpty();
+    }
+
     private @NonNull RealExpression verifyMainUntilStatement(AstFile astFile) {
         var root = astFile.rootElements.getFirst();
         var classBody = (ClassBody) root.children.getFirst();

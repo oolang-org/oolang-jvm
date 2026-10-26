@@ -5,16 +5,15 @@
 package org.oolang.symbol.table;
 
 import org.jspecify.annotations.NonNull;
-import org.oolang.OolangPropCustomAttribute;
 import org.oolang.symbol.table.Function.Parameter;
+import org.oolang.symbol.table.FunctionPropertyUtils.*;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.lang.classfile.ClassFile;
-import java.lang.classfile.ClassModel;
 import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static org.oolang.symbol.table.FunctionPropertyUtils.*;
+
 
 @SuppressWarnings("preview")
 final class ExistingKlass implements Klass {
@@ -22,7 +21,7 @@ final class ExistingKlass implements Klass {
     private final @NonNull LazyConstant<@NonNull Parents> parents = LazyConstant.of(this::getAllParents);
     private final @NonNull LazyConstant<@NonNull Map<@NonNull String, @NonNull Property>> properties =
             LazyConstant.of(this::getProperties);
-    private final @NonNull LazyConstant<@NonNull SortedSet<@NonNull BaseFunction>> functions =
+    private final @NonNull LazyConstant<@NonNull Functions> functions =
             LazyConstant.of(this::getFunctions);
 
     ExistingKlass(final @NonNull Class<?> javaClass) {
@@ -39,35 +38,6 @@ final class ExistingKlass implements Klass {
         // Traverse interfaces (recursively)
         processInterfaces(javaClass, parents);
         return parents;
-    }
-
-    // todo use it to get method attributes (oolang-get / oolang-set)
-    private ClassModel classModelFromClass(final @NonNull Class<?> javaClass) {
-        assert javaClass != null;
-
-        // 1) Convert the class name to its expected resource path format
-        final var resourceName = javaClass.getSimpleName() + ".class";
-
-        // 2) Read the raw bytecode bytes using the class loader
-        final byte[] classBytes;
-        try (final var is = javaClass.getResourceAsStream(resourceName)) {
-            if (is == null) {
-                return null;
-            }
-            classBytes = is.readAllBytes();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-
-        // 3) Add an option that allows reading the Oolang custom attribute
-        final var options = ClassFile.AttributeMapperOption.of(utf8Entry ->
-                utf8Entry.equalsString(OolangPropCustomAttribute.NAME)
-                        ? new OolangPropCustomAttribute().attributeMapper()
-                        : null
-        );
-
-        // 4) Parse the bytes into a ClassModel using the Class-File API
-        return ClassFile.of(options).parse(classBytes);
     }
 
     // Recursively collect all superclasses and their superinterfaces
@@ -129,27 +99,42 @@ final class ExistingKlass implements Klass {
 
     @Override
     public @NonNull SortedSet<@NonNull BaseFunction> functions() {
-        return functions.get();
+        return functions.get().functions;
     }
 
     private @NonNull Map<@NonNull String, @NonNull Property> getProperties() {
-        return Arrays.stream(javaClass.getDeclaredFields())
-                .filter(field -> !Modifier.isPrivate(field.getModifiers()))
-                .map(field -> {
-                    final var name = field.getName();
-                    final var mod = field.getModifiers();
-                    return new Property(this,
-                            name,
-                            visibilityFromModifiers(mod),
-                            Modifier.isStatic(mod),
-                            Modifier.isAbstract(mod),
-                            Modifier.isFinal(mod),
-                            TypeResolver.resolveType(field.getGenericType()));
-                }).collect(Collectors.toMap(p -> p.name, java.util.function.Function.identity()));
+        final var properties = new HashMap<@NonNull String, @NonNull Property>();
+        // 1) add regular fields
+        addFieldProperties(properties);
+        // 2) add function properties
+        addFunctionProperties(functions.get().propertyCandidates, javaClass, properties);
+        return properties;
     }
 
-    private @NonNull SortedSet<@NonNull BaseFunction> getFunctions() {
-        return Arrays.stream(javaClass.getDeclaredMethods())
+    private void addFieldProperties(final @NonNull Map<@NonNull String, @NonNull Property> properties) {
+        assert properties != null;
+
+        for (final var field : javaClass.getDeclaredFields()) {
+            final var mod = field.getModifiers();
+            if (Modifier.isPrivate(mod)) {
+                continue;
+            }
+            final var name = field.getName();
+
+            final var property = new Property(this,
+                    name,
+                    visibilityFromModifiers(mod),
+                    Modifier.isStatic(mod),
+                    Modifier.isAbstract(mod),
+                    Modifier.isFinal(mod),
+                    TypeResolver.resolveType(field.getGenericType()));
+            properties.put(name, property);
+        }
+    }
+
+    private @NonNull Functions getFunctions() {
+        final var maybeProperties = new HashMap<@NonNull String, @NonNull MaybeProperty>();
+        final SortedSet<@NonNull BaseFunction> functions = Arrays.stream(javaClass.getDeclaredMethods())
                 .filter(method -> !Modifier.isPrivate(method.getModifiers()))
                 .map(method -> {
                     final var parameters = Arrays.stream(method.getParameters())
@@ -158,17 +143,23 @@ final class ExistingKlass implements Klass {
                                 return new Parameter(paramName, TypeResolver.resolveType(p.getParameterizedType()));
                             }).toList();
 
-                    final var name = method.getName();
                     final var mod = method.getModifiers();
-                    return new Function(this,
-                            name,
+                    final var function = new Function(this,
+                            method.getName(),
                             visibilityFromModifiers(mod),
                             Modifier.isStatic(mod),
                             Modifier.isAbstract(mod),
                             Modifier.isFinal(mod),
                             TypeResolver.resolveType(method.getGenericReturnType()),
                             parameters);
+                    // this function may be a property candidate
+                    addToMaybePropertiesIfEligible(function, maybeProperties);
+                    return function;
                 }).collect(Collectors.toCollection(TreeSet::new));
+
+        return new Functions(
+                functions,
+                propertyCandidatesFromMaybeProperties(maybeProperties));
     }
 
     private static @NonNull Visibility visibilityFromModifiers(final int mod) {
@@ -202,8 +193,13 @@ final class ExistingKlass implements Klass {
         return TypeResolver.resolveKlass(javaClass.arrayType());
     }
 
-    private static class Parents {
+    private static final class Parents {
         private final @NonNull SequencedCollection<@NonNull ActualType> genericSuperKlasses = new ArrayList<>();
         private final @NonNull SequencedCollection<@NonNull ActualType> genericSuperInterfaces = new TreeSet<>();
+    }
+
+    private record Functions(
+            @NonNull SortedSet<@NonNull BaseFunction> functions,
+            @NonNull PropertyCandidates propertyCandidates) {
     }
 }
