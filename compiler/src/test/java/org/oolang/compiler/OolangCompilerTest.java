@@ -10,7 +10,7 @@ import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.oolang.KlassesCacheInterceptor;
+import org.oolang.test.KlassesCacheInterceptor;
 import org.oolang.OolangPropCustomAttribute;
 import org.oolang.ast.AstFile;
 import org.oolang.parser.OolangAstVisitor;
@@ -28,6 +28,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.oolang.OolangUtils.OOLANG_COMPILER_METADATA;
 
 @SuppressWarnings("OptionalGetWithoutIsPresent")
 @ExtendWith(KlassesCacheInterceptor.class)
@@ -51,6 +52,79 @@ public class OolangCompilerTest {
         assertThat(classModel.interfaces()).isEmpty();
         assertThat(classModel.fields()).isEmpty();
         assertThat(classModel.methods()).isEmpty();
+    }
+
+    @Test
+    public void compileClassWithInstanceProperty() {
+        var astFile = astForCode("""
+                package com.example
+                class OolangFunctionProperty {
+                val name = "Oolang"
+                }""");
+        var classModel = compileAst(astFile);
+        assertThat(classModel.flags().flags()).containsExactlyInAnyOrder(
+                AccessFlag.PUBLIC,
+                AccessFlag.FINAL
+        );
+        assertThat(classModel.thisClass().asInternalName()).isEqualTo("com/example/OolangFunctionProperty");
+        assertThat(classModel.superclass()).hasValueSatisfying(superClass ->
+                assertThat(superClass.asInternalName()).isEqualTo("java/lang/Object"));
+        assertThat(classModel.interfaces()).isEmpty();
+        assertThat(classModel.fields()).hasSize(1);
+        assertThat(classModel.methods()).hasSize(2);
+
+        var fieldModel = classModel.fields().getFirst();
+        assertThat(fieldModel.flags().flags()).containsExactlyInAnyOrder(
+                AccessFlag.PRIVATE,
+                AccessFlag.FINAL
+        );
+        assertThat(fieldModel.fieldName().stringValue()).isEqualTo("name");
+        assertThat(fieldModel.fieldTypeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        var methodModel = classModel.methods().getFirst();
+        assertThat(methodModel.flags().flags()).containsExactlyInAnyOrder(
+                AccessFlag.PUBLIC,
+                AccessFlag.FINAL
+        );
+        assertThat(methodModel.methodName().stringValue()).isEqualTo("name");
+        var constructorMethodModel = classModel.methods().getLast();
+        assertThat(constructorMethodModel.flags().flags()).containsExactly(
+                AccessFlag.PUBLIC
+        );
+        assertThat(constructorMethodModel.methodName().stringValue()).isEqualTo(ConstantDescs.INIT_NAME);
+        var constructorMethodCode = constructorMethodModel.code().get();
+        var constructorCodeElements = constructorMethodCode.elementList();
+        assertThat(constructorCodeElements).hasSize(6);
+
+        var constructorExpression1 = (LoadInstruction) constructorCodeElements.get(0);
+        assertThat(constructorExpression1.opcode()).isEqualTo(Opcode.ALOAD_0);
+        assertThat(constructorExpression1.typeKind()).isEqualTo(TypeKind.REFERENCE);
+
+        var constructorExpression2 = (ConstantInstruction.LoadConstantInstruction) constructorCodeElements.get(1);
+        assertThat(constructorExpression2.opcode()).isEqualTo(Opcode.LDC);
+        assertThat(constructorExpression2.typeKind()).isEqualTo(TypeKind.REFERENCE);
+        assertThat(constructorExpression2.constantValue()).isEqualTo("Oolang");
+
+        var constructorExpression3 = (FieldInstruction) constructorCodeElements.get(2);
+        assertThat(constructorExpression3.opcode()).isEqualTo(Opcode.PUTFIELD);
+        assertThat(constructorExpression3.name().stringValue()).isEqualTo("name");
+        assertThat(constructorExpression3.owner().asInternalName())
+                .isEqualTo("com/example/OolangFunctionProperty");
+        assertThat(constructorExpression3.typeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        var constructorExpression4 = (LoadInstruction) constructorCodeElements.get(3);
+        assertThat(constructorExpression4.opcode()).isEqualTo(Opcode.ALOAD_0);
+        assertThat(constructorExpression4.typeKind()).isEqualTo(TypeKind.REFERENCE);
+
+        var constructorExpression5 = (InvokeInstruction) constructorCodeElements.get(4);
+        assertThat(constructorExpression5.opcode()).isEqualTo(Opcode.INVOKESPECIAL);
+        assertThat(constructorExpression5.name().stringValue()).isEqualTo(ConstantDescs.INIT_NAME);
+        assertThat(constructorExpression5.owner().asInternalName()).isEqualTo("java/lang/Object");
+        assertThat(constructorExpression5.typeSymbol().descriptorString()).isEqualTo("()V");
+
+        var constructorExpression6 = (ReturnInstruction) constructorCodeElements.get(5);
+        assertThat(constructorExpression6.opcode()).isEqualTo(Opcode.RETURN);
+        assertThat(constructorExpression6.typeKind()).isEqualTo(TypeKind.VOID);
     }
 
     @Test
@@ -167,6 +241,99 @@ public class OolangCompilerTest {
         var expression10 = (ReturnInstruction) codeElements.get(9);
         assertThat(expression10.opcode()).isEqualTo(Opcode.RETURN);
         assertThat(expression10.typeKind()).isEqualTo(TypeKind.VOID);
+    }
+
+    @Test
+    public void parseClassWithMainFunctionAndOldSchoolFunctionPropertyAccess1() {
+        var astFile = astForCode("""
+                package com.example
+                import org.oolang.test.OldSchoolFunctionProperty
+                class Example {
+                static fun main(args: Array<String>) {
+                System.out.println(OldSchoolFunctionProperty.createPrincipal().name)
+                }
+                }""");
+        var codeElements = verifyMainUntilStatement(astFile);
+        assertThat(codeElements).hasSize(5);
+
+        var expression1 = (FieldInstruction) codeElements.get(0);
+        assertThat(expression1.opcode()).isEqualTo(Opcode.GETSTATIC);
+        assertThat(expression1.name().stringValue()).isEqualTo("out");
+        assertThat(expression1.owner().asInternalName()).isEqualTo("java/lang/System");
+        assertThat(expression1.typeSymbol().descriptorString()).isEqualTo("Ljava/io/PrintStream;");
+
+        var expression2 = (InvokeInstruction) codeElements.get(1);
+        assertThat(expression2.opcode()).isEqualTo(Opcode.INVOKESTATIC);
+        assertThat(expression2.name().stringValue()).isEqualTo("createPrincipal");
+        assertThat(expression2.owner().asInternalName())
+                .isEqualTo("org/oolang/test/OldSchoolFunctionProperty");
+        assertThat(expression2.typeSymbol().descriptorString())
+                .isEqualTo("()Ljava/security/Principal;");
+
+        var expression3 = (InvokeInstruction) codeElements.get(2);
+        assertThat(expression3.opcode()).isEqualTo(Opcode.INVOKEINTERFACE);
+        assertThat(expression3.name().stringValue()).isEqualTo("getName");
+        assertThat(expression3.owner().asInternalName()).isEqualTo("java/security/Principal");
+        assertThat(expression3.typeSymbol().descriptorString())
+                .isEqualTo("()Ljava/lang/String;");
+
+        var expression4 = (InvokeInstruction) codeElements.get(3);
+        assertThat(expression4.opcode()).isEqualTo(Opcode.INVOKEVIRTUAL);
+        assertThat(expression4.name().stringValue()).isEqualTo("println");
+        assertThat(expression4.owner().asInternalName()).isEqualTo("java/io/PrintStream");
+        assertThat(expression4.typeSymbol().descriptorString())
+                .isEqualTo("(Ljava/lang/String;)V");
+
+        var expression5 = (ReturnInstruction) codeElements.get(4);
+        assertThat(expression5.opcode()).isEqualTo(Opcode.RETURN);
+        assertThat(expression5.typeKind()).isEqualTo(TypeKind.VOID);
+    }
+
+    @Test
+    public void parseClassWithMainFunctionAndOldSchoolFunctionPropertyAccess2() {
+        var astFile = astForCode("""
+                package com.example
+                import org.oolang.test.OldSchoolFunctionProperty
+                class Example {
+                static fun main(args: Array<String>) {
+                System.out.println(OldSchoolFunctionProperty.create().name)
+                }
+                }""");
+        var codeElements = verifyMainUntilStatement(astFile);
+        assertThat(codeElements).hasSize(5);
+
+        var expression1 = (FieldInstruction) codeElements.get(0);
+        assertThat(expression1.opcode()).isEqualTo(Opcode.GETSTATIC);
+        assertThat(expression1.name().stringValue()).isEqualTo("out");
+        assertThat(expression1.owner().asInternalName()).isEqualTo("java/lang/System");
+        assertThat(expression1.typeSymbol().descriptorString()).isEqualTo("Ljava/io/PrintStream;");
+
+        var expression2 = (InvokeInstruction) codeElements.get(1);
+        assertThat(expression2.opcode()).isEqualTo(Opcode.INVOKESTATIC);
+        assertThat(expression2.name().stringValue()).isEqualTo("create");
+        assertThat(expression2.owner().asInternalName())
+                .isEqualTo("org/oolang/test/OldSchoolFunctionProperty");
+        assertThat(expression2.typeSymbol().descriptorString())
+                .isEqualTo("()Lorg/oolang/test/OldSchoolFunctionProperty;");
+
+        var expression3 = (InvokeInstruction) codeElements.get(2);
+        assertThat(expression3.opcode()).isEqualTo(Opcode.INVOKEVIRTUAL);
+        assertThat(expression3.name().stringValue()).isEqualTo("getName");
+        assertThat(expression3.owner().asInternalName())
+                .isEqualTo("org/oolang/test/OldSchoolFunctionProperty");
+        assertThat(expression3.typeSymbol().descriptorString())
+                .isEqualTo("()Ljava/lang/String;");
+
+        var expression4 = (InvokeInstruction) codeElements.get(3);
+        assertThat(expression4.opcode()).isEqualTo(Opcode.INVOKEVIRTUAL);
+        assertThat(expression4.name().stringValue()).isEqualTo("println");
+        assertThat(expression4.owner().asInternalName()).isEqualTo("java/io/PrintStream");
+        assertThat(expression4.typeSymbol().descriptorString())
+                .isEqualTo("(Ljava/lang/String;)V");
+
+        var expression5 = (ReturnInstruction) codeElements.get(4);
+        assertThat(expression5.opcode()).isEqualTo(Opcode.RETURN);
+        assertThat(expression5.typeKind()).isEqualTo(TypeKind.VOID);
     }
 
     private @NonNull List<@NonNull CodeElement> verifyMainUntilStatement(AstFile astFile) {
@@ -445,11 +612,11 @@ public class OolangCompilerTest {
         assertThat(expression4.owner().asInternalName()).isEqualTo("com/example/Example");
         assertThat(expression4.typeSymbol().descriptorString()).isEqualTo("()V");
 
-        var expression5 = (FieldInstruction) codeElements.get(4);
-        assertThat(expression5.opcode()).isEqualTo(Opcode.GETFIELD);
+        var expression5 = (InvokeInstruction) codeElements.get(4);
+        assertThat(expression5.opcode()).isEqualTo(Opcode.INVOKEVIRTUAL);
         assertThat(expression5.name().stringValue()).isEqualTo("prop");
         assertThat(expression5.owner().asInternalName()).isEqualTo("com/example/Example");
-        assertThat(expression5.typeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(expression5.typeSymbol().descriptorString()).isEqualTo("()Ljava/lang/String;");
 
         var expression6 = (InvokeInstruction) codeElements.get(5);
         assertThat(expression6.opcode()).isEqualTo(Opcode.INVOKEVIRTUAL);
@@ -479,6 +646,10 @@ public class OolangCompilerTest {
             final var classModel = classFile.parse(classPath);
             assertThat(classModel.minorVersion()).isEqualTo(0);
             assertThat(classModel.majorVersion()).isEqualTo(71);
+            var sourceDebugExtensionAttribute = classModel.findAttribute(Attributes.sourceDebugExtension());
+            assertThat(sourceDebugExtensionAttribute).isPresent()
+                    .hasValueSatisfying(sdea ->
+                            assertThat(sdea.contents()).isEqualTo(OOLANG_COMPILER_METADATA));
             printBytecode(classModel);
             return classModel;
         } catch (IOException e) {
@@ -516,7 +687,7 @@ public class OolangCompilerTest {
         var oolangFile = parser.oolangFile();
         var visitor = new OolangAstVisitor();
         var astFile = visitor.visitOolangFile(oolangFile);
-        OolangSemanticAnalyzer.semanticAnalysis(astFile);
+        new OolangSemanticAnalyzer(astFile).semanticAnalysis();
         return astFile;
     }
 }

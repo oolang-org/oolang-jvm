@@ -13,6 +13,8 @@ import java.lang.invoke.TypeDescriptor;
 public final class Property extends BaseSymbol implements Variable, TypeDescriptor {
     public final @NonNull Klass declaringKlass;
     private final @NonNull Type type;
+
+    // For function property
     public @Nullable Function getter = null;
 
     private final @NonNull LazyConstant<@NonNull String> descriptorString =

@@ -18,7 +18,7 @@ public sealed abstract class Identifier extends AbstractAst implements Ast {
     }
 
     public static final class SimpleIdentifier extends Identifier {
-        public final @NonNull String identifier;
+        public @NonNull String identifier;
 
         public SimpleIdentifier(final @NonNull String identifier) {
             assert identifier != null;
