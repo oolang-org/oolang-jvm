@@ -10,7 +10,7 @@ import org.jspecify.annotations.Nullable;
 import java.lang.invoke.TypeDescriptor;
 
 @SuppressWarnings("preview")
-public final class Property extends BaseSymbol implements Variable, TypeDescriptor {
+public final class Property extends Symbol implements Variable, TypeDescriptor {
     public final @NonNull Klass declaringKlass;
     private final @NonNull Type type;
 
@@ -21,7 +21,7 @@ public final class Property extends BaseSymbol implements Variable, TypeDescript
             LazyConstant.of(this::buildDescriptorString);
 
     Property(final @NonNull Klass declaringKlass,
-             final @NonNull BaseSymbol baseSymbol,
+             final @NonNull Symbol baseSymbol,
              final @NonNull Type type) {
         assert declaringKlass != null;
         assert baseSymbol != null;

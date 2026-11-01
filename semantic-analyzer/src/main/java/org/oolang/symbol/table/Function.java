@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("preview")
-public final class Function extends BaseSymbol implements BaseFunction, TypeDescriptor {
+public final class Function extends Symbol implements BaseFunction, TypeDescriptor {
     public final @NonNull Klass declaringKlass;
     private final @NonNull Type returnType;
     public final @NonNull List<@NonNull Parameter> parameters;
@@ -29,7 +29,7 @@ public final class Function extends BaseSymbol implements BaseFunction, TypeDesc
 
     /// @param returnType a type, or null for constructors. The type will then resolve to `declaringKlass`.
     Function(final @NonNull OolangKlass declaringKlass,
-             final @NonNull BaseSymbol baseSymbol,
+             final @NonNull Symbol baseSymbol,
              final @Nullable Type returnType,
              final @NonNull List<@NonNull Parameter> parameters) {
         assert declaringKlass != null;

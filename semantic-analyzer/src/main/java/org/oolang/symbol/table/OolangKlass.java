@@ -13,11 +13,11 @@ import static org.oolang.symbol.table.TypeResolver.OBJECT_KLASS;
 import static org.oolang.symbol.table.Visibility.PUBLIC;
 
 @SuppressWarnings("preview")
-public final class OolangKlass extends BaseSymbol implements Klass {
+public final class OolangKlass extends Symbol implements Klass {
 
     // the root of a symbol table is a virtual klass
-    private static final @NonNull BaseSymbol VIRTUAL =
-            new BaseSymbol("", PUBLIC, false /* whatever */, false /* whatever */, false /* whatever */);
+    private static final @NonNull Symbol VIRTUAL =
+            new Symbol("", PUBLIC, false /* whatever */, false /* whatever */, false /* whatever */);
 
     static @NonNull OolangKlass createRoot(final @NonNull String packageName,
                                            final @NonNull Map<@NonNull String, @NonNull String> imports) {
@@ -41,7 +41,7 @@ public final class OolangKlass extends BaseSymbol implements Klass {
     public @NonNull List<@NonNull Function> functions = new ArrayList<>();
     public @Nullable Map<@NonNull String, @NonNull OolangKlass> klasses = null;
 
-    OolangKlass(final @NonNull BaseSymbol baseSymbol,
+    OolangKlass(final @NonNull Symbol baseSymbol,
                 final boolean isInterface,
                 final boolean isTopLevel,
                 final @NonNull String prefix,
@@ -69,7 +69,7 @@ public final class OolangKlass extends BaseSymbol implements Klass {
         KLASSES_CACHE.get().put(fullName, this);
     }
 
-    @NonNull OolangKlass addKlass(final @NonNull BaseSymbol baseSymbol, final boolean isInterface) {
+    @NonNull OolangKlass addKlass(final @NonNull Symbol baseSymbol, final boolean isInterface) {
         assert baseSymbol != null;
 
         if (klasses == null) {
