@@ -6,23 +6,23 @@ package org.oolang.symbol.table;
 
 import org.jspecify.annotations.NonNull;
 
-public sealed class BaseSymbol permits Property, Function, OolangKlass {
+public sealed class Symbol permits Property, Function, OolangKlass {
     public final @NonNull String name;
     public @NonNull Visibility visibility;
     public final boolean isStatic;
     public final boolean isAbstract;
     private final boolean isFinal;
 
-    BaseSymbol(final @NonNull BaseSymbol baseSymbol) {
+    Symbol(final @NonNull Symbol baseSymbol) {
         assert baseSymbol != null;
         this(baseSymbol.name, baseSymbol.visibility, baseSymbol.isStatic, baseSymbol.isAbstract, baseSymbol.isFinal);
     }
 
-    BaseSymbol(final @NonNull String name,
-               final @NonNull Visibility visibility,
-               final boolean isStatic,
-               final boolean isAbstract,
-               final boolean isFinal) {
+    Symbol(final @NonNull String name,
+           final @NonNull Visibility visibility,
+           final boolean isStatic,
+           final boolean isAbstract,
+           final boolean isFinal) {
         assert name != null;
         assert visibility != null;
 

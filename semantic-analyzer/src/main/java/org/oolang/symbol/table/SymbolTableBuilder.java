@@ -213,9 +213,9 @@ public final class SymbolTableBuilder {
         return getterFunction;
     }
 
-    private static @NonNull BaseSymbol baseSymbol(final @NonNull RealElement element,
-                                                  final boolean defaultStatic,
-                                                  final boolean defaultFinal) {
+    private static @NonNull Symbol baseSymbol(final @NonNull RealElement element,
+                                              final boolean defaultStatic,
+                                              final boolean defaultFinal) {
         assert element != null;
         assert element.identifier != null;
 
@@ -238,7 +238,7 @@ public final class SymbolTableBuilder {
             }
         }
 
-        return new BaseSymbol(
+        return new Symbol(
                 name, (visibility != null) ? visibility : Visibility.PUBLIC, isStatic, isAbstract, isFinal);
     }
 }

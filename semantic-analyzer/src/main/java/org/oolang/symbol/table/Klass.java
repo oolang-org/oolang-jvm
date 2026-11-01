@@ -52,8 +52,8 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
                 .anyMatch(superType -> superType.descriptorString().equals(otherKlass.descriptorString()));
     }
 
-    default @Nullable BaseSymbol accessiblePropertyOrFunctionProperty(final @NonNull String name,
-                                                                      final boolean includeSelf) {
+    default @Nullable Symbol accessiblePropertyOrFunctionProperty(final @NonNull String name,
+                                                                  final boolean includeSelf) {
         assert name != null;
 
         final var includeProtected = !includeSelf;
@@ -83,9 +83,9 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
         return null;
     }
 
-    private @Nullable BaseSymbol accessiblePropertyOrFunctionProperty(final @NonNull String name,
-                                                                      final boolean includeProtected,
-                                                                      final @NonNull Klass klass) {
+    private @Nullable Symbol accessiblePropertyOrFunctionProperty(final @NonNull String name,
+                                                                  final boolean includeProtected,
+                                                                  final @NonNull Klass klass) {
         assert name != null;
         assert klass != null;
 
