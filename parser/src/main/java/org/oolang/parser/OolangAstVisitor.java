@@ -112,12 +112,22 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
 
         addModifiersAndAnnotations(ctx.modifiers(), clazz);
 
-        if (ctx.primaryConstructor() != null) {
-            clazz.children.add(visitPrimaryConstructor(ctx.primaryConstructor()));
+        final var primaryConstructorCtx = ctx.primaryConstructor();
+        if (primaryConstructorCtx != null) {
+            clazz.children.add(visitPrimaryConstructor(primaryConstructorCtx));
         }
 
-        if (ctx.classBody() != null) {
-            clazz.children.add(visitClassBody(ctx.classBody()));
+        // annotatedDelegationSpecifier (NL* COMMA NL* annotatedDelegationSpecifier)*
+        final var delegationSpecifiersCtx = ctx.delegationSpecifiers();
+        if (delegationSpecifiersCtx != null) {
+            for (final var annotatedDelegationSpecifierCtx : delegationSpecifiersCtx.annotatedDelegationSpecifier()) {
+                clazz.children.add(visitAnnotatedDelegationSpecifier(annotatedDelegationSpecifierCtx));
+            }
+        }
+
+        final var classBodyCtx = ctx.classBody();
+        if (classBodyCtx != null) {
+            clazz.children.add(visitClassBody(classBodyCtx));
         }
 
         return addAstInfo(clazz, ctx);
@@ -163,6 +173,54 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
 
         return addAstInfo(classParam, ctx);
     }
+
+    /// ```
+    /// singleAnnotation* NL* delegationSpecifier
+    /// ```
+    @Override
+    public Ast.@NonNull Node visitAnnotatedDelegationSpecifier(final @NonNull AnnotatedDelegationSpecifierContext ctx) {
+        assert ctx != null;
+
+        final var delegation = visitDelegationSpecifier(ctx.delegationSpecifier());
+
+        final var singleAnnotationsCtx = ctx.singleAnnotation();
+        if (!singleAnnotationsCtx.isEmpty()) {
+            final var annotations = new ArrayList<@NonNull Annotation>();
+            for (final var singleAnnotationCtx : singleAnnotationsCtx) {
+                annotations.add(visitAnnotation(singleAnnotationCtx.unescapedAnnotation(),
+                        singleAnnotationCtx.annotationUseSiteTarget()));
+            }
+            switch (delegation) {
+                case AstType astType -> astType.annotations = annotations;
+                case RealExpression realExpression -> realExpression.annotations = annotations;
+                default -> throw new IllegalStateException("Unexpected delegation type: " + delegation.getClass());
+            }
+        }
+
+        return addAstInfo(delegation, ctx);
+    }
+
+    /// ```
+    /// : constructorInvocation
+    /// | explicitDelegation
+    /// | userType
+    /// | functionType
+    /// ```
+    @Override
+    public Ast.@NonNull Node visitDelegationSpecifier(final @NonNull DelegationSpecifierContext ctx) {
+        assert ctx != null;
+
+        final var userTypeCtx = ctx.userType();
+        if (userTypeCtx != null) {
+            return visitUserType(userTypeCtx);
+        }
+        final var constructorInvocationCtx = ctx.constructorInvocation();
+        if (constructorInvocationCtx != null) {
+            return visitConstructorInvocation(constructorInvocationCtx);
+        }
+        throw new UnsupportedOperationException();
+    }
+
 
     /// ```
     /// LCURL NL* classMemberDeclaration* NL* RCURL
@@ -685,7 +743,7 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     }
 
     /// ```
-    /// userType NL* callSuffix
+    /// userType NL* valueArguments
     /// ```
     @Override
     public @NonNull RealExpression visitConstructorInvocation(final @NonNull ConstructorInvocationContext ctx) {
@@ -696,7 +754,7 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         constructorCall.type = visitUserType(ctx.userType());
         constructorCall.identifiers.add(new SimpleIdentifier(ConstantDescs.INIT_NAME));
         // add function call parameters
-        addFunCallParameters(constructorCall, ctx.callSuffix());
+        addFunCallParameters(constructorCall, ctx.valueArguments());
 
         return addAstInfo(constructorCall, ctx);
     }
@@ -781,15 +839,25 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
 
         final var valueArgsCtx = callSuffixCtx.valueArguments();
         if (valueArgsCtx != null) {
-            for (final var valueArgCtx : valueArgsCtx.valueArgument()) {
-                final var callArgument = new RealExpression(FUN_CALL_PARAMETER);
-                if (valueArgCtx.simpleIdentifier() != null) {
-                    // for named argument
-                    callArgument.identifiers.add(visitSimpleIdentifier(valueArgCtx.simpleIdentifier()));
-                }
-                callArgument.children.add(visitExpression(valueArgCtx.expression()));
-                expression.children.add(addAstInfo(callArgument, valueArgCtx));
+            addFunCallParameters(expression, valueArgsCtx);
+        }
+        // todo trailing lambda etc
+    }
+
+    /// loop on `valueArguments` to add parameters
+    private void addFunCallParameters(final @NonNull RealExpression expression,
+                                      final @NonNull ValueArgumentsContext valueArgsCtx) {
+        assert expression != null;
+        assert valueArgsCtx != null;
+
+        for (final var valueArgCtx : valueArgsCtx.valueArgument()) {
+            final var callArgument = new RealExpression(FUN_CALL_PARAMETER);
+            if (valueArgCtx.simpleIdentifier() != null) {
+                // for named argument
+                callArgument.identifiers.add(visitSimpleIdentifier(valueArgCtx.simpleIdentifier()));
             }
+            callArgument.children.add(visitExpression(valueArgCtx.expression()));
+            expression.children.add(addAstInfo(callArgument, valueArgCtx));
         }
     }
 
@@ -801,8 +869,9 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         assert ctx != null;
 
         final AstType type;
-        if (ctx.userType() != null) {
-            type = visitUserType(ctx.userType());
+        final var userTypeCtx = ctx.userType();
+        if (userTypeCtx != null) {
+            type = visitUserType(userTypeCtx);
         } else {
             throw new UnsupportedOperationException();
         }
@@ -847,7 +916,7 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
             return null;
         }
 
-        final var parameters = new ArrayList<AstType>();
+        final var parameters = new ArrayList<@NonNull AstType>();
         for (final var typeProjectionCtx : ctx.typeArguments().typeProjection()) {
             parameters.add(visitTypeProjection(typeProjectionCtx));
         }

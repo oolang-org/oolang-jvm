@@ -19,10 +19,10 @@ public class InheritanceTest {
     @Test
     public void subinterfacesWin() {
         var klass = new ExistingKlass(ClassC.class);
-        assertThat(klass.genericSuperInterfaces()).hasSize(2);
-        var superInterface1 = (Klass) klass.genericSuperInterfaces().getFirst();
+        assertThat(klass.allInterfaces()).hasSize(2);
+        var superInterface1 = (Klass) klass.allInterfaces().getFirst();
         assertThat(superInterface1.descriptorString()).isEqualTo("Lorg/oolang/symbol/table/external/InterfaceB;");
-        var superInterface2 = (Klass) klass.genericSuperInterfaces().getLast();
+        var superInterface2 = (Klass) klass.allInterfaces().getLast();
         assertThat(superInterface2.descriptorString()).isEqualTo("Lorg/oolang/symbol/table/external/InterfaceA;");
     }
 

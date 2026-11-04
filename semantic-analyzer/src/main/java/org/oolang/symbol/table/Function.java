@@ -13,8 +13,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("preview")
-public final class Function extends Symbol implements BaseFunction, TypeDescriptor {
+public final class Function implements Symbol, BaseFunction, TypeDescriptor {
     public final @NonNull Klass declaringKlass;
+    private final @NonNull String name;
+    private final @NonNull Visibility visibility;
+    private final boolean isStatic;
+    private final boolean isAbstract;
+    private final boolean isFinal;
     private final @NonNull Type returnType;
     public final @NonNull List<@NonNull Parameter> parameters;
     // the reference of the property if this function is part of a function property
@@ -29,35 +34,39 @@ public final class Function extends Symbol implements BaseFunction, TypeDescript
 
     /// @param returnType a type, or null for constructors. The type will then resolve to `declaringKlass`.
     Function(final @NonNull OolangKlass declaringKlass,
-             final @NonNull Symbol baseSymbol,
+             final @NonNull BaseSymbol baseSymbol,
              final @Nullable Type returnType,
              final @NonNull List<@NonNull Parameter> parameters) {
         assert declaringKlass != null;
         assert baseSymbol != null;
         assert parameters != null;
-        super(baseSymbol);
 
-        this.declaringKlass = declaringKlass;
-        this.returnType = (returnType != null) ? returnType : declaringKlass;
-        this.parameters = parameters;
+        this(declaringKlass, baseSymbol.name(), baseSymbol.visibility(), baseSymbol.isStatic(), baseSymbol.isAbstract(),
+                baseSymbol.isFinal(),
+                (returnType != null) ? returnType : declaringKlass,
+                parameters);
     }
 
-    Function(final @NonNull ExistingKlass declaringKlass,
+    Function(final @NonNull Klass declaringKlass,
              final @NonNull String name,
              final @NonNull Visibility visibility,
              final boolean isStatic,
              final boolean isAbstract,
              final boolean isFinal,
-             final @NonNull ActualType returnType,
+             final @NonNull Type returnType,
              final @NonNull List<@NonNull Parameter> parameters) {
         assert declaringKlass != null;
         assert name != null;
         assert visibility != null;
         assert returnType != null;
         assert parameters != null;
-        super(name, visibility, isStatic, isAbstract, isFinal);
 
         this.declaringKlass = declaringKlass;
+        this.name = name;
+        this.visibility = visibility;
+        this.isStatic = isStatic;
+        this.isAbstract = isAbstract;
+        this.isFinal = isFinal;
         this.returnType = returnType;
         this.parameters = parameters;
     }
@@ -77,6 +86,26 @@ public final class Function extends Symbol implements BaseFunction, TypeDescript
     @Override
     public @NonNull String name() {
         return name;
+    }
+
+    @Override
+    public @NonNull Visibility visibility() {
+        return visibility;
+    }
+
+    @Override
+    public boolean isStatic() {
+        return isStatic;
+    }
+
+    @Override
+    public boolean isAbstract() {
+        return isAbstract;
+    }
+
+    @Override
+    public boolean isFinal() {
+        return isFinal;
     }
 
     private @NonNull String buildDescriptorString() {

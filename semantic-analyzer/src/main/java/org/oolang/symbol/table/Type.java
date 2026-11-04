@@ -25,7 +25,9 @@ public sealed interface Type permits ActualType, Type.Lazy, Type.Lateinit {
 
                 // type resolution, the compiler will use that descriptor string
                 if (astType != null) {
-                    astType.descriptorString = TypeResolver.getKlassFromType(type).descriptorString();
+                    final var typeKlass = TypeResolver.getKlassFromType(type);
+                    astType.isInterface = typeKlass.isInterface();
+                    astType.descriptorString = typeKlass.descriptorString();
                 }
 
                 return type;

@@ -51,7 +51,7 @@ final class FunctionPropertyUtils {
         assert function != null;
         assert maybeProperties != null;
 
-        if (function.isStatic) {
+        if (function.isStatic()) {
             return; // static functions cannot be properties
         }
 
@@ -64,11 +64,11 @@ final class FunctionPropertyUtils {
                     return; // a setter must be void
                 }
                 final MaybeProperty maybeProperty;
-                if (maybeProperties.containsKey(function.name)) {
-                    maybeProperty = maybeProperties.get(function.name);
+                if (maybeProperties.containsKey(function.name())) {
+                    maybeProperty = maybeProperties.get(function.name());
                 } else {
                     maybeProperty = new MaybeProperty();
-                    maybeProperties.put(function.name, maybeProperty);
+                    maybeProperties.put(function.name(), maybeProperty);
                 }
                 maybeProperty.setters.add(function);
             }
@@ -82,11 +82,11 @@ final class FunctionPropertyUtils {
         assert function != null;
         assert maybeProperties != null;
 
-        if (NON_GETTER_FUNCTION_NAMES.contains(function.name)) {
+        if (NON_GETTER_FUNCTION_NAMES.contains(function.name())) {
             return;
         }
 
-        if (function.name.equals("name")) {
+        if (function.name().equals("name")) {
             System.out.println("Found getter for name");
         }
 
@@ -96,7 +96,7 @@ final class FunctionPropertyUtils {
         }
 
         var oldSchoolGetter = false;
-        var functionName = function.name;
+        var functionName = function.name();
         if (functionName.startsWith("get")) {
             final var propertyName = oldSchoolGetterSetterPropertyNameOrNull(functionName);
             if (propertyName != null) {
@@ -257,13 +257,13 @@ final class FunctionPropertyUtils {
                 assert matchingGetterFunction != null;
                 final var newProperty = new Property(
                         matchingGetterFunction.declaringKlass,
-                        matchingGetterFunction.name,
+                        matchingGetterFunction.name(),
                         PRIVATE,
                         false, // function properties cannot be static
-                        matchingGetterFunction.isAbstract,
+                        matchingGetterFunction.isAbstract(),
                         matchingPropertyCandidate.setter.isPresent(),
                         matchingGetterFunction.returnType());
-                properties.put(newProperty.name, newProperty);
+                properties.put(newProperty.name(), newProperty);
 
                 // add reference between the property and the associated function(s)
                 newProperty.getter = matchingGetterFunction;
@@ -273,7 +273,7 @@ final class FunctionPropertyUtils {
                 }
 
                 // we're done with this property candidate
-                oolangPropertyCandidates.remove(matchingGetterFunction.name);
+                oolangPropertyCandidates.remove(matchingGetterFunction.name());
             }
         }
     }
@@ -341,10 +341,10 @@ final class FunctionPropertyUtils {
                     oldSchoolPropertyCandidateEntry.getKey(),
                     PRIVATE,
                     false, // function properties cannot be static
-                    matchingGetterFunction.isAbstract,
+                    matchingGetterFunction.isAbstract(),
                     oldSchoolPropertyCandidateEntry.getValue().oldSchoolSetter.isPresent(),
                     matchingGetterFunction.returnType());
-            properties.put(newProperty.name, newProperty);
+            properties.put(newProperty.name(), newProperty);
 
             // add reference between the property and the associated function(s)
             newProperty.getter = matchingGetterFunction;

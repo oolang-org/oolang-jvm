@@ -74,7 +74,7 @@ delegationSpecifier
     ;
 
 constructorInvocation
-    : userType NL* callSuffix
+    : userType NL* valueArguments
     ;
 
 explicitDelegation

@@ -66,10 +66,15 @@ public final class OolangSemanticAnalyzer {
         assert scopes != null;
         assert currentKlass != null;
 
-        final Scopes effectiveScopes = (currentKlass.isStatic)
+        final Scopes effectiveScopes = (currentKlass.isStatic())
                 ? scopes.enterStatic() // static class = start a new fresh Scopes
                 : scopes;
 
+        if (classElement.children.isEmpty()) {
+            return;
+        }
+
+        currentKlass.resolveAncestors(); // resolve all ancestor lazy types
         for (final var child : classElement.children) {
             if (child instanceof ClassBody classBody) {
                 effectiveScopes.pushKlass(currentKlass);
@@ -140,7 +145,7 @@ public final class OolangSemanticAnalyzer {
                     }
 
                     // if property is not static (= instance), build and return the inline assignment for constructors
-                    if (!property.isStatic) {
+                    if (!property.isStatic()) {
                         return buildAssignmentForConstructor(propertyExpression, propertyElement, scopes, currentKlass);
                     }
                 }
@@ -184,6 +189,7 @@ public final class OolangSemanticAnalyzer {
         return assignment;
     }
 
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     private static void visitFunction(final @NonNull RealElement funElement,
                                       final @NonNull Scopes scopes,
                                       final @NonNull OolangKlass currentKlass,
@@ -197,23 +203,23 @@ public final class OolangSemanticAnalyzer {
         final var function = currentKlass.functions.get(funIndex);
         function.returnType(); // resolve function's return type
 
-        final Scopes effectiveScopes = (function.isStatic)
+        final Scopes effectiveScopes = (function.isStatic())
                 ? scopes.enterStatic() // static function = start a new fresh Scopes
                 : scopes;
 
-        if (!function.isAbstract) {
-            effectiveScopes.pushFunction(function.isStatic);
+        if (!function.isAbstract()) {
+            effectiveScopes.pushFunction(function.isStatic());
         }
 
         for (final var parameter : function.parameters) {
             final var parameterType = parameter.type(); // resolve function param type
-            if (!function.isAbstract) {
+            if (!function.isAbstract()) {
                 assert parameter.name != null;
-                effectiveScopes.putVariable(parameter.name, parameterType, true, function.isStatic);
+                effectiveScopes.putVariable(parameter.name, parameterType, true, function.isStatic());
             }
         }
 
-        if (!function.isAbstract) {
+        if (!function.isAbstract()) {
             // code block is the last child of a non-abstract function
             switch (funElement.children.getLast()) {
                 case CodeBlock codeBlock -> visitCodeBlock(codeBlock, effectiveScopes, currentKlass);
@@ -240,7 +246,7 @@ public final class OolangSemanticAnalyzer {
                 }
                 default -> throw new IllegalStateException("Unexpected value: " + funElement.children.getLast());
             }
-            effectiveScopes.popFunction(function.isStatic);
+            effectiveScopes.popFunction(function.isStatic());
         }
     }
 
@@ -277,7 +283,7 @@ public final class OolangSemanticAnalyzer {
 
             final var implicitSuperConstructorCall = new RealExpression(FUN_CALL);
             implicitSuperConstructorCall.identifiers.add(new SimpleIdentifier(ConstantDescs.INIT_NAME));
-            final var superType = currentKlass.genericSuperKlasses().getFirst();
+            final var superType = currentKlass.allSuperKlasses().getFirst();
             implicitSuperConstructorCall.ownerDescriptorString = getKlassFromType(superType).descriptorString();
             implicitSuperConstructorCall.invocation = INVOKE_SPECIAL;
             implicitSuperConstructorCall.typeDescriptorString = "()V";
@@ -507,7 +513,7 @@ public final class OolangSemanticAnalyzer {
 
         // search super classes for caller. If present, we can access its protected functions
         var includeProtected = false;
-        for (final var superType : currentKlass.genericSuperKlasses()) {
+        for (final var superType : currentKlass.allSuperKlasses()) {
             if (getKlassFromType(superType).equals(caller)) {
                 includeProtected = true;
                 break;
@@ -631,7 +637,7 @@ public final class OolangSemanticAnalyzer {
                     final var propertyAccess = propAccessExpression(property, id);
                     // mutate AST to add variable access call expression upfront
                     addNewExpressionInAst(expression, propertyAccess);
-                    if (!property.isStatic) {
+                    if (!property.isStatic()) {
                         // must load current klass
                         loadThis(propertyAccess, scopes);
                     }
@@ -702,7 +708,7 @@ public final class OolangSemanticAnalyzer {
 
         final var propAccessExpression = new RealExpression(PROP_ACCESS);
         propAccessExpression.identifiers.add(id);
-        propAccessExpression.invocation = property.isStatic ? GET_STATIC : GET_FIELD;
+        propAccessExpression.invocation = property.isStatic() ? GET_STATIC : GET_FIELD;
         propAccessExpression.ownerDescriptorString = property.declaringKlass.descriptorString();
         propAccessExpression.setDescriptorString(property.descriptorString());
         // set AST info from the identifier, if any
@@ -719,7 +725,7 @@ public final class OolangSemanticAnalyzer {
         assert id != null;
 
         // change the identifier for old school getter/setter
-        id.identifier = function.name;
+        id.identifier = function.name();
         final var funCallExpression = new RealExpression(FUN_CALL);
         funCallExpression.identifiers.add(id);
         funCallExpression.invocation = functionInvocation(caller, function);
@@ -737,15 +743,15 @@ public final class OolangSemanticAnalyzer {
         assert caller != null;
         assert function != null;
 
-        if (function.isStatic) {
+        if (function.isStatic()) {
             return INVOKE_STATIC;
         }
         if (function.declaringKlass.isInterface()) {
             return INVOKE_INTERFACE;
         }
-        if (function.visibility == PRIVATE
+        if (function.visibility() == PRIVATE
                 || !caller.equals(function.declaringKlass)
-                || function.name.equals(ConstantDescs.INIT_NAME)) {
+                || function.name().equals(ConstantDescs.INIT_NAME)) {
             return INVOKE_SPECIAL;
         }
         return INVOKE_VIRTUAL;

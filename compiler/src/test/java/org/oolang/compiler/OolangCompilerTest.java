@@ -55,6 +55,28 @@ public class OolangCompilerTest {
     }
 
     @Test
+    public void compileInheritedClass() {
+        var astFile = astForCode("""
+                package com.example
+                import java.io.Serializable
+                class Example : Serializable""");
+        var classModel = compileAst(astFile);
+        assertThat(classModel.flags().flags()).containsExactlyInAnyOrder(
+                AccessFlag.PUBLIC,
+                AccessFlag.FINAL
+        );
+        assertThat(classModel.thisClass().asInternalName()).isEqualTo("com/example/Example");
+        assertThat(classModel.superclass()).hasValueSatisfying(superClass ->
+                assertThat(superClass.asInternalName()).isEqualTo("java/lang/Object"));
+
+        assertThat(classModel.interfaces()).hasSize(1);
+        var superInterface = classModel.interfaces().getFirst();
+        assertThat(superInterface.asInternalName()).isEqualTo("java/io/Serializable");
+        assertThat(classModel.fields()).isEmpty();
+        assertThat(classModel.methods()).isEmpty();
+    }
+
+    @Test
     public void compileClassWithInstanceProperty() {
         var astFile = astForCode("""
                 package com.example

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.oolang.ast.AstFile;
 import org.oolang.ast.AstFileWriter;
+import org.oolang.ast.AstType;
 import org.oolang.ast.Import;
 import org.oolang.ast.element.ClassBody;
 import org.oolang.ast.element.RealElement;
@@ -40,6 +41,19 @@ import static org.oolang.ast.statement.RealStatement.StatementType.RETURN;
 public class OolangSemanticAnalyzerTest {
 
     @Test
+    public void symbolTableOfClassThatImplementInterface() {
+        var astFile = astForCode("""
+                package com.example
+                import java.io.Serializable
+                class Example : Serializable""");
+        var root = astFile.rootElements.getFirst();
+        var interfaceAncestor = (AstType) root.children.getFirst();
+        assertThat(interfaceAncestor.isInterface).isTrue();
+        assertThat(interfaceAncestor.descriptorString).isEqualTo("Ljava/io/Serializable;");
+        assertThat(interfaceAncestor.content()).isEmpty();
+    }
+
+    @Test
     public void symbolTableOfClassWithProperty() {
         var astFile = astForCode("""
                 package com.example
@@ -50,6 +64,7 @@ public class OolangSemanticAnalyzerTest {
         var classBody = (ClassBody) root.children.getFirst();
         var property = classBody.children.getFirst();
         assertThat(property.type).isNotNull();
+        assertThat(property.type.isInterface).isFalse();
         assertThat(property.type.descriptorString).isEqualTo("Ljava/lang/String;");
         assertThat(property.children).isEmpty();
     }
@@ -66,6 +81,7 @@ public class OolangSemanticAnalyzerTest {
         var classBody = (ClassBody) root.children.getFirst();
         var funDeclaration = classBody.children.getFirst();
         assertThat(funDeclaration.type).isNotNull();
+        assertThat(funDeclaration.type.isInterface).isFalse();
         assertThat(funDeclaration.type.descriptorString).isEqualTo("Ljava/math/BigInteger;");
     }
 
@@ -82,9 +98,11 @@ public class OolangSemanticAnalyzerTest {
         assertThat(funDeclaration.type).isNull();
         var funParam1 = (RealElement) funDeclaration.children.getFirst();
         assertThat(funParam1.type).isNotNull();
+        assertThat(funParam1.type.isInterface).isFalse();
         assertThat(funParam1.type.descriptorString).isEqualTo("I");
         var funParam2 = (RealElement) funDeclaration.children.get(1);
         assertThat(funParam2.type).isNotNull();
+        assertThat(funParam2.type.isInterface).isFalse();
         assertThat(funParam2.type.descriptorString).isEqualTo("J");
     }
 
@@ -493,6 +511,7 @@ public class OolangSemanticAnalyzerTest {
         assertThat(funDeclaration.children).hasSize(2);
         var funParam = (RealElement) funDeclaration.children.getFirst();
         assertThat(funParam.type).isNotNull();
+        assertThat(funParam.type.isInterface).isFalse();
         assertThat(funParam.type.descriptorString).isEqualTo("[Ljava/lang/String;");
         assertThat(funDeclaration.children.getLast()).isInstanceOf(CodeBlock.class);
         var codeBlock = (CodeBlock) funDeclaration.children.getLast();

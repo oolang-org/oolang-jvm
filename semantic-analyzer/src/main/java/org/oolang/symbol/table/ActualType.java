@@ -31,7 +31,7 @@ public sealed interface ActualType extends Type, Comparable<ActualType> permits 
             return 0;
         }
 
-        if (thisKlass.genericSuperInterfaces().stream()
+        if (thisKlass.allInterfaces().stream()
                 .map(TypeResolver::getKlassFromType)
                 .anyMatch(otherKlass::equals)) {
             return -1;

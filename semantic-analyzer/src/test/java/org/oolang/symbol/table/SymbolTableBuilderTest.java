@@ -28,7 +28,7 @@ public class SymbolTableBuilderTest {
                 class Example""");
         assertThat(symbolTable.klasses).hasSize(1);
         var rootKlass = symbolTable.klasses.values().iterator().next();
-        assertThat(rootKlass.name).isEqualTo("Example");
+        assertThat(rootKlass.name()).isEqualTo("Example");
     }
 
     @Test
@@ -38,7 +38,22 @@ public class SymbolTableBuilderTest {
                 class Example {}""");
         assertThat(symbolTable.klasses).hasSize(1);
         var rootKlass = symbolTable.klasses.values().iterator().next();
-        assertThat(rootKlass.name).isEqualTo("Example");
+        assertThat(rootKlass.name()).isEqualTo("Example");
+    }
+
+    @Test
+    public void parseInheritedClass() {
+        var symbolTable = symbolTableForCode("""
+                package com.example
+                import java.io.Serializable
+                class Example : Serializable""");
+        assertThat(symbolTable.klasses).hasSize(1);
+        var rootKlass = symbolTable.klasses.values().iterator().next();
+        assertThat(rootKlass.name()).isEqualTo("Example");
+        assertThat(rootKlass.ancestors).hasSize(1);
+        var ancestor = rootKlass.ancestors.getFirst();
+        var ancestorKlass = (Klass) ancestor.type();
+        assertThat(ancestorKlass.descriptorString()).isEqualTo("Ljava/io/Serializable;");
     }
 
     @Test
@@ -50,10 +65,10 @@ public class SymbolTableBuilderTest {
                 }""");
         assertThat(symbolTable.klasses).hasSize(1);
         var rootKlass = symbolTable.klasses.values().iterator().next();
-        assertThat(rootKlass.name).isEqualTo("Example");
+        assertThat(rootKlass.name()).isEqualTo("Example");
         assertThat(rootKlass.klasses).hasSize(1);
         var childKlass = rootKlass.klasses.values().iterator().next();
-        assertThat(childKlass.name).isEqualTo("Inner");
+        assertThat(childKlass.name()).isEqualTo("Inner");
     }
 
     @Test
@@ -65,23 +80,23 @@ public class SymbolTableBuilderTest {
                 }""");
         assertThat(symbolTable.klasses).hasSize(1);
         var rootKlass = symbolTable.klasses.values().iterator().next();
-        assertThat(rootKlass.name).isEqualTo("Example");
+        assertThat(rootKlass.name()).isEqualTo("Example");
         assertThat(rootKlass.properties()).hasSize(1);
         var childProperty = rootKlass.properties().values().iterator().next();
-        assertThat(childProperty.name).isEqualTo("foo");
-        assertThat(childProperty.visibility).isEqualTo(PRIVATE);
-        assertThat(childProperty.isStatic).isFalse();
-        assertThat(childProperty.isAbstract).isFalse();
+        assertThat(childProperty.name()).isEqualTo("foo");
+        assertThat(childProperty.visibility()).isEqualTo(PRIVATE);
+        assertThat(childProperty.isStatic()).isFalse();
+        assertThat(childProperty.isAbstract()).isFalse();
         assertThat(childProperty.isFinal()).isTrue();
         var klass = (Klass) childProperty.type();
         assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
 
         assertThat(rootKlass.functions).hasSize(2);
         var propertyGetter = rootKlass.functions.getFirst();
-        assertThat(propertyGetter.name).isEqualTo("foo");
-        assertThat(propertyGetter.visibility).isEqualTo(PUBLIC);
-        assertThat(propertyGetter.isStatic).isFalse();
-        assertThat(propertyGetter.isAbstract).isFalse();
+        assertThat(propertyGetter.name()).isEqualTo("foo");
+        assertThat(propertyGetter.visibility()).isEqualTo(PUBLIC);
+        assertThat(propertyGetter.isStatic()).isFalse();
+        assertThat(propertyGetter.isAbstract()).isFalse();
         assertThat(propertyGetter.isFinal()).isTrue();
         klass = (Klass) propertyGetter.returnType();
         assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
@@ -101,33 +116,33 @@ public class SymbolTableBuilderTest {
                 }""");
         assertThat(symbolTable.klasses).hasSize(1);
         var rootKlass = symbolTable.klasses.values().iterator().next();
-        assertThat(rootKlass.name).isEqualTo("Example");
+        assertThat(rootKlass.name()).isEqualTo("Example");
         assertThat(rootKlass.properties()).hasSize(2);
         var propertiesIterator = rootKlass.properties().values().iterator();
 
         var childProperty1 = propertiesIterator.next();
-        assertThat(childProperty1.name).isEqualTo("HELLO");
-        assertThat(childProperty1.visibility).isEqualTo(PUBLIC);
-        assertThat(childProperty1.isStatic).isTrue();
-        assertThat(childProperty1.isAbstract).isFalse();
+        assertThat(childProperty1.name()).isEqualTo("HELLO");
+        assertThat(childProperty1.visibility()).isEqualTo(PUBLIC);
+        assertThat(childProperty1.isStatic()).isTrue();
+        assertThat(childProperty1.isAbstract()).isFalse();
         assertThat(childProperty1.isFinal()).isTrue();
         var klass = (Klass) childProperty1.type();
         assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
 
         var childProperty2 = propertiesIterator.next();
-        assertThat(childProperty2.name).isEqualTo("foo");
-        assertThat(childProperty2.visibility).isEqualTo(PRIVATE);
-        assertThat(childProperty2.isStatic).isFalse();
-        assertThat(childProperty2.isAbstract).isFalse();
+        assertThat(childProperty2.name()).isEqualTo("foo");
+        assertThat(childProperty2.visibility()).isEqualTo(PRIVATE);
+        assertThat(childProperty2.isStatic()).isFalse();
+        assertThat(childProperty2.isAbstract()).isFalse();
         assertThat(childProperty2.isFinal()).isTrue();
         assertThat(childProperty2.lateinitTypeOrNull()).isNotNull();
 
         assertThat(rootKlass.functions).hasSize(2);
         var propertyGetter = rootKlass.functions.getFirst();
-        assertThat(propertyGetter.name).isEqualTo("foo");
-        assertThat(propertyGetter.visibility).isEqualTo(PUBLIC);
-        assertThat(propertyGetter.isStatic).isFalse();
-        assertThat(propertyGetter.isAbstract).isFalse();
+        assertThat(propertyGetter.name()).isEqualTo("foo");
+        assertThat(propertyGetter.visibility()).isEqualTo(PUBLIC);
+        assertThat(propertyGetter.isStatic()).isFalse();
+        assertThat(propertyGetter.isAbstract()).isFalse();
         assertThat(propertyGetter.isFinal()).isTrue();
         assertThat(propertyGetter.parameters).isEmpty();
         assertThat(childProperty2.getter).isEqualTo(propertyGetter);
@@ -145,13 +160,13 @@ public class SymbolTableBuilderTest {
                 }""");
         assertThat(symbolTable.klasses).hasSize(1);
         var rootKlass = symbolTable.klasses.values().iterator().next();
-        assertThat(rootKlass.name).isEqualTo("Example");
+        assertThat(rootKlass.name()).isEqualTo("Example");
         assertThat(rootKlass.properties()).hasSize(1);
         var childProperty = rootKlass.properties().values().iterator().next();
-        assertThat(childProperty.name).isEqualTo("FOO");
-        assertThat(childProperty.visibility).isEqualTo(OOLANG_PROTECTED);
-        assertThat(childProperty.isStatic).isTrue();
-        assertThat(childProperty.isAbstract).isFalse();
+        assertThat(childProperty.name()).isEqualTo("FOO");
+        assertThat(childProperty.visibility()).isEqualTo(OOLANG_PROTECTED);
+        assertThat(childProperty.isStatic()).isTrue();
+        assertThat(childProperty.isAbstract()).isFalse();
         assertThat(childProperty.isFinal()).isFalse();
         var klass = (Klass) childProperty.type();
         assertThat(klass.descriptorString()).isEqualTo("Ljava/math/BigInteger;");
@@ -168,13 +183,13 @@ public class SymbolTableBuilderTest {
                 }""");
         assertThat(symbolTable.klasses).hasSize(1);
         var rootKlass = symbolTable.klasses.values().iterator().next();
-        assertThat(rootKlass.name).isEqualTo("Example");
+        assertThat(rootKlass.name()).isEqualTo("Example");
         assertThat(rootKlass.functions).hasSize(2);
         var childFunction = rootKlass.functions.getFirst();
-        assertThat(childFunction.name).isEqualTo("foo");
-        assertThat(childFunction.visibility).isEqualTo(PRIVATE);
-        assertThat(childFunction.isStatic).isFalse();
-        assertThat(childFunction.isAbstract).isFalse();
+        assertThat(childFunction.name()).isEqualTo("foo");
+        assertThat(childFunction.visibility()).isEqualTo(PRIVATE);
+        assertThat(childFunction.isStatic()).isFalse();
+        assertThat(childFunction.isAbstract()).isFalse();
         assertThat(childFunction.isFinal()).isTrue();
         var klass = (Klass) childFunction.returnType();
         assertThat(klass.descriptorString()).isEqualTo("V");
@@ -192,13 +207,13 @@ public class SymbolTableBuilderTest {
                 }""");
         assertThat(symbolTable.klasses).hasSize(1);
         var rootKlass = symbolTable.klasses.values().iterator().next();
-        assertThat(rootKlass.name).isEqualTo("Example");
+        assertThat(rootKlass.name()).isEqualTo("Example");
         assertThat(rootKlass.functions).hasSize(2);
         var childFunction = rootKlass.functions.getFirst();
-        assertThat(childFunction.name).isEqualTo("foo");
-        assertThat(childFunction.visibility).isEqualTo(PRIVATE);
-        assertThat(childFunction.isStatic).isFalse();
-        assertThat(childFunction.isAbstract).isFalse();
+        assertThat(childFunction.name()).isEqualTo("foo");
+        assertThat(childFunction.visibility()).isEqualTo(PRIVATE);
+        assertThat(childFunction.isStatic()).isFalse();
+        assertThat(childFunction.isAbstract()).isFalse();
         assertThat(childFunction.isFinal()).isTrue();
         var klass = (Klass) childFunction.returnType();
         assertThat(klass.descriptorString()).isEqualTo("V");
@@ -216,13 +231,13 @@ public class SymbolTableBuilderTest {
                 }""");
         assertThat(symbolTable.klasses).hasSize(1);
         var rootKlass = symbolTable.klasses.values().iterator().next();
-        assertThat(rootKlass.name).isEqualTo("Example");
+        assertThat(rootKlass.name()).isEqualTo("Example");
         assertThat(rootKlass.functions).hasSize(2);
         var childFunction = rootKlass.functions.getFirst();
-        assertThat(childFunction.name).isEqualTo("foo");
-        assertThat(childFunction.visibility).isEqualTo(PUBLIC);
-        assertThat(childFunction.isStatic).isFalse();
-        assertThat(childFunction.isAbstract).isFalse();
+        assertThat(childFunction.name()).isEqualTo("foo");
+        assertThat(childFunction.visibility()).isEqualTo(PUBLIC);
+        assertThat(childFunction.isStatic()).isFalse();
+        assertThat(childFunction.isAbstract()).isFalse();
         assertThat(childFunction.isFinal()).isTrue();
         var klass = (Klass) childFunction.returnType();
         assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
@@ -244,13 +259,13 @@ public class SymbolTableBuilderTest {
                 }""");
         assertThat(symbolTable.klasses).hasSize(1);
         var rootKlass = symbolTable.klasses.values().iterator().next();
-        assertThat(rootKlass.name).isEqualTo("Example");
+        assertThat(rootKlass.name()).isEqualTo("Example");
         assertThat(rootKlass.functions).hasSize(1);
         var childFunction = rootKlass.functions.getFirst();
-        assertThat(childFunction.name).isEqualTo("main");
-        assertThat(childFunction.visibility).isEqualTo(PUBLIC);
-        assertThat(childFunction.isStatic).isTrue();
-        assertThat(childFunction.isAbstract).isFalse();
+        assertThat(childFunction.name()).isEqualTo("main");
+        assertThat(childFunction.visibility()).isEqualTo(PUBLIC);
+        assertThat(childFunction.isStatic()).isTrue();
+        assertThat(childFunction.isAbstract()).isFalse();
         assertThat(childFunction.isFinal()).isTrue();
         var klass = (Klass) childFunction.returnType();
         assertThat(klass.descriptorString()).isEqualTo("V");
@@ -263,10 +278,10 @@ public class SymbolTableBuilderTest {
 
     private void verifyDefaultConstructor(OolangKlass rootKlass) {
         var defaultConstructor = rootKlass.functions.getLast();
-        assertThat(defaultConstructor.name).isEqualTo(ConstantDescs.INIT_NAME);
-        assertThat(defaultConstructor.visibility).isEqualTo(PUBLIC);
-        assertThat(defaultConstructor.isStatic).isFalse();
-        assertThat(defaultConstructor.isAbstract).isFalse();
+        assertThat(defaultConstructor.name()).isEqualTo(ConstantDescs.INIT_NAME);
+        assertThat(defaultConstructor.visibility()).isEqualTo(PUBLIC);
+        assertThat(defaultConstructor.isStatic()).isFalse();
+        assertThat(defaultConstructor.isAbstract()).isFalse();
         assertThat(defaultConstructor.isFinal()).isTrue();
         var constructorReturnType = (Klass) defaultConstructor.returnType();
         assertThat(constructorReturnType.descriptorString()).isEqualTo("Lcom/example/Example;");

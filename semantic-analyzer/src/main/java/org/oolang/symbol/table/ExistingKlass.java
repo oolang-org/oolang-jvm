@@ -5,6 +5,7 @@
 package org.oolang.symbol.table;
 
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.oolang.symbol.table.Function.Parameter;
 
 import java.lang.constant.ConstantDescs;
@@ -17,9 +18,8 @@ import static org.oolang.symbol.table.FunctionPropertyUtils.*;
 
 
 @SuppressWarnings("preview")
-final class ExistingKlass implements Klass {
+final class ExistingKlass extends Klass {
     private final @NonNull Class<?> javaClass;
-    private final @NonNull LazyConstant<@NonNull Parents> parents = LazyConstant.of(this::getAllParents);
     private final @NonNull LazyConstant<@NonNull Map<@NonNull String, @NonNull Property>> properties =
             LazyConstant.of(this::getProperties);
     private final @NonNull LazyConstant<@NonNull Functions> functions =
@@ -29,48 +29,6 @@ final class ExistingKlass implements Klass {
         assert javaClass != null;
 
         this.javaClass = javaClass;
-    }
-
-    /// Recursively finds all superclasses and interfaces [#javaClass] extends/implements.
-    private @NonNull Parents getAllParents() {
-        final var parents = new Parents();
-        // Traverse superclasses (recursively)
-        processSuperclass(javaClass, parents);
-        // Traverse interfaces (recursively)
-        processInterfaces(javaClass, parents);
-        return parents;
-    }
-
-    // Recursively collect all superclasses and their superinterfaces
-    private static void processSuperclass(final @NonNull Class<?> clazz,
-                                          final @NonNull Parents parents) {
-        assert clazz != null;
-        assert parents != null;
-
-        final var genericSuperclass = clazz.getGenericSuperclass();
-        if (genericSuperclass != null) {
-            parents.genericSuperKlasses.add(TypeResolver.resolveType(genericSuperclass)); // Add direct superclass
-            final var superclass = clazz.getSuperclass();
-            processSuperclass(superclass, parents); // Recurse on the superclass's superClass
-            processInterfaces(superclass, parents); // Recurse on the superclass's superinterfaces
-        }
-    }
-
-    // Recursively collect all interfaces and their superinterfaces
-    private static void processInterfaces(final @NonNull Class<?> clazz,
-                                          final @NonNull Parents parents) {
-        assert clazz != null;
-        assert parents != null;
-
-        final var genericInterfaces = clazz.getGenericInterfaces();
-        final var interfaces = clazz.getInterfaces();
-        for (var i = 0; i < genericInterfaces.length; i++) {
-            final var genericInterface = genericInterfaces[i];
-            // Add the interface only if it's not already in the set (avoids duplicates)
-            if (parents.genericSuperInterfaces.add(TypeResolver.resolveType(genericInterface))) {
-                processInterfaces(interfaces[i], parents); // Recurse on the interface's superinterfaces
-            }
-        }
     }
 
     @Override
@@ -84,13 +42,16 @@ final class ExistingKlass implements Klass {
     }
 
     @Override
-    public @NonNull SequencedCollection<@NonNull ActualType> genericSuperKlasses() {
-        return parents.get().genericSuperKlasses;
+    @Nullable ActualType superKlass() {
+        final var javaSuperType = javaClass.getGenericSuperclass();
+        return (javaSuperType != null) ? TypeResolver.resolveType(javaSuperType) : null;
     }
 
     @Override
-    public @NonNull SequencedCollection<@NonNull ActualType> genericSuperInterfaces() {
-        return parents.get().genericSuperInterfaces;
+    @NonNull List<@NonNull ActualType> interfaces() {
+        return Arrays.stream(javaClass.getGenericInterfaces())
+                .map(TypeResolver::resolveType)
+                .toList();
     }
 
     @Override
@@ -223,11 +184,6 @@ final class ExistingKlass implements Klass {
     @Override
     public @NonNull Klass arrayType() {
         return TypeResolver.resolveKlass(javaClass.arrayType());
-    }
-
-    private static final class Parents {
-        private final @NonNull SequencedCollection<@NonNull ActualType> genericSuperKlasses = new ArrayList<>();
-        private final @NonNull SequencedCollection<@NonNull ActualType> genericSuperInterfaces = new TreeSet<>();
     }
 
     private record Functions(

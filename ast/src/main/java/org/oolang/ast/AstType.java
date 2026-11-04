@@ -7,7 +7,6 @@ package org.oolang.ast;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.oolang.ast.Identifier.*;
@@ -18,10 +17,10 @@ public final class AstType extends AbstractAst implements Ast.Node {
 
     public @Nullable List<@NonNull Annotation> annotations = null;
     public boolean nullable = false;
-    public final @NonNull List<@NonNull Ast> children = new ArrayList<>();
 
     // set during type resolution in the semantic analysis phase.
-    public /* lateinit */ String descriptorString;
+    public /* lateinit */ Boolean isInterface = null;
+    public /* lateinit */ String descriptorString = null;
 
     public AstType(final @NonNull Identifier identifier, final @Nullable List<@NonNull AstType> parameters) {
         assert identifier != null;
@@ -58,12 +57,7 @@ public final class AstType extends AbstractAst implements Ast.Node {
     }
 
     @Override
-    public @NonNull List<@NonNull Ast> content() {
-        final var content = new ArrayList<@NonNull Ast>();
-        if (annotations != null) {
-            content.addAll(annotations);
-        }
-        content.addAll(children);
-        return content;
+    public @NonNull List<@NonNull Annotation> content() {
+        return (annotations != null) ? annotations : List.of();
     }
 }

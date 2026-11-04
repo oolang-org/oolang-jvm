@@ -7,6 +7,7 @@ package org.oolang.symbol.table;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.oolang.ast.AstFile;
+import org.oolang.ast.AstType;
 import org.oolang.ast.Identifier.SimpleIdentifier;
 import org.oolang.ast.element.ClassBody;
 import org.oolang.ast.element.ElementModifier;
@@ -55,8 +56,10 @@ public final class SymbolTableBuilder {
         assert klass != null;
 
         for (final var child : classElement.children) {
-            if (child instanceof ClassBody classBody) {
-                visitClassBody(classBody.children, klass);
+            switch (child) {
+                case AstType astType -> klass.ancestors.add(new Type.Lazy(astType, klass));
+                case ClassBody classBody -> visitClassBody(classBody.children, klass);
+                default -> throw new IllegalStateException("Unexpected child type: " + child.getClass());
             }
         }
     }
@@ -77,7 +80,7 @@ public final class SymbolTableBuilder {
                 }
                 case FUN -> {
                     final var function = visitFunction(child, klass, null);
-                    if (!function.isStatic) {
+                    if (!function.isStatic()) {
                         hasInstanceFunOrProp = true;
                     }
                 }
@@ -92,7 +95,7 @@ public final class SymbolTableBuilder {
             switch (child.elementType) {
                 case VAR, VAL -> {
                     final var property = visitProperty(child, children, klass);
-                    if (!property.isStatic) {
+                    if (!property.isStatic()) {
                         hasInstanceFunOrProp = true;
                     }
                 }
@@ -175,8 +178,8 @@ public final class SymbolTableBuilder {
         final var property = new Property(klass, baseSymbol, propType);
 
         // if not private, also add a getter function and visit it
-        if (!property.isStatic && property.visibility != Visibility.PRIVATE) {
-            final var getterFunction = buildAndVisitGetterFunction(propertyElement, klass, property, propType);
+        if (!property.isStatic() && property.visibility() != Visibility.PRIVATE) {
+            final var getterFunction = buildAndVisitGetterFunction(klass, property, propType);
             children.add(getterFunction);
 
             // the property becomes private, also in the AST
@@ -193,29 +196,28 @@ public final class SymbolTableBuilder {
             }
         }
 
-        klass.properties().put(baseSymbol.name, property);
+        klass.properties().put(baseSymbol.name(), property);
         return property;
     }
 
-    private static @NonNull RealElement buildAndVisitGetterFunction(final @NonNull RealElement propertyElement,
-                                                                    final @NonNull OolangKlass klass,
+    private static @NonNull RealElement buildAndVisitGetterFunction(final @NonNull OolangKlass klass,
                                                                     final @NonNull Property property,
                                                                     final @NonNull Type propType) {
         final var getterFunction = new RealElement(FUN);
-        getterFunction.identifier = new SimpleIdentifier(property.name);
+        getterFunction.identifier = new SimpleIdentifier(property.name());
         getterFunction.hasCustomAttribute = true;
         final var chainableExpression = new RealExpression(CHAINABLE);
         final var propAccessExpression = new RealExpression(VARIABLE_OR_PROP_ACCESS);
-        propAccessExpression.identifiers.add(new SimpleIdentifier(property.name));
+        propAccessExpression.identifiers.add(new SimpleIdentifier(property.name()));
         addExpressionToChain(chainableExpression, propAccessExpression);
         getterFunction.children.add(chainableExpression);
         property.getter = visitFunction(getterFunction, klass, propType);
         return getterFunction;
     }
 
-    private static @NonNull Symbol baseSymbol(final @NonNull RealElement element,
-                                              final boolean defaultStatic,
-                                              final boolean defaultFinal) {
+    private static @NonNull BaseSymbol baseSymbol(final @NonNull RealElement element,
+                                                  final boolean defaultStatic,
+                                                  final boolean defaultFinal) {
         assert element != null;
         assert element.identifier != null;
 
@@ -238,7 +240,7 @@ public final class SymbolTableBuilder {
             }
         }
 
-        return new Symbol(
+        return new BaseSymbol(
                 name, (visibility != null) ? visibility : Visibility.PUBLIC, isStatic, isAbstract, isFinal);
     }
 }

@@ -113,6 +113,7 @@ public final class TypeResolver {
         return resolveType(genericArrayType.getGenericComponentType());
     }
 
+    /// Resolve type of `astType` in the context of the `oolangKlass` compilation.
     public static @NonNull ActualType resolveType(final @Nullable AstType astType,
                                                   final @NonNull OolangKlass oolangKlass,
                                                   final boolean isArray) {
