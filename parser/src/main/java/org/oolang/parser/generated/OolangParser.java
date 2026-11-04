@@ -1585,8 +1585,8 @@ public class OolangParser extends Parser {
 		public UserTypeContext userType() {
 			return getRuleContext(UserTypeContext.class,0);
 		}
-		public CallSuffixContext callSuffix() {
-			return getRuleContext(CallSuffixContext.class,0);
+		public ValueArgumentsContext valueArguments() {
+			return getRuleContext(ValueArgumentsContext.class,0);
 		}
 		public List<TerminalNode> NL() { return getTokens(OolangParser.NL); }
 		public TerminalNode NL(int i) {
@@ -1606,30 +1606,28 @@ public class OolangParser extends Parser {
 	public final ConstructorInvocationContext constructorInvocation() throws RecognitionException {
 		ConstructorInvocationContext _localctx = new ConstructorInvocationContext(_ctx, getState());
 		enterRule(_localctx, 26, RULE_constructorInvocation);
+		int _la;
 		try {
-			int _alt;
 			enterOuterAlt(_localctx, 1);
 			{
 			setState(566);
 			userType();
 			setState(570);
 			_errHandler.sync(this);
-			_alt = getInterpreter().adaptivePredict(_input,51,_ctx);
-			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
-				if ( _alt==1 ) {
-					{
-					{
-					setState(567);
-					match(NL);
-					}
-					} 
+			_la = _input.LA(1);
+			while (_la==NL) {
+				{
+				{
+				setState(567);
+				match(NL);
+				}
 				}
 				setState(572);
 				_errHandler.sync(this);
-				_alt = getInterpreter().adaptivePredict(_input,51,_ctx);
+				_la = _input.LA(1);
 			}
 			setState(573);
-			callSuffix();
+			valueArguments();
 			}
 		}
 		catch (RecognitionException re) {
@@ -15185,7 +15183,7 @@ public class OolangParser extends Parser {
 		"\u0239\u0005\u0004\u0000\u0000\u0238\u0237\u0001\u0000\u0000\u0000\u0239"+
 		"\u023c\u0001\u0000\u0000\u0000\u023a\u0238\u0001\u0000\u0000\u0000\u023a"+
 		"\u023b\u0001\u0000\u0000\u0000\u023b\u023d\u0001\u0000\u0000\u0000\u023c"+
-		"\u023a\u0001\u0000\u0000\u0000\u023d\u023e\u0003\u00deo\u0000\u023e\u001b"+
+		"\u023a\u0001\u0000\u0000\u0000\u023d\u023e\u0003\u00e4r\u0000\u023e\u001b"+
 		"\u0001\u0000\u0000\u0000\u023f\u0242\u0003T*\u0000\u0240\u0242\u0003^"+
 		"/\u0000\u0241\u023f\u0001\u0000\u0000\u0000\u0241\u0240\u0001\u0000\u0000"+
 		"\u0000\u0242\u0246\u0001\u0000\u0000\u0000\u0243\u0245\u0005\u0004\u0000"+

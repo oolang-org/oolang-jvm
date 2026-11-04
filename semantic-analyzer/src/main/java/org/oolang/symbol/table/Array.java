@@ -5,12 +5,14 @@
 package org.oolang.symbol.table;
 
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
+import java.util.List;
 import java.util.Map;
-import java.util.SequencedCollection;
 import java.util.SortedSet;
 
 /// This Array pseudo-class represents an array type in the Oolang language.
-final class Array implements Klass {
+final class Array extends Klass {
     private static /* lateinit */ Array INSTANCE;
 
     // only called once by getInstance()
@@ -35,12 +37,12 @@ final class Array implements Klass {
     }
 
     @Override
-    public @NonNull SequencedCollection<@NonNull ActualType> genericSuperKlasses() {
+    @Nullable ActualType superKlass() {
         throw new IllegalCallerException("Array is a pseudo-class, don't call it!");
     }
 
     @Override
-    public @NonNull SequencedCollection<@NonNull ActualType> genericSuperInterfaces() {
+    @NonNull List<@NonNull ActualType> interfaces() {
         throw new IllegalCallerException("Array is a pseudo-class, don't call it!");
     }
 

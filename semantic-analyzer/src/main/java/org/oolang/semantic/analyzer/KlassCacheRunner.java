@@ -5,10 +5,11 @@
 package org.oolang.semantic.analyzer;
 
 import org.jspecify.annotations.NonNull;
-import org.oolang.symbol.table.Klass;
 
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static org.oolang.symbol.table.Klass.KLASSES_CACHE;
 
 public final class KlassCacheRunner {
     // un-instantiable
@@ -17,6 +18,6 @@ public final class KlassCacheRunner {
 
     public static void run(final @NonNull Runnable op) {
         Objects.requireNonNull(op);
-        ScopedValue.where(Klass.KLASSES_CACHE, new ConcurrentHashMap<>()).run(op);
+        ScopedValue.where(KLASSES_CACHE, new ConcurrentHashMap<>()).run(op);
     }
 }

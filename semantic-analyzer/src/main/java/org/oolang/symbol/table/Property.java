@@ -10,8 +10,13 @@ import org.jspecify.annotations.Nullable;
 import java.lang.invoke.TypeDescriptor;
 
 @SuppressWarnings("preview")
-public final class Property extends Symbol implements Variable, TypeDescriptor {
+public final class Property implements Symbol, Variable, TypeDescriptor {
     public final @NonNull Klass declaringKlass;
+    private final @NonNull String name;
+    @NonNull Visibility visibility;
+    private final boolean isStatic;
+    private final boolean isAbstract;
+    private final boolean isFinal;
     private final @NonNull Type type;
 
     // For function property
@@ -21,15 +26,14 @@ public final class Property extends Symbol implements Variable, TypeDescriptor {
             LazyConstant.of(this::buildDescriptorString);
 
     Property(final @NonNull Klass declaringKlass,
-             final @NonNull Symbol baseSymbol,
+             final @NonNull BaseSymbol baseSymbol,
              final @NonNull Type type) {
         assert declaringKlass != null;
         assert baseSymbol != null;
         assert type != null;
-        super(baseSymbol);
 
-        this.declaringKlass = declaringKlass;
-        this.type = type;
+        this(declaringKlass, baseSymbol.name(), baseSymbol.visibility(), baseSymbol.isStatic(), baseSymbol.isAbstract(),
+                baseSymbol.isFinal(), type);
     }
 
     Property(final @NonNull Klass declaringKlass,
@@ -38,14 +42,18 @@ public final class Property extends Symbol implements Variable, TypeDescriptor {
              final boolean isStatic,
              final boolean isAbstract,
              final boolean isFinal,
-             final @NonNull ActualType type) {
+             final @NonNull Type type) {
         assert declaringKlass != null;
         assert name != null;
         assert visibility != null;
         assert type != null;
-        super(name, visibility, isStatic, isAbstract, isFinal);
 
         this.declaringKlass = declaringKlass;
+        this.name = name;
+        this.visibility = visibility;
+        this.isStatic = isStatic;
+        this.isAbstract = isAbstract;
+        this.isFinal = isFinal;
         this.type = type;
     }
 
@@ -69,5 +77,30 @@ public final class Property extends Symbol implements Variable, TypeDescriptor {
     @Override
     public String descriptorString() {
         return descriptorString.get();
+    }
+
+    @Override
+    public @NonNull String name() {
+        return name;
+    }
+
+    @Override
+    public @NonNull Visibility visibility() {
+        return visibility;
+    }
+
+    @Override
+    public boolean isStatic() {
+        return isStatic;
+    }
+
+    @Override
+    public boolean isAbstract() {
+        return isAbstract;
+    }
+
+    @Override
+    public boolean isFinal() {
+        return isFinal;
     }
 }

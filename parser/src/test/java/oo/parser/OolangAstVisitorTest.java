@@ -10,6 +10,8 @@ import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 import org.oolang.ast.AstFile;
 import org.oolang.ast.AstFileWriter;
+import org.oolang.ast.AstType;
+import org.oolang.ast.Identifier;
 import org.oolang.ast.element.ClassBody;
 import org.oolang.ast.element.RealElement;
 import org.oolang.ast.expression.ConstantExpression;
@@ -120,9 +122,9 @@ public class OolangAstVisitorTest {
                 @Default
                 class Example""");
         verifyPackage(astFile);
-        var imports = astFile.imports;
-        assertThat(imports).hasSize(1);
-        assertThat(imports.getFirst().description()).isEqualTo("Import(jakarta.enterprise.inject.Default)");
+        assertThat(astFile.imports).hasSize(1);
+        assertThat(astFile.imports.getFirst().description())
+                .isEqualTo("Import(jakarta.enterprise.inject.Default)");
         var root = astFile.rootElements.getFirst();
         assertThat(root).isNotNull();
         assertThat(root.elementType).isEqualTo(CLASS);
@@ -166,6 +168,30 @@ public class OolangAstVisitorTest {
         assertThat(root.identifier).isNotNull();
         assertThat(root.identifier.identifier).isEqualTo("Example");
         assertThat(root.description()).isEqualTo("Element(class Example)");
+        print(astFile);
+    }
+
+    @Test
+    public void parseInheritedClass() {
+        var astFile = astForCode("""
+                package com.example
+                import java.io.Serializable
+                class Example : Serializable""");
+        verifyPackage(astFile);
+        assertThat(astFile.imports).hasSize(1);
+        assertThat(astFile.imports.getFirst().description())
+                .isEqualTo("Import(java.io.Serializable)");
+        var root = astFile.rootElements.getFirst();
+        assertThat(root).isNotNull();
+        assertThat(root.elementType).isEqualTo(CLASS);
+        assertThat(root.identifier).isNotNull();
+        assertThat(root.identifier.identifier).isEqualTo("Example");
+        assertThat(root.description()).isEqualTo("Element(class Example)");
+        assertThat(root.children).hasSize(1);
+        var ancestor = (AstType) root.children.getFirst();
+        assertThat(ancestor.identifier).isNotNull();
+        assertThat(((Identifier.SimpleIdentifier) ancestor.identifier).identifier).isEqualTo("Serializable");
+        assertThat(ancestor.content()).isEmpty();
         print(astFile);
     }
 
@@ -278,6 +304,44 @@ public class OolangAstVisitorTest {
         assertThat(property.modifiers).isEmpty();
         assertThat(property.identifier).isNotNull();
         assertThat(property.identifier.identifier).isEqualTo("foo");
+        assertThat(property.type).isNotNull();
+        assertThat(property.type.description()).isEqualTo("Type(String)");
+        assertThat(property.children).isEmpty();
+        print(astFile);
+    }
+
+    @Test
+    public void symbolTableOfInheritedClassWithOverriddenProperty() {
+        var astFile = astForCode("""
+                package com.example
+                import java.security.Principal
+                class Example : Principal {
+                override val name: String
+                }""");
+        verifyPackage(astFile);
+        assertThat(astFile.imports).hasSize(1);
+        assertThat(astFile.imports.getFirst().description()).isEqualTo("Import(java.security.Principal)");
+        var root = astFile.rootElements.getFirst();
+        assertThat(root).isNotNull();
+        assertThat(root.elementType).isEqualTo(CLASS);
+        assertThat(root.modifiers).isEmpty();
+        assertThat(root.identifier).isNotNull();
+        assertThat(root.identifier.identifier).isEqualTo("Example");
+        assertThat(root.description()).isEqualTo("Element(class Example)");
+        assertThat(root.children).hasSize(2);
+        var ancestor = (AstType) root.children.getFirst();
+        assertThat(ancestor.identifier).isNotNull();
+        assertThat(((Identifier.SimpleIdentifier) ancestor.identifier).identifier).isEqualTo("Principal");
+        assertThat(ancestor.content()).isEmpty();
+        var classBody = (ClassBody) root.children.getLast();
+        assertThat(classBody.content()).hasSize(1);
+        var property = (RealElement) classBody.content().getFirst();
+        assertThat(property.elementType).isEqualTo(VAL);
+        assertThat(property.modifiers).hasSize(1);
+        assertThat(property.modifiers).extracting("modifier")
+                .containsExactly("override");
+        assertThat(property.identifier).isNotNull();
+        assertThat(property.identifier.identifier).isEqualTo("name");
         assertThat(property.type).isNotNull();
         assertThat(property.type.description()).isEqualTo("Type(String)");
         assertThat(property.children).isEmpty();

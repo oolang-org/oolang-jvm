@@ -64,7 +64,7 @@ final class Scopes {
     void putProperty(final @NonNull Property property) {
         assert property != null;
 
-        if (property.isStatic) {
+        if (property.isStatic()) {
             currentStaticScope.putProperty(property);
         } else {
             currentInstanceScope.putProperty(property);
@@ -125,7 +125,7 @@ final class Scopes {
         private void putProperty(final @NonNull Property property) {
             assert property != null;
 
-            variables.put(property.name, property);
+            variables.put(property.name(), property);
         }
 
         private void putVariable(final @NonNull String name,

@@ -6,6 +6,7 @@ package org.oolang.compiler;
 
 import org.jspecify.annotations.NonNull;
 import org.oolang.OolangPropCustomAttribute;
+import org.oolang.ast.AstType;
 import org.oolang.ast.Import;
 import org.oolang.ast.PackageHeader;
 import org.oolang.ast.element.ClassBody;
@@ -101,11 +102,22 @@ public final class OolangCompiler {
 
         classBuilder.withFlags(computeModifiers(classElement.modifiers));
 
+        final var interfaces = new ArrayList<@NonNull ClassDesc>();
         for (final var child : classElement.children) {
-            if (child instanceof ClassBody classBody) {
-                visitClassBody(classBody, classBuilder);
+            switch (child) {
+                case AstType astType -> {
+                    final var ancestor = ClassDesc.ofDescriptor(astType.descriptorString);
+                    if (astType.isInterface) {
+                        interfaces.add(ancestor);
+                    } else {
+                        classBuilder.withSuperclass(ancestor);
+                    }
+                }
+                case ClassBody classBody -> visitClassBody(classBody, classBuilder);
+                default -> throw new IllegalStateException("Unexpected child type: " + child.getClass());
             }
         }
+        classBuilder.withInterfaceSymbols(interfaces);
     }
 
     private static void visitClassBody(final @NonNull ClassBody classBody, final @NonNull ClassBuilder classBuilder) {

@@ -9,37 +9,54 @@ import org.jspecify.annotations.Nullable;
 
 import java.lang.invoke.TypeDescriptor;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
-public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
+@SuppressWarnings("preview")
+public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, ActualType
         permits Array, ExistingKlass, OolangKlass {
 
-    boolean isInterface();
+    private final @NonNull LazyConstant<@NonNull Parents> parents = LazyConstant.of(this::getAllParents);
 
-    @NonNull String packageName();
+    /// The cache of all resolved [classes][Klass].
+    public static final @NonNull ScopedValue<@NonNull ConcurrentMap<@NonNull String, @NonNull Klass>> KLASSES_CACHE =
+            ScopedValue.newInstance();
+
+    public abstract boolean isInterface();
+
+    abstract @NonNull String packageName();
+
+    /// @return the superclass; null if this klass is an interface, [Object], a primitive class, or void.
+    abstract @Nullable ActualType superKlass();
+
+    /// @return the interfaces this class implements, can be empty.
+    abstract @NonNull List<@NonNull ActualType> interfaces();
 
     /// @return all superclasses; empty if this klass is an interface, [Object], a primitive class, or void.
-    @NonNull SequencedCollection<@NonNull ActualType> genericSuperKlasses();
+    public final @NonNull SequencedCollection<@NonNull ActualType> allSuperKlasses() {
+        return parents.get().allSuperKlasses;
+    }
 
-    /// @return all superinterfaces.
-    @NonNull SequencedCollection<@NonNull ActualType> genericSuperInterfaces();
+    /// @return all interfaces this class implements, can be empty.
+    final @NonNull SequencedCollection<@NonNull ActualType> allInterfaces() {
+        return parents.get().allInterfaces;
+    }
 
-    @NonNull Map<@NonNull String, @NonNull Property> properties();
+    abstract @NonNull Map<@NonNull String, @NonNull Property> properties();
 
     /// A [TreeSet] allows quick O(log n) range search by function name.
     ///
     /// If we stored the functions with a regular collection, a [java.util.stream.Stream] could be used to filter the
     /// functions by name, but with a worse 0(n) performance.
-    @NonNull SortedSet<@NonNull BaseFunction> functions();
+    abstract @NonNull SortedSet<@NonNull BaseFunction> functions();
 
     @Override
-    default boolean isAssignableFrom(final @NonNull ActualType otherType) {
+    public final boolean isAssignableFrom(final @NonNull ActualType otherType) {
         if (!(otherType instanceof Klass otherKlass)) {
             return false;
         }
         return this.descriptorString().equals(otherKlass.descriptorString())
-                || hasAssignableParent(genericSuperKlasses(), otherKlass)
-                || hasAssignableParent(genericSuperInterfaces(), otherKlass);
+                || hasAssignableParent(allSuperKlasses(), otherKlass)
+                || hasAssignableParent(allInterfaces(), otherKlass);
     }
 
     private static boolean hasAssignableParent(final @NonNull SequencedCollection<@NonNull ActualType> parents,
@@ -52,8 +69,8 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
                 .anyMatch(superType -> superType.descriptorString().equals(otherKlass.descriptorString()));
     }
 
-    default @Nullable Symbol accessiblePropertyOrFunctionProperty(final @NonNull String name,
-                                                                  final boolean includeSelf) {
+    public final @Nullable Symbol accessiblePropertyOrFunctionProperty(final @NonNull String name,
+                                                                       final boolean includeSelf) {
         assert name != null;
 
         final var includeProtected = !includeSelf;
@@ -66,14 +83,14 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
         }
 
         // Try all superclasses, then all superinterfaces
-        for (final var superKlass : genericSuperKlasses()) {
+        for (final var superKlass : allSuperKlasses()) {
             final var property = accessiblePropertyOrFunctionProperty(name, includeProtected,
                     TypeResolver.getKlassFromType(superKlass));
             if (property != null) {
                 return property;
             }
         }
-        for (final var superInterface : genericSuperInterfaces()) {
+        for (final var superInterface : allInterfaces()) {
             final var property = accessiblePropertyOrFunctionProperty(name, includeProtected,
                     TypeResolver.getKlassFromType(superInterface));
             if (property != null) {
@@ -94,7 +111,7 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
             return null;
         }
         // 1) property is itself accessible
-        switch (property.visibility) {
+        switch (property.visibility()) {
             case PUBLIC -> {
                 return property;
             }
@@ -124,7 +141,7 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
         // 2) property has getter
         final var getterFunction = property.getter;
         if (getterFunction != null) {
-            switch (getterFunction.visibility) {
+            switch (getterFunction.visibility()) {
                 case PUBLIC -> {
                     return getterFunction;
                 }
@@ -145,9 +162,9 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
         return null;
     }
 
-    default @Nullable Function accessibleFunction(final @NonNull String name,
-                                                  final @NonNull List<@NonNull ActualType> parameterTypes,
-                                                  final boolean includeProtected) {
+    public final @Nullable Function accessibleFunction(final @NonNull String name,
+                                                       final @NonNull List<@NonNull ActualType> parameterTypes,
+                                                       final boolean includeProtected) {
         assert name != null;
         assert parameterTypes != null;
 
@@ -157,14 +174,14 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
         }
 
         // Try all superclasses, then all superinterfaces
-        for (final var superKlass : genericSuperKlasses()) {
+        for (final var superKlass : allSuperKlasses()) {
             function = accessibleFunction(name, parameterTypes, includeProtected, false,
                     TypeResolver.getKlassFromType(superKlass));
             if (function != null) {
                 return function;
             }
         }
-        for (final var superInterface : genericSuperInterfaces()) {
+        for (final var superInterface : allInterfaces()) {
             function = accessibleFunction(name, parameterTypes, includeProtected, false,
                     TypeResolver.getKlassFromType(superInterface));
             if (function != null) {
@@ -189,7 +206,7 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
         final var candidateFunctions = klass.functions().subSet(searchFunctionFrom, searchFunctionTo);
         for (final var candidateBaseFunction : candidateFunctions) {
             final var candidateFunction = (Function) candidateBaseFunction;
-            switch (candidateFunction.visibility) {
+            switch (candidateFunction.visibility()) {
                 case PUBLIC -> {
                     if (compatibleParameters(candidateFunction, parameterTypes)) {
                         return candidateFunction;
@@ -240,15 +257,56 @@ public sealed interface Klass extends TypeDescriptor.OfField<Klass>, ActualType
         return true;
     }
 
+    /// Recursively finds all superclasses and interfaces this klass extends/implements.
+    private @NonNull Parents getAllParents() {
+        final var parents = new Parents();
+        // Traverse superclasses (recursively)
+        processSuperclass(this, parents);
+        // Traverse interfaces (recursively)
+        processInterfaces(this, parents);
+        return parents;
+    }
+
+    // Recursively collect all superclasses and their superinterfaces
+    private static void processSuperclass(final @NonNull Klass klass,
+                                          final @NonNull Parents parents) {
+        assert klass != null;
+        assert parents != null;
+
+        final var superKlassType = klass.superKlass();
+        if (superKlassType != null) {
+            parents.allSuperKlasses.add(superKlassType); // Add direct superclass
+            final var superKlass = TypeResolver.getKlassFromType(superKlassType);
+            processSuperclass(superKlass, parents); // Recurse on the superclass's superClass
+            processInterfaces(superKlass, parents); // Recurse on the superclass's superinterfaces
+        }
+    }
+
+    // Recursively collect all interfaces and their superinterfaces
+    private static void processInterfaces(final @NonNull Klass klass,
+                                          final @NonNull Parents parents) {
+        assert klass != null;
+        assert parents != null;
+
+        final var interfacesTypes = klass.interfaces();
+        for (final var interfaceType : interfacesTypes) {
+            // Add the interface only if it's not already in the set (avoids duplicates)
+            if (parents.allInterfaces.add(interfaceType)) {
+                processInterfaces(TypeResolver.getKlassFromType(interfaceType), parents); // Recurse on the interface's superinterfaces
+            }
+        }
+    }
+
     record SimpleFunction(@NonNull String name) implements org.oolang.symbol.table.BaseFunction {
     }
 
-    /// The cache of all resolved [classes][Klass].
-    @NonNull ScopedValue<@NonNull ConcurrentHashMap<@NonNull String, @NonNull Klass>> KLASSES_CACHE =
-            ScopedValue.newInstance();
+    private static final class Parents {
+        private final @NonNull SequencedCollection<@NonNull ActualType> allSuperKlasses = new ArrayList<>();
+        private final @NonNull SequencedCollection<@NonNull ActualType> allInterfaces = new TreeSet<>();
+    }
 
     @Override
-    default boolean isPrimitive() {
+    public final boolean isPrimitive() {
         throw new UnsupportedOperationException("We don't need this method");
     }
 }
