@@ -25,8 +25,7 @@ import java.util.Map;
 import static org.oolang.ast.element.ElementModifier.ModifierType.VISIBILITY;
 import static org.oolang.ast.element.RealElement.ElementType.*;
 import static org.oolang.ast.expression.ExpressionUtils.addExpressionToChain;
-import static org.oolang.ast.expression.RealExpression.ExpressionType.CHAINABLE;
-import static org.oolang.ast.expression.RealExpression.ExpressionType.VARIABLE_OR_PROP_ACCESS;
+import static org.oolang.ast.expression.RealExpression.ExpressionType.*;
 
 public final class SymbolTableBuilder {
     // un-instantiable
@@ -142,7 +141,7 @@ public final class SymbolTableBuilder {
     /// @param propertyElement the element
     /// @param children        The child nodes of the current class, where we add the property and optional getter and
     ///                        setter functions.
-    /// @param klass           the current class we are building
+    /// @param klass           the current class we are analyzing and enriching
     /// @return the property
     private static @NonNull Property visitProperty(final @NonNull RealElement propertyElement,
                                                    final @NonNull List<@NonNull RealElement> children,
@@ -179,20 +178,44 @@ public final class SymbolTableBuilder {
 
         // if not private, also add a getter function and visit it
         if (!property.isStatic() && property.visibility() != Visibility.PRIVATE) {
-            final var getterFunction = buildAndVisitGetterFunction(klass, property, propType);
+            final var getterFunction = buildAndVisitGetterFunction(property);
+            property.getter = visitFunction(getterFunction, klass, propType);
             children.add(getterFunction);
 
             // the property becomes private, also in the AST
             property.visibility = Visibility.PRIVATE;
             var hasVisibility = false;
+            var isOverride = false;
             for (final var modifier : propertyElement.modifiers) {
-                if (modifier.type == VISIBILITY) {
-                    modifier.modifier = "private";
-                    hasVisibility = true;
+                switch (modifier.type) {
+                    case VISIBILITY -> {
+                        modifier.modifier = "private";
+                        hasVisibility = true;
+                    }
+                    case MEMBER -> {
+                        if (modifier.modifier.equals("override")) {
+                            isOverride = true;
+                        }
+                    }
                 }
             }
             if (!hasVisibility) {
                 propertyElement.modifiers.add(new ElementModifier(VISIBILITY, "private"));
+            }
+
+            if (isOverride) {
+                // the overridden getter might be an old-school one, then we must generate another old-school getter
+                // function that calls the one we already added.
+                final var oldSchoolGetterName = "get"
+                        + property.name().substring(0, 1).toUpperCase()
+                        + property.name().substring(1);
+                final var overriddenOldSchoolGetter = klass
+                        .accessibleFunction(oldSchoolGetterName, List.of(), true, false);
+                if (overriddenOldSchoolGetter != null) {
+                    final var oldSchoolGetterFunction = buildAndVisitOldSchoolGetterFunction(property, oldSchoolGetterName);
+                    children.add(oldSchoolGetterFunction);
+                    visitFunction(oldSchoolGetterFunction, klass, propType);
+                }
             }
         }
 
@@ -200,9 +223,9 @@ public final class SymbolTableBuilder {
         return property;
     }
 
-    private static @NonNull RealElement buildAndVisitGetterFunction(final @NonNull OolangKlass klass,
-                                                                    final @NonNull Property property,
-                                                                    final @NonNull Type propType) {
+    private static @NonNull RealElement buildAndVisitGetterFunction(final @NonNull Property property) {
+        assert property != null;
+
         final var getterFunction = new RealElement(FUN);
         getterFunction.identifier = new SimpleIdentifier(property.name());
         getterFunction.hasCustomAttribute = true;
@@ -211,7 +234,21 @@ public final class SymbolTableBuilder {
         propAccessExpression.identifiers.add(new SimpleIdentifier(property.name()));
         addExpressionToChain(chainableExpression, propAccessExpression);
         getterFunction.children.add(chainableExpression);
-        property.getter = visitFunction(getterFunction, klass, propType);
+        return getterFunction;
+    }
+
+    private static @NonNull RealElement buildAndVisitOldSchoolGetterFunction(
+            final @NonNull Property property,
+            final @NonNull String oldSchoolGetterName
+    ) {
+        assert property != null;
+        assert oldSchoolGetterName != null;
+
+        final var getterFunction = new RealElement(FUN);
+        getterFunction.identifier = new SimpleIdentifier(oldSchoolGetterName);
+        final var getterCallExpression = new RealExpression(FUN_CALL);
+        getterCallExpression.identifiers.add(new SimpleIdentifier(property.name()));
+        getterFunction.children.add(getterCallExpression);
         return getterFunction;
     }
 

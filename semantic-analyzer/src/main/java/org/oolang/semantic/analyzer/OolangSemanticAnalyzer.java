@@ -521,7 +521,7 @@ public final class OolangSemanticAnalyzer {
         }
 
         final var funName = funCallExpression.identifiers.getFirst().identifier;
-        final var function = caller.accessibleFunction(funName, funParameters, includeProtected);
+        final var function = caller.accessibleFunction(funName, funParameters, includeProtected, caller == currentKlass);
         if (function == null) {
             throw new OolangSemanticException("Could not resolve function '" + funName +
                     "' from class " + caller.descriptorString());
