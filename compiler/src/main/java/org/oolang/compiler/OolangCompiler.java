@@ -23,21 +23,16 @@ import org.oolang.ast.statement.Statement;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.lang.classfile.ClassBuilder;
-import java.lang.classfile.ClassFile;
-import java.lang.classfile.CodeBuilder;
-import java.lang.classfile.TypeKind;
+import java.lang.classfile.*;
 import java.lang.classfile.attribute.ConstantValueAttribute;
+import java.lang.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
 import java.lang.classfile.attribute.SourceDebugExtensionAttribute;
 import java.lang.constant.*;
 import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
+import java.util.*;
 
 import static java.lang.System.Logger.Level.DEBUG;
 import static org.oolang.JvmInvocationUtils.*;
@@ -50,14 +45,19 @@ import static org.oolang.compiler.Descriptors.*;
 import static org.oolang.compiler.StringCompilationUtils.stringConcatenation;
 
 public final class OolangCompiler {
-    private static final @NonNull String PUBLIC = "public";
-    private static final @NonNull String FINAL = "final";
-
     // un-instantiable
     private OolangCompiler() {
     }
 
     private static final System.Logger LOGGER = System.getLogger("oolang.compiler.OolangCompiler");
+
+    private static final @NonNull String PUBLIC = "public";
+    private static final @NonNull String FINAL = "final";
+
+    static final @NonNull Annotation OVERRIDE_ANNOTATION = Annotation.of(
+            ClassDesc.of("java.lang.Override"),
+            List.of()  // @Override has no elements
+    );
 
     public static @NonNull Path compile(final @NonNull PackageHeader packageHeader,
                                         final @NonNull List<@NonNull Import> imports,
@@ -100,11 +100,11 @@ public final class OolangCompiler {
         assert classElement != null;
         assert classBuilder != null;
 
-        classBuilder.withFlags(computeModifiers(classElement.modifiers));
+        classBuilder.withFlags(computeModifiers(classElement.modifiers).getKey());
 
         final var interfaces = new ArrayList<@NonNull ClassDesc>();
         for (final var child : classElement.children) {
-            switch (child) {
+            switch (child) /* of mine */ {
                 case AstType astType -> {
                     final var ancestor = ClassDesc.ofDescriptor(astType.descriptorString);
                     if (astType.isInterface) {
@@ -144,7 +144,7 @@ public final class OolangCompiler {
         classBuilder.withMethodBody(
                 ConstantDescs.INIT_NAME,
                 MethodTypeDesc.of(ConstantDescs.CD_void),
-                computeModifiers(constructorElement.modifiers),
+                computeModifiers(constructorElement.modifiers).getKey(),
                 codeBuilder ->
                         // constructor code block is the last child
                         visitConstructorCodeBlock((ConstructorCodeBlock) constructorElement.children.getLast(),
@@ -174,18 +174,16 @@ public final class OolangCompiler {
         codeBuilder.return_(); // 4) return
     }
 
-    private static void visitProperty(final @NonNull RealElement propertyElement,
+    private static void visitProperty(final @NonNull RealElement propElement,
                                       final @NonNull ClassBuilder classBuilder) {
-        assert propertyElement != null;
+        assert propElement != null;
         assert classBuilder != null;
 
-        final var modifiers = computeModifiers(propertyElement.modifiers);
-        final var type = computeType(propertyElement);
-        assert propertyElement.identifier != null;
-        classBuilder.withField(propertyElement.identifier.identifier, type, fieldBuilder -> {
-            fieldBuilder.withFlags(modifiers);
+        assert propElement.identifier != null;
+        classBuilder.withField(propElement.identifier.identifier, computeType(propElement), fieldBuilder -> {
+            fieldBuilder.withFlags(computeModifiers(propElement.modifiers).getKey());
             // if an initializer is present and constant, set it here. Else it is set in init or clinit.
-            for (final var propChild : propertyElement.children) {
+            for (final var propChild : propElement.children) {
                 if (propChild instanceof RealElement propChildElement
                         && propChildElement.elementType == PROPERTY_INITIALIZER
                         && propChildElement.children.getFirst() instanceof ConstantExpression initializerConstExpr) {
@@ -210,16 +208,20 @@ public final class OolangCompiler {
         }
 
         final var modifiers = computeModifiers(funElement.modifiers);
+        final var flags = modifiers.getKey();
         assert funElement.identifier != null;
         classBuilder.withMethod(
                 funElement.identifier.identifier,
                 MethodTypeDesc.of(/* returnDesc */ computeType(funElement), paramDescs),
-                modifiers,
+                flags,
                 methodBuilder -> {
                     if (funElement.hasCustomAttribute) {
                         methodBuilder.with(new OolangPropCustomAttribute());
                     }
-                    if (!Modifier.isAbstract(modifiers)) {
+                    if (modifiers.getValue()) {
+                        methodBuilder.with(RuntimeVisibleAnnotationsAttribute.of(OVERRIDE_ANNOTATION));
+                    }
+                    if (!Modifier.isAbstract(flags)) {
                         methodBuilder.withCode(codeBuilder -> {
                             // code block is the last child of a non-abstract function
                             visitCodeBlock((CodeBlock) funElement.children.getLast(), codeBuilder);
@@ -370,7 +372,7 @@ public final class OolangCompiler {
 
         // loop on fun call children: preliminary expressions and index
         for (final var child : indexingExpression.children) {
-            switch (child) {
+            switch (child) /* of mine */ {
                 case LoadExpression loadExpression -> visitLoadExpression(loadExpression, codeBuilder);
                 case RealExpression realExpression -> {
                     assert realExpression.expressionType == PROP_ACCESS;
@@ -508,26 +510,29 @@ public final class OolangCompiler {
         return (descriptorString != null) ? ClassDesc.ofDescriptor(descriptorString) : ConstantDescs.CD_void;
     }
 
-    private static int computeModifiers(final @NonNull List<@NonNull ElementModifier> modifiers) {
+    /// @return an `Entry` with key = flags and value = override (boolean).
+    private static Map.Entry<Integer, Boolean> computeModifiers(final @NonNull List<@NonNull ElementModifier> modifiers) {
         assert modifiers != null;
 
         var visibility = PUBLIC;
         var inheritance = FINAL;
         var isStatic = false;
+        var override = false;
         for (final var modifier : modifiers) {
             switch (modifier.type) {
                 case VISIBILITY -> visibility = modifier.modifier;
                 case INHERITANCE -> inheritance = modifier.modifier;
                 case MEMBER -> {
-                    if (modifier.modifier.equals("static")) {
-                        isStatic = true;
+                    switch (modifier.modifier) {
+                        case "static" -> isStatic = true;
+                        case "override" -> override = true;
                     }
                 }
                 default -> throw new IllegalStateException("Unknown modifier type: " + modifier.type);
             }
         }
 
-        return modifiers(visibility, inheritance, isStatic);
+        return Map.entry(modifiers(visibility, inheritance, isStatic), override);
     }
 
     private static int modifiers(final @NonNull String visibility,

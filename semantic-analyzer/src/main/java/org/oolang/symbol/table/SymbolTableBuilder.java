@@ -27,6 +27,7 @@ import static org.oolang.ast.element.RealElement.ElementType.*;
 import static org.oolang.ast.expression.ExpressionUtils.addExpressionToChain;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.CHAINABLE;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.VARIABLE_OR_PROP_ACCESS;
+import static org.oolang.symbol.table.TypeResolver.VOID_KLASS;
 
 public final class SymbolTableBuilder {
     // un-instantiable
@@ -56,7 +57,7 @@ public final class SymbolTableBuilder {
         assert klass != null;
 
         for (final var child : classElement.children) {
-            switch (child) {
+            switch (child) /* of mine */ {
                 case AstType astType -> klass.ancestors.add(new Type.Lazy(astType, klass));
                 case ClassBody classBody -> visitClassBody(classBody.children, klass);
                 default -> throw new IllegalStateException("Unexpected child type: " + child.getClass());
@@ -118,20 +119,44 @@ public final class SymbolTableBuilder {
         assert funElement != null;
         assert klass != null;
 
+        Type functionReturnType = null;
+        if (returnType != null) {
+            // type case (1) : type is directly provided as method parameter
+            assert funElement.type == null;
+            functionReturnType = returnType;
+        } else if (funElement.type != null) {
+            // type case (2) : type is explicit in the function declaration
+            functionReturnType = new Type.Lazy(funElement.type, klass);
+        }
+
         final var parameters = new ArrayList<@NonNull Parameter>();
         for (final var child : funElement.children) {
-            if (child instanceof RealElement element && element.elementType == PARAMETER) {
-                assert element.identifier != null;
-                final var paramName = element.identifier.identifier; // a function parameter has a simple identifier
-                assert element.type != null;
-                parameters.add(new Parameter(paramName, new Type.Lazy(element.type, klass)));
+            switch (child) /* of mine */ {
+                case RealElement element -> {
+                    if (element.elementType == PARAMETER) {
+                        assert element.identifier != null;
+                        final var paramName = element.identifier.identifier; // a function parameter has a simple identifier
+                        assert element.type != null;
+                        parameters.add(new Parameter(paramName, new Type.Lazy(element.type, klass)));
+                    }
+                }
+                case Expression expression -> {
+                    if (functionReturnType == null) {
+                        // type case (3) :  type can be directly inferred for some cases, or it will have to be resolved
+                        // during semantic analysis
+                        final var klassOrNull = TypeResolver.inferKlass(expression);
+                        functionReturnType = (klassOrNull != null) ? klassOrNull : new Type.Lateinit();
+                    }
+                }
+                default -> { // no-op
+                }
             }
         }
 
         final var function = new Function(
                 klass,
                 baseSymbol(funElement, false, true),
-                (returnType != null) ? returnType : new Type.Lazy(funElement.type, klass),
+                (functionReturnType != null) ? functionReturnType : VOID_KLASS,
                 parameters);
         klass.functions.add(function);
         return function;
@@ -142,7 +167,7 @@ public final class SymbolTableBuilder {
     /// @param propertyElement the element
     /// @param children        The child nodes of the current class, where we add the property and optional getter and
     ///                        setter functions.
-    /// @param klass           the current class we are building
+    /// @param klass           the current class we are analyzing and enriching
     /// @return the property
     private static @NonNull Property visitProperty(final @NonNull RealElement propertyElement,
                                                    final @NonNull List<@NonNull RealElement> children,
@@ -167,19 +192,15 @@ public final class SymbolTableBuilder {
                     break;
                 }
             }
-            if (klassOrNull != null) {
-                propertyElement.setDescriptorString(klassOrNull.descriptorString());
-                propType = klassOrNull;
-            } else {
-                propType = new Type.Lateinit();
-            }
+            propType = (klassOrNull != null) ? klassOrNull : new Type.Lateinit();
         }
 
         final var property = new Property(klass, baseSymbol, propType);
 
         // if not private, also add a getter function and visit it
         if (!property.isStatic() && property.visibility() != Visibility.PRIVATE) {
-            final var getterFunction = buildAndVisitGetterFunction(klass, property, propType);
+            final var getterFunction = buildAndVisitGetterFunction(property);
+            property.getter = visitFunction(getterFunction, klass, propType);
             children.add(getterFunction);
 
             // the property becomes private, also in the AST
@@ -200,9 +221,9 @@ public final class SymbolTableBuilder {
         return property;
     }
 
-    private static @NonNull RealElement buildAndVisitGetterFunction(final @NonNull OolangKlass klass,
-                                                                    final @NonNull Property property,
-                                                                    final @NonNull Type propType) {
+    private static @NonNull RealElement buildAndVisitGetterFunction(final @NonNull Property property) {
+        assert property != null;
+
         final var getterFunction = new RealElement(FUN);
         getterFunction.identifier = new SimpleIdentifier(property.name());
         getterFunction.hasCustomAttribute = true;
@@ -211,7 +232,6 @@ public final class SymbolTableBuilder {
         propAccessExpression.identifiers.add(new SimpleIdentifier(property.name()));
         addExpressionToChain(chainableExpression, propAccessExpression);
         getterFunction.children.add(chainableExpression);
-        property.getter = visitFunction(getterFunction, klass, propType);
         return getterFunction;
     }
 

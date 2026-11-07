@@ -5,7 +5,6 @@
 package org.oolang.symbol.table;
 
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 import org.oolang.ast.AstType;
 
 import java.util.concurrent.locks.Condition;
@@ -17,18 +16,17 @@ public sealed interface Type permits ActualType, Type.Lazy, Type.Lateinit {
     final class Lazy implements Type {
         private final @NonNull LazyConstant<@NonNull ActualType> lazyType;
 
-        Lazy(final @Nullable AstType astType, final @NonNull OolangKlass oolangKlass) {
+        Lazy(final @NonNull AstType astType, final @NonNull OolangKlass oolangKlass) {
+            assert astType != null;
             assert oolangKlass != null;
 
             lazyType = LazyConstant.of(() -> {
                 final var type = TypeResolver.resolveType(astType, oolangKlass, false);
 
                 // type resolution, the compiler will use that descriptor string
-                if (astType != null) {
-                    final var typeKlass = TypeResolver.getKlassFromType(type);
-                    astType.isInterface = typeKlass.isInterface();
-                    astType.descriptorString = typeKlass.descriptorString();
-                }
+                final var typeKlass = TypeResolver.getKlassFromType(type);
+                astType.isInterface = typeKlass.isInterface();
+                astType.descriptorString = typeKlass.descriptorString();
 
                 return type;
             });
@@ -40,7 +38,7 @@ public sealed interface Type permits ActualType, Type.Lazy, Type.Lateinit {
     }
 
     final class Lateinit implements Type {
-        private /* lateinit */ ActualType type = null;
+        /* lateinit */ ActualType type = null;
 
         private final @NonNull Lock lock = new ReentrantLock();
         private final @NonNull Condition condition = lock.newCondition();

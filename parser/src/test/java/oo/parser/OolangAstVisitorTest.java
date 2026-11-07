@@ -316,7 +316,8 @@ public class OolangAstVisitorTest {
                 package com.example
                 import java.security.Principal
                 class Example : Principal {
-                override val name: String
+                val name: String
+                override fun getName() = "name"
                 }""");
         verifyPackage(astFile);
         assertThat(astFile.imports).hasSize(1);
@@ -334,17 +335,28 @@ public class OolangAstVisitorTest {
         assertThat(((Identifier.SimpleIdentifier) ancestor.identifier).identifier).isEqualTo("Principal");
         assertThat(ancestor.content()).isEmpty();
         var classBody = (ClassBody) root.children.getLast();
-        assertThat(classBody.content()).hasSize(1);
+
+        assertThat(classBody.content()).hasSize(2);
+
         var property = (RealElement) classBody.content().getFirst();
         assertThat(property.elementType).isEqualTo(VAL);
-        assertThat(property.modifiers).hasSize(1);
-        assertThat(property.modifiers).extracting("modifier")
-                .containsExactly("override");
         assertThat(property.identifier).isNotNull();
         assertThat(property.identifier.identifier).isEqualTo("name");
         assertThat(property.type).isNotNull();
         assertThat(property.type.description()).isEqualTo("Type(String)");
         assertThat(property.children).isEmpty();
+
+        var funDeclaration = (RealElement) classBody.content().getLast();
+        assertThat(funDeclaration.elementType).isEqualTo(FUN);
+        assertThat(funDeclaration.identifier).isNotNull();
+        assertThat(funDeclaration.identifier.identifier).isEqualTo("getName");
+        assertThat(funDeclaration.modifiers).hasSize(1);
+        assertThat(funDeclaration.modifiers).extracting("modifier")
+                .containsExactly("override");
+        assertThat(funDeclaration.type).isNull();
+        assertThat(funDeclaration.children).hasSize(1);
+        assertThat(funDeclaration.children.getFirst()).isInstanceOf(ConstantExpression.class);
+
         print(astFile);
     }
 
