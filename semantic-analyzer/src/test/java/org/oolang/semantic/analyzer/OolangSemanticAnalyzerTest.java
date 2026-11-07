@@ -41,7 +41,7 @@ import static org.oolang.ast.statement.RealStatement.StatementType.RETURN;
 public class OolangSemanticAnalyzerTest {
 
     @Test
-    public void symbolTableOfClassThatImplementInterface() {
+    public void parseClassThatImplementInterface() {
         var astFile = astForCode("""
                 package com.example
                 import java.io.Serializable
@@ -54,7 +54,7 @@ public class OolangSemanticAnalyzerTest {
     }
 
     @Test
-    public void symbolTableOfClassWithProperty() {
+    public void parseClassWithProperty() {
         var astFile = astForCode("""
                 package com.example
                 class Example {
@@ -62,11 +62,61 @@ public class OolangSemanticAnalyzerTest {
                 }""");
         var root = astFile.rootElements.getFirst();
         var classBody = (ClassBody) root.children.getFirst();
+        assertThat(classBody.children).hasSize(3);
+
         var property = classBody.children.getFirst();
         assertThat(property.type).isNotNull();
         assertThat(property.type.isInterface).isFalse();
         assertThat(property.type.descriptorString).isEqualTo("Ljava/lang/String;");
         assertThat(property.children).isEmpty();
+
+        var funDeclaration = classBody.children.get(1);
+        assertThat(funDeclaration.identifier).isNotNull();
+        assertThat(funDeclaration.identifier.identifier).isEqualTo("foo");
+        assertThat(funDeclaration.descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        var defaultConstructor = classBody.children.getLast();
+        assertThat(defaultConstructor.type).isNull();
+        assertThat(defaultConstructor.description()).isEqualTo("Element(constructor <init>)");
+    }
+
+    @Test
+    public void parseInheritedClassWithOverriddenProperty() {
+        var astFile = astForCode("""
+                package com.example
+                import java.security.Principal
+                class Example : Principal {
+                val name: String
+                override fun getName() = "name"
+                }""");
+        var root = astFile.rootElements.getFirst();
+        var interfaceAncestor = (AstType) root.children.getFirst();
+        assertThat(interfaceAncestor.isInterface).isTrue();
+        assertThat(interfaceAncestor.descriptorString).isEqualTo("Ljava/security/Principal;");
+        assertThat(interfaceAncestor.content()).isEmpty();
+
+        var classBody = (ClassBody) root.children.getLast();
+        assertThat(classBody.children).hasSize(4);
+
+        var property = classBody.children.getFirst();
+        assertThat(property.type).isNotNull();
+        assertThat(property.type.isInterface).isFalse();
+        assertThat(property.type.descriptorString).isEqualTo("Ljava/lang/String;");
+        assertThat(property.children).isEmpty();
+
+        var oldSchoolGetter = classBody.children.get(1);
+        assertThat(oldSchoolGetter.identifier).isNotNull();
+        assertThat(oldSchoolGetter.identifier.identifier).isEqualTo("getName");
+        assertThat(oldSchoolGetter.descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        var getter = classBody.children.get(2);
+        assertThat(getter.identifier).isNotNull();
+        assertThat(getter.identifier.identifier).isEqualTo("name");
+        assertThat(getter.descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        var defaultConstructor = classBody.children.getLast();
+        assertThat(defaultConstructor.type).isNull();
+        assertThat(defaultConstructor.description()).isEqualTo("Element(constructor <init>)");
     }
 
     @Test
@@ -285,7 +335,7 @@ public class OolangSemanticAnalyzerTest {
                 import org.oolang.test.OldSchoolFunctionProperty
                 class Example {
                 static fun main(args: Array<String>) {
-                System.out.println(OldSchoolFunctionProperty.create().name)
+                System.out.println(new OldSchoolFunctionProperty().name)
                 }
                 }""");
         var chainable = verifyMainUntilStatement(astFile);
@@ -319,22 +369,30 @@ public class OolangSemanticAnalyzerTest {
 
         var funCallParamChainable = (RealExpression) funCallParam.content().getFirst();
         assertThat(funCallParamChainable.expressionType).isEqualTo(CHAINABLE);
-        assertThat(funCallParamChainable.content()).hasSize(2);
+        assertThat(funCallParamChainable.content()).hasSize(3);
 
-        var funCallParamFactory = (RealExpression) funCallParamChainable.content().get(0);
-        assertThat(funCallParamFactory.expressionType).isEqualTo(FUN_CALL);
-        assertThat(funCallParamFactory.invocation).isEqualTo(INVOKE_STATIC);
-        assertThat(funCallParamFactory.ownerDescriptorString)
-                .isEqualTo("Lorg/oolang/test/OldSchoolFunctionProperty;");
-        assertThat(funCallParamFactory.identifiers).hasSize(1);
-        assertThat(funCallParamFactory.identifiers.getFirst().identifier).isEqualTo("create");
-        assertThat(funCallParamFactory.descriptorString())
-                .isEqualTo("Lorg/oolang/test/OldSchoolFunctionProperty;");
-        assertThat(funCallParamFactory.typeDescriptorString)
-                .isEqualTo("()Lorg/oolang/test/OldSchoolFunctionProperty;");
-        assertThat(funCallParamFactory.children).isEmpty();
+        var funCallParamNew = (RealExpression) funCallParamChainable.content().get(0);
+        assertThat(funCallParamNew.expressionType).isEqualTo(NEW);
+        assertThat(funCallParamNew.parent).isEqualTo(funCallParamChainable);
+        assertThat(funCallParamNew.descriptorString()).isEqualTo("Lorg/oolang/test/OldSchoolFunctionProperty;");
 
-        var funCallParamFunPropAccess = (RealExpression) funCallParamChainable.content().get(1);
+        var funCallParamClassInstantiation = (RealExpression) funCallParamChainable.content().get(1);
+        assertThat(funCallParamClassInstantiation.expressionType).isEqualTo(FUN_CALL);
+        assertThat(funCallParamClassInstantiation.parent).isEqualTo(funCallParamChainable);
+        assertThat(funCallParamClassInstantiation.type).isNotNull();
+        assertThat(funCallParamClassInstantiation.type.description())
+                .isEqualTo("Type(OldSchoolFunctionProperty)");
+        assertThat(funCallParamClassInstantiation.invocation).isEqualTo(INVOKE_SPECIAL);
+        assertThat(funCallParamClassInstantiation.ownerDescriptorString)
+                .isEqualTo("Lorg/oolang/test/OldSchoolFunctionProperty;");
+        assertThat(funCallParamClassInstantiation.identifiers).hasSize(1);
+        assertThat(funCallParamClassInstantiation.identifiers.getFirst().identifier).isEqualTo(ConstantDescs.INIT_NAME);
+        assertThat(funCallParamClassInstantiation.descriptorString())
+                .isEqualTo("Lorg/oolang/test/OldSchoolFunctionProperty;");
+        assertThat(funCallParamClassInstantiation.typeDescriptorString).isEqualTo("()V");
+        assertThat(funCallParamClassInstantiation.content()).isEmpty();
+
+        var funCallParamFunPropAccess = (RealExpression) funCallParamChainable.content().get(2);
         assertThat(funCallParamFunPropAccess.expressionType).isEqualTo(FUN_CALL);
         assertThat(funCallParamFunPropAccess.invocation).isEqualTo(INVOKE_VIRTUAL);
         assertThat(funCallParamFunPropAccess.ownerDescriptorString)
@@ -346,7 +404,7 @@ public class OolangSemanticAnalyzerTest {
         assertThat(funCallParamFunPropAccess.children).isEmpty();
     }
 
-    /// tests `org.oolang.symbol.table.ExistingKlass` (present in src/test/resources)
+    /// tests `com.example.OolangFunctionProperty` (present in src/test/resources -> oolang-classes)
     @Test
     public void parseClassWithMainFunctionAndOolangFunctionPropertyAccess1() {
         var astFile = astForCode("""
@@ -422,9 +480,72 @@ public class OolangSemanticAnalyzerTest {
         assertThat(funCallParamFunPropAccess.children).isEmpty();
     }
 
-    /// tests [org.oolang.symbol.table.OolangKlass]
     @Test
     public void parseClassWithMainFunctionAndOolangFunctionPropertyAccess2() {
+        var astFile = astForCode("""
+                package com.example
+                class Example {
+                static fun main(args: Array<String>) {
+                System.out.println(OolangFunctionProperty.createPrincipal().name)
+                }
+                }""");
+        var chainable = verifyMainUntilStatement(astFile);
+        assertThat(chainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(chainable.children).hasSize(2);
+        var propAccess = (RealExpression) chainable.children.getFirst();
+        assertThat(propAccess.expressionType).isEqualTo(PROP_ACCESS);
+        assertThat(propAccess.invocation).isEqualTo(GET_STATIC);
+        assertThat(propAccess.ownerDescriptorString).isEqualTo("Ljava/lang/System;");
+        assertThat(propAccess.identifiers).hasSize(1);
+        assertThat(propAccess.identifiers.getFirst().identifier).isEqualTo("out");
+        assertThat(propAccess.descriptorString()).isEqualTo("Ljava/io/PrintStream;");
+        assertThat(propAccess.children).isEmpty();
+
+        var funCall = (RealExpression) chainable.children.getLast();
+        assertThat(funCall.expressionType).isEqualTo(FUN_CALL);
+        assertThat(funCall.invocation).isEqualTo(INVOKE_VIRTUAL);
+        assertThat(funCall.ownerDescriptorString).isEqualTo("Ljava/io/PrintStream;");
+        assertThat(funCall.identifiers).hasSize(1);
+        assertThat(funCall.identifiers.getFirst().identifier).isEqualTo("println");
+        assertThat(funCall.descriptorString()).isEqualTo("V");
+        assertThat(funCall.typeDescriptorString).isEqualTo("(Ljava/lang/String;)V");
+        assertThat(funCall.children).hasSize(1);
+
+        var funCallParam = (RealExpression) funCall.children.getFirst();
+        assertThat(funCallParam.expressionType).isEqualTo(FUN_CALL_PARAMETER);
+        assertThat(funCallParam.ownerDescriptorString).isNull();
+        assertThat(funCallParam.identifiers).isEmpty();
+        assertThat(funCallParam.typeDescriptorString).isNull();
+        assertThat(funCallParam.children).hasSize(1);
+
+        var funCallParamChainable = (RealExpression) funCallParam.content().getFirst();
+        assertThat(funCallParamChainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(funCallParamChainable.content()).hasSize(2);
+
+        var funCallParamFactory = (RealExpression) funCallParamChainable.content().get(0);
+        assertThat(funCallParamFactory.expressionType).isEqualTo(FUN_CALL);
+        assertThat(funCallParamFactory.invocation).isEqualTo(INVOKE_STATIC);
+        assertThat(funCallParamFactory.ownerDescriptorString)
+                .isEqualTo("Lcom/example/OolangFunctionProperty;");
+        assertThat(funCallParamFactory.identifiers).hasSize(1);
+        assertThat(funCallParamFactory.identifiers.getFirst().identifier).isEqualTo("createPrincipal");
+        assertThat(funCallParamFactory.descriptorString()).isEqualTo("Ljava/security/Principal;");
+        assertThat(funCallParamFactory.typeDescriptorString).isEqualTo("()Ljava/security/Principal;");
+        assertThat(funCallParamFactory.children).isEmpty();
+
+        var funCallParamFunPropAccess = (RealExpression) funCallParamChainable.content().get(1);
+        assertThat(funCallParamFunPropAccess.expressionType).isEqualTo(FUN_CALL);
+        assertThat(funCallParamFunPropAccess.invocation).isEqualTo(INVOKE_INTERFACE);
+        assertThat(funCallParamFunPropAccess.ownerDescriptorString).isEqualTo("Ljava/security/Principal;");
+        assertThat(funCallParamFunPropAccess.identifiers).hasSize(1);
+        assertThat(funCallParamFunPropAccess.identifiers.getFirst().identifier).isEqualTo("getName");
+        assertThat(funCallParamFunPropAccess.descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(funCallParamFunPropAccess.typeDescriptorString).isEqualTo("()Ljava/lang/String;");
+        assertThat(funCallParamFunPropAccess.children).isEmpty();
+    }
+
+    @Test
+    public void parseClassWithMainFunctionAndOolangFunctionPropertyAccess3() {
         var astFile = astForCodes("""
                 package com.example
                 class OolangFunctionProperty2 {

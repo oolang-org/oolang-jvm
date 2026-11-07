@@ -107,6 +107,55 @@ public class SymbolTableBuilderTest {
     }
 
     @Test
+    public void symbolTableOfInheritedClassWithOverriddenProperty() {
+        var symbolTable = symbolTableForCode("""
+                package com.example
+                import java.security.Principal
+                class Example : Principal {
+                val name: String
+                override fun getName() = "name"
+                }""");
+
+        assertThat(symbolTable.klasses).hasSize(1);
+        var rootKlass = symbolTable.klasses.values().iterator().next();
+        assertThat(rootKlass.name()).isEqualTo("Example");
+        assertThat(rootKlass.properties()).hasSize(1);
+        var childProperty = rootKlass.properties().values().iterator().next();
+        assertThat(childProperty.name()).isEqualTo("name");
+        assertThat(childProperty.visibility()).isEqualTo(PRIVATE);
+        assertThat(childProperty.isStatic()).isFalse();
+        assertThat(childProperty.isAbstract()).isFalse();
+        assertThat(childProperty.isFinal()).isTrue();
+        var klass = (Klass) childProperty.type();
+        assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        assertThat(rootKlass.functions).hasSize(3);
+
+        var oldSchoolPropertyGetter = rootKlass.functions.get(0);
+        assertThat(oldSchoolPropertyGetter.name()).isEqualTo("getName");
+        assertThat(oldSchoolPropertyGetter.visibility()).isEqualTo(PUBLIC);
+        assertThat(oldSchoolPropertyGetter.isStatic()).isFalse();
+        assertThat(oldSchoolPropertyGetter.isAbstract()).isFalse();
+        assertThat(oldSchoolPropertyGetter.isFinal()).isTrue();
+        klass = (Klass) oldSchoolPropertyGetter.returnType();
+        assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(oldSchoolPropertyGetter.parameters).isEmpty();
+
+        var propertyGetter = rootKlass.functions.get(1);
+        assertThat(propertyGetter.name()).isEqualTo("name");
+        assertThat(propertyGetter.visibility()).isEqualTo(PUBLIC);
+        assertThat(propertyGetter.isStatic()).isFalse();
+        assertThat(propertyGetter.isAbstract()).isFalse();
+        assertThat(propertyGetter.isFinal()).isTrue();
+        klass = (Klass) propertyGetter.returnType();
+        assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(propertyGetter.parameters).isEmpty();
+        assertThat(childProperty.getter).isEqualTo(propertyGetter);
+
+        verifyDefaultConstructor(rootKlass);
+    }
+
+    @Test
     public void symbolTableOfClassWithProperties() {
         var symbolTable = symbolTableForCode("""
                 package com.example

@@ -114,15 +114,11 @@ public final class TypeResolver {
     }
 
     /// Resolve type of `astType` in the context of the `oolangKlass` compilation.
-    public static @NonNull ActualType resolveType(final @Nullable AstType astType,
+    public static @NonNull ActualType resolveType(final @NonNull AstType astType,
                                                   final @NonNull OolangKlass oolangKlass,
                                                   final boolean isArray) {
+        assert astType != null;
         assert oolangKlass != null;
-
-        // no type = void
-        if (astType == null) {
-            return VOID_KLASS;
-        }
 
         // generic type with parameters
         if (astType.parameters != null) {

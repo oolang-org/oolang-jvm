@@ -110,7 +110,7 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
         if (property == null) {
             return null;
         }
-        // 1) property is itself accessible
+        // 1) property can be an accessible field
         switch (property.visibility()) {
             case PUBLIC -> {
                 return property;
@@ -138,7 +138,7 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
             }
         }
 
-        // 2) property has getter
+        // 2) property can be a function property
         final var getterFunction = property.getter;
         if (getterFunction != null) {
             switch (getterFunction.visibility()) {
@@ -164,11 +164,12 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
 
     public final @Nullable Function accessibleFunction(final @NonNull String name,
                                                        final @NonNull List<@NonNull ActualType> parameterTypes,
-                                                       final boolean includeProtected) {
+                                                       final boolean includeProtected,
+                                                       final boolean includePrivate) {
         assert name != null;
         assert parameterTypes != null;
 
-        var function = accessibleFunction(name, parameterTypes, includeProtected, includeProtected, this);
+        var function = accessibleFunction(name, parameterTypes, includeProtected, includePrivate, this);
         if (function != null) {
             return function;
         }

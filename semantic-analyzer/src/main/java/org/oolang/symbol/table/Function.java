@@ -79,6 +79,10 @@ public final class Function implements Symbol, BaseFunction, TypeDescriptor {
         };
     }
 
+    public Type.@Nullable Lateinit lateinitReturnTypeOrNull() {
+        return (returnType instanceof Type.Lateinit lateinitType && lateinitType.type == null) ? lateinitType : null;
+    }
+
     public @NonNull ActualType returnType() {
         return returnActualType.get();
     }

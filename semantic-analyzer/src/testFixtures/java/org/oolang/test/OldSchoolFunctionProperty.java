@@ -11,10 +11,6 @@ public class OldSchoolFunctionProperty implements Principal {
         return new OldSchoolFunctionProperty();
     }
 
-    public static OldSchoolFunctionProperty create() {
-        return new OldSchoolFunctionProperty();
-    }
-
     @Override
     public String getName() {
         return "Name1";
