@@ -98,7 +98,7 @@ public class SymbolTableBuilderTest {
         assertThat(propertyGetter.isStatic()).isFalse();
         assertThat(propertyGetter.isAbstract()).isFalse();
         assertThat(propertyGetter.isFinal()).isTrue();
-        klass = (Klass) propertyGetter.returnType();
+        klass = (Klass) propertyGetter.type();
         assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
         assertThat(propertyGetter.parameters).isEmpty();
         assertThat(childProperty.getter).isEqualTo(propertyGetter);
@@ -137,7 +137,7 @@ public class SymbolTableBuilderTest {
         assertThat(oldSchoolPropertyGetter.isStatic()).isFalse();
         assertThat(oldSchoolPropertyGetter.isAbstract()).isFalse();
         assertThat(oldSchoolPropertyGetter.isFinal()).isTrue();
-        klass = (Klass) oldSchoolPropertyGetter.returnType();
+        klass = (Klass) oldSchoolPropertyGetter.type();
         assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
         assertThat(oldSchoolPropertyGetter.parameters).isEmpty();
 
@@ -147,7 +147,7 @@ public class SymbolTableBuilderTest {
         assertThat(propertyGetter.isStatic()).isFalse();
         assertThat(propertyGetter.isAbstract()).isFalse();
         assertThat(propertyGetter.isFinal()).isTrue();
-        klass = (Klass) propertyGetter.returnType();
+        klass = (Klass) propertyGetter.type();
         assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
         assertThat(propertyGetter.parameters).isEmpty();
         assertThat(childProperty.getter).isEqualTo(propertyGetter);
@@ -240,7 +240,7 @@ public class SymbolTableBuilderTest {
         assertThat(childFunction.isStatic()).isFalse();
         assertThat(childFunction.isAbstract()).isFalse();
         assertThat(childFunction.isFinal()).isTrue();
-        var klass = (Klass) childFunction.returnType();
+        var klass = (Klass) childFunction.type();
         assertThat(klass.descriptorString()).isEqualTo("V");
         assertThat(childFunction.parameters).isEmpty();
 
@@ -264,7 +264,7 @@ public class SymbolTableBuilderTest {
         assertThat(childFunction.isStatic()).isFalse();
         assertThat(childFunction.isAbstract()).isFalse();
         assertThat(childFunction.isFinal()).isTrue();
-        var klass = (Klass) childFunction.returnType();
+        var klass = (Klass) childFunction.type();
         assertThat(klass.descriptorString()).isEqualTo("V");
         assertThat(childFunction.parameters).isEmpty();
 
@@ -288,7 +288,7 @@ public class SymbolTableBuilderTest {
         assertThat(childFunction.isStatic()).isFalse();
         assertThat(childFunction.isAbstract()).isFalse();
         assertThat(childFunction.isFinal()).isTrue();
-        var klass = (Klass) childFunction.returnType();
+        var klass = (Klass) childFunction.type();
         assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
         assertThat(childFunction.parameters).hasSize(1);
         var parameter = childFunction.parameters.getFirst();
@@ -316,7 +316,7 @@ public class SymbolTableBuilderTest {
         assertThat(childFunction.isStatic()).isTrue();
         assertThat(childFunction.isAbstract()).isFalse();
         assertThat(childFunction.isFinal()).isTrue();
-        var klass = (Klass) childFunction.returnType();
+        var klass = (Klass) childFunction.type();
         assertThat(klass.descriptorString()).isEqualTo("V");
         assertThat(childFunction.parameters).hasSize(1);
         var parameter = childFunction.parameters.getFirst();
@@ -332,7 +332,7 @@ public class SymbolTableBuilderTest {
         assertThat(defaultConstructor.isStatic()).isFalse();
         assertThat(defaultConstructor.isAbstract()).isFalse();
         assertThat(defaultConstructor.isFinal()).isTrue();
-        var constructorReturnType = (Klass) defaultConstructor.returnType();
+        var constructorReturnType = (Klass) defaultConstructor.type();
         assertThat(constructorReturnType.descriptorString()).isEqualTo("Lcom/example/Example;");
         assertThat(defaultConstructor.parameters).isEmpty();
     }

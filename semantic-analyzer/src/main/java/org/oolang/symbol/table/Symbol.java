@@ -6,7 +6,7 @@ package org.oolang.symbol.table;
 
 import org.jspecify.annotations.NonNull;
 
-public sealed interface Symbol permits Property, Function, OolangKlass {
+public sealed interface Symbol permits PropertyOrFunction, OolangKlass {
     @NonNull String name();
 
     @NonNull Visibility visibility();

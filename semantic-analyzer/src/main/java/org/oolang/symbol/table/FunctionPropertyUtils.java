@@ -60,7 +60,7 @@ final class FunctionPropertyUtils {
             case 0 -> addGetterToMaybePropertiesIfEligible(function, maybeProperties);
             // maybe a setter
             case 1 -> {
-                if (function.returnType() != VOID_KLASS) {
+                if (function.type() != VOID_KLASS) {
                     return; // a setter must be void
                 }
                 final MaybeProperty maybeProperty;
@@ -90,7 +90,7 @@ final class FunctionPropertyUtils {
             System.out.println("Found getter for name");
         }
 
-        final var returnType = function.returnType();
+        final var returnType = function.type();
         if (returnType == VOID_KLASS) {
             return; // a getter cannot be void
         }
@@ -262,7 +262,7 @@ final class FunctionPropertyUtils {
                         false, // function properties cannot be static
                         matchingGetterFunction.isAbstract(),
                         matchingPropertyCandidate.setter.isPresent(),
-                        matchingGetterFunction.returnType());
+                        matchingGetterFunction.type());
                 properties.put(newProperty.name(), newProperty);
 
                 // add reference between the property and the associated function(s)
@@ -343,7 +343,7 @@ final class FunctionPropertyUtils {
                     false, // function properties cannot be static
                     matchingGetterFunction.isAbstract(),
                     oldSchoolPropertyCandidateEntry.getValue().oldSchoolSetter.isPresent(),
-                    matchingGetterFunction.returnType());
+                    matchingGetterFunction.type());
             properties.put(newProperty.name(), newProperty);
 
             // add reference between the property and the associated function(s)
@@ -371,7 +371,7 @@ final class FunctionPropertyUtils {
                         // setter unique param type must match getter return type.
                         .filter(maybeSetter -> {
                             final var maybeSetterParamType = maybeSetter.parameters.getFirst().type();
-                            return maybeSetterParamType.equals(maybeProperty.getter.returnType());
+                            return maybeSetterParamType.equals(maybeProperty.getter.type());
                         })
                         .findFirst();
             } else {
@@ -384,7 +384,7 @@ final class FunctionPropertyUtils {
                         // setter unique param type must match getter return type.
                         .filter(maybeSetter -> {
                             final var maybeSetterParamType = maybeSetter.parameters.getFirst().type();
-                            return maybeSetterParamType.equals(maybeProperty.oldSchoolGetter.returnType());
+                            return maybeSetterParamType.equals(maybeProperty.oldSchoolGetter.type());
                         })
                         .findFirst();
             } else {
