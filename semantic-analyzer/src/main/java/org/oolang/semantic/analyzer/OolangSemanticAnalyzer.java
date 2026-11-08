@@ -241,7 +241,7 @@ public final class OolangSemanticAnalyzer {
                                 visitExpression(expression, effectiveScopes, currentKlass, null);
 
                         // only set the descriptor string if type was not explicit or inferred
-                        final var lateinitType = function.lateinitReturnTypeOrNull();
+                        final var lateinitType = function.lateinitTypeOrNull();
                         if (lateinitType != null) { // infer type from the function's expression
                             lateinitType.setType(functionReturnType);
                         }
@@ -261,7 +261,7 @@ public final class OolangSemanticAnalyzer {
             }
         } finally {
             // always resolve the function's type
-            final var returnType = function.returnType();
+            final var returnType = function.type();
             functionElement.setDescriptorString(getKlassFromType(returnType).descriptorString());
         }
     }
@@ -546,7 +546,7 @@ public final class OolangSemanticAnalyzer {
         funCallExpression.ownerDescriptorString = function.declaringKlass.descriptorString();
         funCallExpression.setDescriptorString(function.descriptorString());
         funCallExpression.typeDescriptorString = function.typeDescriptorString();
-        return function.returnType();
+        return function.type();
     }
 
     private static @NonNull ActualType visitFunCallParameter(final @NonNull RealExpression funChild,
@@ -611,7 +611,7 @@ public final class OolangSemanticAnalyzer {
                 // mutate AST to add function call expression upfront
                 addNewExpressionInAst(expression, funCallExpression);
                 // caller becomes function's return klass
-                yield getKlassFromType(functionProperty.returnType());
+                yield getKlassFromType(functionProperty.type());
             }
             case null -> throw new OolangSemanticException("Could not resolve property " + id.identifier +
                     " from class " + caller.descriptorString());
@@ -665,7 +665,7 @@ public final class OolangSemanticAnalyzer {
                     addNewExpressionInAst(expression, funCall);
                     // must load current klass
                     loadThis(funCall, scopes);
-                    yield getKlassFromType(function.returnType());
+                    yield getKlassFromType(function.type());
                 }
                 default -> throw new IllegalStateException(
                         "variableOrPropOrFunProp should be a Variable, a Property or a Function. Was: " +

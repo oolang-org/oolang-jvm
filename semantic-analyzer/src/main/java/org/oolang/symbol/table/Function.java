@@ -8,27 +8,15 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.lang.constant.ConstantDescs;
-import java.lang.invoke.TypeDescriptor;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("preview")
-public final class Function implements Symbol, BaseFunction, TypeDescriptor {
-    public final @NonNull Klass declaringKlass;
-    private final @NonNull String name;
-    private final @NonNull Visibility visibility;
-    private final boolean isStatic;
-    private final boolean isAbstract;
-    private final boolean isFinal;
-    private final @NonNull Type returnType;
+public final class Function extends PropertyOrFunction implements BaseFunction {
     public final @NonNull List<@NonNull Parameter> parameters;
     // the reference of the property if this function is part of a function property
     public @Nullable Property property = null;
 
-    private final @NonNull LazyConstant<@NonNull ActualType> returnActualType =
-            LazyConstant.of(this::buildReturnActualType);
-    private final @NonNull LazyConstant<@NonNull String> descriptorString =
-            LazyConstant.of(this::buildDescriptorString);
     private final @NonNull LazyConstant<@NonNull String> typeDescriptorString =
             LazyConstant.of(this::buildTypeDescriptorString);
 
@@ -41,10 +29,8 @@ public final class Function implements Symbol, BaseFunction, TypeDescriptor {
         assert baseSymbol != null;
         assert parameters != null;
 
-        this(declaringKlass, baseSymbol.name(), baseSymbol.visibility(), baseSymbol.isStatic(), baseSymbol.isAbstract(),
-                baseSymbol.isFinal(),
-                (returnType != null) ? returnType : declaringKlass,
-                parameters);
+        super(declaringKlass, baseSymbol, (returnType != null) ? returnType : declaringKlass);
+        this.parameters = parameters;
     }
 
     Function(final @NonNull Klass declaringKlass,
@@ -61,74 +47,18 @@ public final class Function implements Symbol, BaseFunction, TypeDescriptor {
         assert returnType != null;
         assert parameters != null;
 
-        this.declaringKlass = declaringKlass;
-        this.name = name;
-        this.visibility = visibility;
-        this.isStatic = isStatic;
-        this.isAbstract = isAbstract;
-        this.isFinal = isFinal;
-        this.returnType = returnType;
+        super(declaringKlass, name, visibility, isStatic, isAbstract, isFinal, returnType);
         this.parameters = parameters;
     }
 
-    private @NonNull ActualType buildReturnActualType() {
-        return switch (returnType) {
-            case ActualType actualType -> actualType;
-            case Type.Lazy lazyType -> lazyType.type();
-            case Type.Lateinit lateinitType -> lateinitType.type();
-        };
-    }
-
-    public Type.@Nullable Lateinit lateinitReturnTypeOrNull() {
-        return (returnType instanceof Type.Lateinit lateinitType && lateinitType.type == null) ? lateinitType : null;
-    }
-
-    public @NonNull ActualType returnType() {
-        return returnActualType.get();
-    }
-
-    @Override
-    public @NonNull String name() {
-        return name;
-    }
-
-    @Override
-    public @NonNull Visibility visibility() {
-        return visibility;
-    }
-
-    @Override
-    public boolean isStatic() {
-        return isStatic;
-    }
-
-    @Override
-    public boolean isAbstract() {
-        return isAbstract;
-    }
-
-    @Override
-    public boolean isFinal() {
-        return isFinal;
-    }
-
-    private @NonNull String buildDescriptorString() {
-        return TypeResolver.getKlassFromType(returnType()).descriptorString();
-    }
-
     private @NonNull String buildTypeDescriptorString() {
-        final var suffix = (name.equals(ConstantDescs.INIT_NAME)) ? ")V" : ")" + buildDescriptorString();
+        final var suffix = (name.equals(ConstantDescs.INIT_NAME)) ? ")V" : ")" + descriptorString();
         return parameters.stream()
                 .map(parameter -> TypeResolver.getKlassFromType(parameter.type()).descriptorString())
                 .collect(Collectors.joining(
                         /*delimiter*/ "",
                         /*prefix*/ "(",
                         suffix));
-    }
-
-    @Override
-    public @NonNull String descriptorString() {
-        return descriptorString.get();
     }
 
     public @NonNull String typeDescriptorString() {
