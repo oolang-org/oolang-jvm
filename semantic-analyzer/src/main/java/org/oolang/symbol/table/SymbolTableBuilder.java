@@ -205,20 +205,26 @@ public final class SymbolTableBuilder {
 
             // the property becomes private, also in the AST
             property.visibility = Visibility.PRIVATE;
-            var hasVisibility = false;
-            for (final var modifier : propertyElement.modifiers) {
-                if (modifier.type == VISIBILITY) {
-                    modifier.modifier = "private";
-                    hasVisibility = true;
-                }
-            }
-            if (!hasVisibility) {
-                propertyElement.modifiers.add(new ElementModifier(VISIBILITY, "private"));
-            }
+            makeElementPrivate(propertyElement);
         }
 
         klass.properties().put(baseSymbol.name(), property);
         return property;
+    }
+
+    private static void makeElementPrivate(final @NonNull RealElement propertyElement) {
+        assert propertyElement != null;
+
+        var hasVisibility = false;
+        for (final var modifier : propertyElement.modifiers) {
+            if (modifier.type == VISIBILITY) {
+                modifier.modifier = "private";
+                hasVisibility = true;
+            }
+        }
+        if (!hasVisibility) {
+            propertyElement.modifiers.add(new ElementModifier(VISIBILITY, "private"));
+        }
     }
 
     private static @NonNull RealElement buildAndVisitGetterFunction(final @NonNull Property property) {
