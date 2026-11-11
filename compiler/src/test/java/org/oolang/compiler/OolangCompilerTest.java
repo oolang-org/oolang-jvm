@@ -727,11 +727,11 @@ public class OolangCompilerTest {
         assertThat(expression4.owner().asInternalName()).isEqualTo("com/example/Example");
         assertThat(expression4.typeSymbol().descriptorString()).isEqualTo("()V");
 
-        var expression5 = (InvokeInstruction) codeElements.get(4);
-        assertThat(expression5.opcode()).isEqualTo(Opcode.INVOKEVIRTUAL);
+        var expression5 = (FieldInstruction) codeElements.get(4);
+        assertThat(expression5.opcode()).isEqualTo(Opcode.GETFIELD);
         assertThat(expression5.name().stringValue()).isEqualTo("prop");
         assertThat(expression5.owner().asInternalName()).isEqualTo("com/example/Example");
-        assertThat(expression5.typeSymbol().descriptorString()).isEqualTo("()Ljava/lang/String;");
+        assertThat(expression5.typeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
 
         var expression6 = (InvokeInstruction) codeElements.get(5);
         assertThat(expression6.opcode()).isEqualTo(Opcode.INVOKEVIRTUAL);

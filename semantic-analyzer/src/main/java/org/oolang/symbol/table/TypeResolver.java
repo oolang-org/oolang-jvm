@@ -7,6 +7,7 @@ package org.oolang.symbol.table;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.oolang.ast.AstType;
+import org.oolang.ast.RealAstType;
 import org.oolang.ast.expression.ConstantExpression;
 import org.oolang.ast.expression.Expression;
 import org.oolang.semantic.analyzer.OolangSemanticException;
@@ -121,21 +122,22 @@ public final class TypeResolver {
         assert oolangKlass != null;
 
         // generic type with parameters
-        if (astType.parameters != null) {
+        final var parameters = astType.parameters();
+        if (parameters != null) {
             final var klass = resolveKlass(astType, oolangKlass, isArray);
 
             // specific array pseudo-class case
             if (klass == Array.getInstance()) {
-                if (astType.parameters.size() != 1) {
+                if (parameters.size() != 1) {
                     // todo throw a semantic analysis exception
                     throw new RuntimeException("An array must have exactly one parameter");
                 }
-                return resolveType(astType.parameters.getFirst(), oolangKlass, true);
+                return resolveType(parameters.getFirst(), oolangKlass, true);
             }
 
             return new GenericType(
                     klass,
-                    astType.parameters.stream()
+                    parameters.stream()
                             .map(parameterType -> resolveType(parameterType, oolangKlass, false))
                             .toList()
             );
@@ -151,17 +153,24 @@ public final class TypeResolver {
         assert astType != null;
         assert oolangKlass != null;
 
-        final var klass = switch (astType.identifier) {
-            // must resolve the class name
-            case SimpleIdentifier simpleId -> resolveKlassFromSimpleName(simpleId.identifier, oolangKlass);
-            // fully qualified class name
-            case MultipleIdentifier multipleId -> getKlassFromName(multipleId.rawName());
-        };
-        if (klass == null) {
-            throw new OolangSemanticException("Could not resolve klass from name " + astType.identifier.description());
-        }
+        return switch (astType) {
+            case RealAstType realAstType -> {
+                final var klass = switch (realAstType.identifier) {
+                    // must resolve the class name
+                    case SimpleIdentifier simpleId -> resolveKlassFromSimpleName(simpleId.identifier, oolangKlass);
+                    // fully qualified class name
+                    case MultipleIdentifier multipleId -> getKlassFromName(multipleId.rawName());
+                };
+                if (klass == null) {
+                    throw new OolangSemanticException("Could not resolve klass from name " +
+                            realAstType.identifier.description());
+                }
 
-        return (isArray) ? klass.arrayType() : klass;
+                yield (isArray) ? klass.arrayType() : klass;
+            }
+            case LazyAstType lazyAstType -> lazyAstType.lazyKlass();
+            default -> throw new IllegalStateException("Unexpected AstType: " + astType.getClass());
+        };
     }
 
     public static @Nullable Klass resolveKlassFromSimpleName(final @NonNull String simpleKlassName,
@@ -240,6 +249,27 @@ public final class TypeResolver {
         return switch (type) {
             case Klass klass -> klass;
             case GenericType genericType -> genericType.klass();
+        };
+    }
+
+    static @NonNull ActualType getActualTypeFromType(final @NonNull Type type) {
+        assert type != null;
+
+        return switch (type) {
+            case ActualType actualType -> actualType;
+            case Type.Lazy lazyType -> lazyType.type();
+            case Type.Lateinit lateinitType -> lateinitType.type();
+        };
+    }
+
+    static @NonNull Type getTypeFromAstType(final @NonNull AstType astType, final @NonNull OolangKlass oolangKlass) {
+        assert astType != null;
+        assert oolangKlass != null;
+
+        return switch (astType) {
+            case RealAstType realAstType -> new Type.Lazy(realAstType, oolangKlass);
+            case LazyAstType lazyAstType -> lazyAstType.type;
+            default -> throw new IllegalStateException("Unexpected AstType: " + astType.getClass());
         };
     }
 

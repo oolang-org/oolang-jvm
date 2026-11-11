@@ -71,7 +71,7 @@ final class StringCompilationUtils {
             }
         }
 
-        dynamicFunctionCall.setDescriptorString(STRING);
+        dynamicFunctionCall.descriptorString(STRING);
         dynamicFunctionCall.identifiers.add(new SimpleIdentifier(STRING_CONCAT_INVOCATION_NAME));
         dynamicFunctionCall.typeDescriptorString = typeDescriptorBuilder.toString();
         dynamicFunctionCall.bootstrapArgs.add(recipeString.toString());

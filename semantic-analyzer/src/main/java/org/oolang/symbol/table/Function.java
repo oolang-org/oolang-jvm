@@ -78,12 +78,7 @@ public final class Function extends PropertyOrFunction implements BaseFunction {
         }
 
         public @NonNull ActualType type() {
-            return switch (type) {
-                case ActualType actualType -> actualType;
-                case Type.Lazy lazyType -> lazyType.type();
-                case Type.Lateinit _ ->
-                        throw new IllegalArgumentException("Lateinit type is not supported for parameter");
-            };
+            return TypeResolver.getActualTypeFromType(type);
         }
     }
 }

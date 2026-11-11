@@ -67,21 +67,20 @@ public final class RealElement extends AbstractAst implements Element.Node, Type
             return descriptorString;
         }
         if (type != null) {
-            return type.descriptorString;
+            return type.descriptorString();
         }
         return null;
     }
 
-    public void setDescriptorString(@Nullable String descriptorString) {
+    public void descriptorString(@Nullable String descriptorString) {
         this.descriptorString = descriptorString;
     }
 
     public enum ElementType {
         CLASS,
         INTERFACE,
-        CONSTRUCTOR,
-        PARAMETER,
-        FUN,
+        // fun & constructor elements
+        CONSTRUCTOR, FUN, PARAMETER,
         // property elements
         VAR, VAL, PROPERTY_INITIALIZER, PROPERTY_GETTER, PROPERTY_SETTER
     }

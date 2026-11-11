@@ -69,14 +69,17 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
                 .anyMatch(superType -> superType.descriptorString().equals(otherKlass.descriptorString()));
     }
 
-    public final @Nullable Symbol accessiblePropertyOrFunctionProperty(final @NonNull String name,
-                                                                       final boolean includeSelf) {
+    public final @Nullable PropertyOrFunction accessiblePropertyOrFunctionProperty(final @NonNull String name,
+                                                                                   final boolean includeSelf,
+                                                                                   final boolean includePrivate,
+                                                                                   final boolean setter) {
         assert name != null;
 
         final var includeProtected = !includeSelf;
 
         if (includeSelf) {
-            final var property = accessiblePropertyOrFunctionProperty(name, false, this);
+            final var property = accessiblePropertyOrFunctionProperty(name, false, includePrivate,
+                    this, setter);
             if (property != null) {
                 return property;
             }
@@ -84,15 +87,15 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
 
         // Try all superclasses, then all superinterfaces
         for (final var superKlass : allSuperKlasses()) {
-            final var property = accessiblePropertyOrFunctionProperty(name, includeProtected,
-                    TypeResolver.getKlassFromType(superKlass));
+            final var property = accessiblePropertyOrFunctionProperty(name, includeProtected, false,
+                    TypeResolver.getKlassFromType(superKlass), setter);
             if (property != null) {
                 return property;
             }
         }
         for (final var superInterface : allInterfaces()) {
-            final var property = accessiblePropertyOrFunctionProperty(name, includeProtected,
-                    TypeResolver.getKlassFromType(superInterface));
+            final var property = accessiblePropertyOrFunctionProperty(name, includeProtected, false,
+                    TypeResolver.getKlassFromType(superInterface), setter);
             if (property != null) {
                 return property;
             }
@@ -100,9 +103,11 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
         return null;
     }
 
-    private @Nullable Symbol accessiblePropertyOrFunctionProperty(final @NonNull String name,
-                                                                  final boolean includeProtected,
-                                                                  final @NonNull Klass klass) {
+    private @Nullable PropertyOrFunction accessiblePropertyOrFunctionProperty(final @NonNull String name,
+                                                                              final boolean includeProtected,
+                                                                              final boolean includePrivate,
+                                                                              final @NonNull Klass klass,
+                                                                              final boolean setter) {
         assert name != null;
         assert klass != null;
 
@@ -110,6 +115,10 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
         if (property == null) {
             return null;
         }
+        if (setter && property.isFinal()) {
+            return null;
+        }
+
         // 1) property can be an accessible field
         switch (property.visibility()) {
             case PUBLIC -> {
@@ -132,28 +141,28 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
                 }
             }
             case PRIVATE -> {
-                if (includeProtected && this.descriptorString().equals(klass.descriptorString())) { // the current class
+                if (includePrivate && this.descriptorString().equals(klass.descriptorString())) { // the current class
                     return property;
                 }
             }
         }
 
         // 2) property can be a function property
-        final var getterFunction = property.getter;
-        if (getterFunction != null) {
-            switch (getterFunction.visibility()) {
+        final var function = setter ? property.setter : property.getter;
+        if (function != null) {
+            switch (function.visibility()) {
                 case PUBLIC -> {
-                    return getterFunction;
+                    return function;
                 }
                 case JAVA_PROTECTED -> {
                     if (includeProtected // protected in a superclass or itself
                             || this.packageName().equals(klass.packageName())) { // within the same package
-                        return getterFunction;
+                        return function;
                     }
                 }
                 case OOLANG_PROTECTED -> {
                     if (includeProtected) { // protected in a superclass
-                        return getterFunction;
+                        return function;
                     }
                 }
             }

@@ -156,6 +156,55 @@ public class SymbolTableBuilderTest {
     }
 
     @Test
+    public void symbolTableOfClassWithMutableProperty() {
+        var symbolTable = symbolTableForCode("""
+                package com.example
+                class Example {
+                var foo: String
+                }""");
+        assertThat(symbolTable.klasses).hasSize(1);
+        var rootKlass = symbolTable.klasses.values().iterator().next();
+        assertThat(rootKlass.name()).isEqualTo("Example");
+        assertThat(rootKlass.properties()).hasSize(1);
+        var childProperty = rootKlass.properties().values().iterator().next();
+        assertThat(childProperty.name()).isEqualTo("foo");
+        assertThat(childProperty.visibility()).isEqualTo(PRIVATE);
+        assertThat(childProperty.isStatic()).isFalse();
+        assertThat(childProperty.isAbstract()).isFalse();
+        assertThat(childProperty.isFinal()).isFalse();
+        var klass = (Klass) childProperty.type();
+        assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        assertThat(rootKlass.functions).hasSize(3);
+        var propertyGetter = rootKlass.functions.getFirst();
+        assertThat(propertyGetter.name()).isEqualTo("foo");
+        assertThat(propertyGetter.visibility()).isEqualTo(PUBLIC);
+        assertThat(propertyGetter.isStatic()).isFalse();
+        assertThat(propertyGetter.isAbstract()).isFalse();
+        assertThat(propertyGetter.isFinal()).isTrue();
+        klass = (Klass) propertyGetter.type();
+        assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(propertyGetter.parameters).isEmpty();
+        assertThat(childProperty.getter).isEqualTo(propertyGetter);
+
+        var propertySetter = rootKlass.functions.get(1);
+        assertThat(propertySetter.name()).isEqualTo("foo");
+        assertThat(propertySetter.visibility()).isEqualTo(PUBLIC);
+        assertThat(propertySetter.isStatic()).isFalse();
+        assertThat(propertySetter.isAbstract()).isFalse();
+        assertThat(propertySetter.isFinal()).isTrue();
+        klass = (Klass) propertySetter.type();
+        assertThat(klass.descriptorString()).isEqualTo("V");
+        assertThat(propertySetter.parameters).hasSize(1);
+        var parameter = propertySetter.parameters.getFirst();
+        assertThat(parameter.name).isEqualTo("foo");
+        klass = (Klass) parameter.type();
+        assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        verifyDefaultConstructor(rootKlass);
+    }
+
+    @Test
     public void symbolTableOfClassWithProperties() {
         var symbolTable = symbolTableForCode("""
                 package com.example

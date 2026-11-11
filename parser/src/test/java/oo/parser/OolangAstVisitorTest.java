@@ -8,10 +8,7 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
-import org.oolang.ast.AstFile;
-import org.oolang.ast.AstFileWriter;
-import org.oolang.ast.AstType;
-import org.oolang.ast.Identifier;
+import org.oolang.ast.*;
 import org.oolang.ast.element.ClassBody;
 import org.oolang.ast.element.RealElement;
 import org.oolang.ast.expression.ConstantExpression;
@@ -188,7 +185,7 @@ public class OolangAstVisitorTest {
         assertThat(root.identifier.identifier).isEqualTo("Example");
         assertThat(root.description()).isEqualTo("Element(class Example)");
         assertThat(root.children).hasSize(1);
-        var ancestor = (AstType) root.children.getFirst();
+        var ancestor = (RealAstType) root.children.getFirst();
         assertThat(ancestor.identifier).isNotNull();
         assertThat(((Identifier.SimpleIdentifier) ancestor.identifier).identifier).isEqualTo("Serializable");
         assertThat(ancestor.content()).isEmpty();
@@ -268,7 +265,7 @@ public class OolangAstVisitorTest {
     }
 
     @Test
-    public void symbolTableOfInnerClassWithEmptyBody() {
+    public void parseInnerClassWithEmptyBody() {
         var astFile = astForCode("""
                 package com.example
                 class Example {
@@ -289,7 +286,7 @@ public class OolangAstVisitorTest {
     }
 
     @Test
-    public void symbolTableOfClassWithProperty() {
+    public void parseClassWithValProperty() {
         var astFile = astForCode("""
                 package com.example
                 class Example {
@@ -311,7 +308,29 @@ public class OolangAstVisitorTest {
     }
 
     @Test
-    public void symbolTableOfInheritedClassWithOverriddenProperty() {
+    public void parseClassWithVarProperty() {
+        var astFile = astForCode("""
+                package com.example
+                class Example {
+                var foo: String
+                }""");
+        verifyPackage(astFile);
+        var root = verifyUntilClassBody(astFile);
+        var classBody = (ClassBody) root.children.getFirst();
+        assertThat(classBody.content()).hasSize(1);
+        var property = (RealElement) classBody.content().getFirst();
+        assertThat(property.elementType).isEqualTo(VAR);
+        assertThat(property.modifiers).isEmpty();
+        assertThat(property.identifier).isNotNull();
+        assertThat(property.identifier.identifier).isEqualTo("foo");
+        assertThat(property.type).isNotNull();
+        assertThat(property.type.description()).isEqualTo("Type(String)");
+        assertThat(property.children).isEmpty();
+        print(astFile);
+    }
+
+    @Test
+    public void parseInheritedClassWithOverriddenProperty() {
         var astFile = astForCode("""
                 package com.example
                 import java.security.Principal
@@ -330,7 +349,7 @@ public class OolangAstVisitorTest {
         assertThat(root.identifier.identifier).isEqualTo("Example");
         assertThat(root.description()).isEqualTo("Element(class Example)");
         assertThat(root.children).hasSize(2);
-        var ancestor = (AstType) root.children.getFirst();
+        var ancestor = (RealAstType) root.children.getFirst();
         assertThat(ancestor.identifier).isNotNull();
         assertThat(((Identifier.SimpleIdentifier) ancestor.identifier).identifier).isEqualTo("Principal");
         assertThat(ancestor.content()).isEmpty();
@@ -439,7 +458,13 @@ public class OolangAstVisitorTest {
                 System.out.println("Hello, World!")
                 }
                 }""");
-        var chainable = verifyMainUntilStatement(astFile);
+        var mainCodeBlock = verifyMainUntilCodeBlock(astFile);
+        assertThat(mainCodeBlock.statements).hasSize(1);
+
+        var statement = mainCodeBlock.statements.getFirst();
+        assertThat(statement.description()).isEqualTo("Statement(expression)");
+        assertThat(statement.content()).hasSize(1);
+        var chainable = (RealExpression) statement.children.getFirst();
         assertThat(chainable.description()).isEqualTo("Expression(chainable)");
         assertThat(chainable.expressionType).isEqualTo(CHAINABLE);
         assertThat(chainable.content()).hasSize(1);
@@ -456,7 +481,7 @@ public class OolangAstVisitorTest {
         print(astFile);
     }
 
-    private @NonNull RealExpression verifyMainUntilStatement(AstFile astFile) {
+    private @NonNull CodeBlock verifyMainUntilCodeBlock(AstFile astFile) {
         verifyPackage(astFile);
         var root = verifyUntilClassBody(astFile);
         var classBody = (ClassBody) root.children.getFirst();
@@ -474,13 +499,72 @@ public class OolangAstVisitorTest {
         assertThat(funParam.elementType).isEqualTo(PARAMETER);
         assertThat(funParam.description()).isEqualTo("Element(parameter args:Array<String>)");
         assertThat(funDeclaration.children.getLast()).isInstanceOf(CodeBlock.class);
-        var codeBlock = (CodeBlock) funDeclaration.children.getLast();
-        assertThat(codeBlock.description()).isEqualTo("CodeBlock");
-        assertThat(codeBlock.content()).hasSize(1);
-        var statement = (RealStatement) codeBlock.content().getFirst();
-        assertThat(statement.description()).isEqualTo("Statement");
+        return (CodeBlock) funDeclaration.children.getLast();
+    }
+
+    @Test
+    public void parseClassWithMainFunctionAndLocalVariable() {
+        var astFile = astForCode("""
+                package com.example
+                class Example {
+                static fun main(args: Array<String>) {
+                val name = "World!"
+                System.out.println("Hello, " + name)
+                }
+                }""");
+        var mainCodeBlock = verifyMainUntilCodeBlock(astFile);
+        assertThat(mainCodeBlock.statements).hasSize(2);
+
+        var variableDeclarationStatement = mainCodeBlock.statements.getFirst();
+        assertThat(variableDeclarationStatement.description()).isEqualTo("Statement(declaration)");
+        assertThat(variableDeclarationStatement.content()).hasSize(1);
+
+        var variable = (RealElement) variableDeclarationStatement.content().getFirst();
+        assertThat(variable.elementType).isEqualTo(VAL);
+        assertThat(variable.modifiers).isEmpty();
+        assertThat(variable.identifier).isNotNull();
+        assertThat(variable.identifier.identifier).isEqualTo("name");
+        assertThat(variable.type).isNull();
+        assertThat(variable.children).hasSize(1);
+        var propertyInit = (RealElement) variable.children.getFirst();
+        assertThat(propertyInit.elementType).isEqualTo(PROPERTY_INITIALIZER);
+        var propertyExpression = (ConstantExpression) propertyInit.children.getFirst();
+        assertThat(propertyExpression.description()).isEqualTo("ConstantExpression(\"World!\")");
+
+        var statement = mainCodeBlock.statements.getLast();
+        assertThat(statement.description()).isEqualTo("Statement(expression)");
         assertThat(statement.content()).hasSize(1);
-        return (RealExpression) statement.children.getFirst();
+        var chainable = (RealExpression) statement.children.getFirst();
+        assertThat(chainable.description()).isEqualTo("Expression(chainable)");
+        assertThat(chainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(chainable.content()).hasSize(1);
+        var funCall = (RealExpression) chainable.content().getFirst();
+        assertThat(funCall.description()).isEqualTo("Expression(fun_call System.out.println)");
+        assertThat(funCall.expressionType).isEqualTo(FUN_CALL);
+        assertThat(funCall.parent).isEqualTo(chainable);
+        assertThat(funCall.content()).hasSize(1);
+        var funCallParam = (RealExpression) funCall.content().getFirst();
+        assertThat(funCallParam.description()).isEqualTo("Expression(fun_call_parameter)");
+        assertThat(funCallParam.content()).hasSize(1);
+        var funCallParamAdd = (RealExpression) funCallParam.content().getFirst();
+        assertThat(funCallParamAdd.description()).isEqualTo("Expression(add)");
+        assertThat(funCallParamAdd.expressionType).isEqualTo(ADD);
+        assertThat(funCallParamAdd.content()).hasSize(2);
+
+        var funCallParamConstant1 = (ConstantExpression) funCallParamAdd.content().getFirst();
+        assertThat(funCallParamConstant1.description()).isEqualTo("ConstantExpression(\"Hello, \")");
+
+        var funCallParamChainable1 = (RealExpression) funCallParamAdd.content().getLast();
+        assertThat(funCallParamChainable1.description()).isEqualTo("Expression(chainable)");
+        assertThat(funCallParamChainable1.expressionType).isEqualTo(CHAINABLE);
+        assertThat(funCallParamChainable1.content()).hasSize(1);
+        var funCallParamArray1 = (RealExpression) funCallParamChainable1.content().getFirst();
+        assertThat(funCallParamArray1.description()).isEqualTo("Expression(variable_or_prop_access name)");
+        assertThat(funCallParamArray1.expressionType).isEqualTo(VARIABLE_OR_PROP_ACCESS);
+        assertThat(funCallParamArray1.parent).isEqualTo(funCallParamChainable1);
+        assertThat(funCallParamArray1.content()).isEmpty();
+
+        print(astFile);
     }
 
     @Test
@@ -492,7 +576,13 @@ public class OolangAstVisitorTest {
                 System.out.println("Hello, " + args[0] + " and " + args[1])
                 }
                 }""");
-        var chainable = verifyMainUntilStatement(astFile);
+        var mainCodeBlock = verifyMainUntilCodeBlock(astFile);
+        assertThat(mainCodeBlock.statements).hasSize(1);
+
+        var statement = mainCodeBlock.statements.getFirst();
+        assertThat(statement.description()).isEqualTo("Statement(expression)");
+        assertThat(statement.content()).hasSize(1);
+        var chainable = (RealExpression) statement.children.getFirst();
         assertThat(chainable.description()).isEqualTo("Expression(chainable)");
         assertThat(chainable.expressionType).isEqualTo(CHAINABLE);
         assertThat(chainable.content()).hasSize(1);

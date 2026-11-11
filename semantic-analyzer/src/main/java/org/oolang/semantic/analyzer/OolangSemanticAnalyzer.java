@@ -19,7 +19,6 @@ import org.oolang.ast.expression.RealExpression;
 import org.oolang.ast.statement.CodeBlock;
 import org.oolang.ast.statement.ConstructorCodeBlock;
 import org.oolang.ast.statement.RealStatement;
-import org.oolang.ast.statement.Statement;
 import org.oolang.symbol.table.*;
 import org.oolang.symbol.table.Variable.SimpleVariable;
 
@@ -156,7 +155,7 @@ public final class OolangSemanticAnalyzer {
         } finally {
             // always resolve the property's type
             final var type = property.type();
-            propertyElement.setDescriptorString(getKlassFromType(type).descriptorString());
+            propertyElement.descriptorString(getKlassFromType(type).descriptorString());
         }
 
         return (propertyExpression != null)
@@ -174,11 +173,11 @@ public final class OolangSemanticAnalyzer {
         assert currentKlass != null;
 
         // build the assigned property
-        final var assignedPart = new RealExpression(CHAINABLE);
+        final var assignmentExpression = new RealExpression(CHAINABLE);
         // 1) load this
-        loadThis(assignedPart, scopes);
+        loadThis(assignmentExpression, scopes);
         // 2) resolve value to assign to the property = the prop initializer expression
-        assignedPart.children.add(propertyExpression);
+        assignmentExpression.children.add(propertyExpression);
         // 3) assign property to its value
         final var propAssignmentExpression = new RealExpression(PROP_ASSIGNMENT);
         propAssignmentExpression.identifiers.add(new SimpleIdentifier(elementName(propertyElement)));
@@ -186,12 +185,12 @@ public final class OolangSemanticAnalyzer {
         propAssignmentExpression.invocation = PUT_FIELD;
         final var propDescriptorString = propertyElement.descriptorString();
         assert propDescriptorString != null;
-        propAssignmentExpression.setDescriptorString(propDescriptorString);
-        propAssignmentExpression.parent = assignedPart;
-        assignedPart.children.add(propAssignmentExpression);
+        propAssignmentExpression.descriptorString(propDescriptorString);
+        propAssignmentExpression.parent = assignmentExpression;
+        assignmentExpression.children.add(propAssignmentExpression);
 
         final var assignment = new RealStatement(ASSIGNMENT);
-        assignment.children.add(assignedPart);
+        assignment.children.add(assignmentExpression);
         return assignment;
     }
 
@@ -262,7 +261,7 @@ public final class OolangSemanticAnalyzer {
         } finally {
             // always resolve the function's type
             final var returnType = function.type();
-            functionElement.setDescriptorString(getKlassFromType(returnType).descriptorString());
+            functionElement.descriptorString(getKlassFromType(returnType).descriptorString());
         }
     }
 
@@ -274,7 +273,7 @@ public final class OolangSemanticAnalyzer {
         assert currentKlass != null;
 
         for (final var statement : codeBlock.statements) {
-            visitStatement(statement, scopes, currentKlass);
+            visitRealStatement(statement, scopes, currentKlass);
         }
     }
 
@@ -286,7 +285,7 @@ public final class OolangSemanticAnalyzer {
         assert currentKlass != null;
 
         for (final var earlyLarvalStatement : constructorCodeBlock.earlyLarvalStatements) {
-            visitStatement(earlyLarvalStatement, scopes, currentKlass);
+            visitRealStatement(earlyLarvalStatement, scopes, currentKlass);
         }
 
         if (constructorCodeBlock.initCall != null) {
@@ -309,33 +308,7 @@ public final class OolangSemanticAnalyzer {
         }
 
         for (final var lateLarvalStatement : constructorCodeBlock.lateLarvalStatements) {
-            visitStatement(lateLarvalStatement, scopes, currentKlass);
-        }
-    }
-
-    /// Add a load of the current klass in the provided expression if it is a `chainable`, else add it upfront.
-    private static void loadThis(final @NonNull RealExpression expression, final @NonNull Scopes scopes) {
-        assert expression != null;
-        assert scopes != null;
-
-        final var thisVariable = (SimpleVariable) scopes.resolveVariable("this");
-        assert thisVariable != null;
-        final var loadThis = loadExpression(thisVariable, new SimpleIdentifier("this"));
-        if (expression.parent != null) {
-            // add loadThis upfront
-            addNewExpressionInAst(expression, loadThis);
-        } else {
-            assert expression.expressionType == CHAINABLE;
-            expression.children.add(loadThis);
-        }
-    }
-
-    private static void visitStatement(final @NonNull Statement statement,
-                                       final @NonNull Scopes scopes,
-                                       final @NonNull OolangKlass currentKlass) {
-        switch (statement) {
-            case RealStatement realStatement -> visitRealStatement(realStatement, scopes, currentKlass);
-            default -> throw new UnsupportedOperationException("Unsupported statement: " + statement);
+            visitRealStatement(lateLarvalStatement, scopes, currentKlass);
         }
     }
 
@@ -346,8 +319,13 @@ public final class OolangSemanticAnalyzer {
         assert scopes != null;
         assert currentKlass != null;
 
-        for (final var childExpression : realStatement.children) {
-            visitExpression(childExpression, scopes, currentKlass, null);
+        switch (realStatement.statementType) {
+            case EXPRESSION, ASSIGNMENT -> {
+                assert realStatement.children.size() == 1;
+                visitExpression((Expression) realStatement.children.getFirst(), scopes, currentKlass, null);
+            }
+            default -> throw new UnsupportedOperationException("statement type not yet supported: " +
+                    realStatement.statementType);
         }
     }
 
@@ -365,7 +343,7 @@ public final class OolangSemanticAnalyzer {
                     visitRealExpression(realExpression, scopes, currentKlass, applicableKlass);
             case ConstantExpression constantExpression -> {
                 final var constantKlass = TypeResolver.getKlassFromConstantDesc(constantExpression.value);
-                constantExpression.setDescriptorString(constantKlass.descriptorString());
+                constantExpression.descriptorString(constantKlass.descriptorString());
                 yield constantKlass;
             }
             case LoadExpression _ -> throw new IllegalStateException("Unexpected load expression");
@@ -387,6 +365,8 @@ public final class OolangSemanticAnalyzer {
             case VARIABLE_OR_PROP_ACCESS ->
                     visitVariableOrPropAccessExpression(realExpression, scopes, currentKlass, applicableKlass);
             case FUN_CALL -> visitFunCallExpression(realExpression, scopes, currentKlass, applicableKlass);
+            case VARIABLE_OR_PROP_ASSIGNMENT ->
+                    visitVariableOrPropAssignment(realExpression, scopes, currentKlass, applicableKlass);
             default -> throw new UnsupportedOperationException("Unsupported expression type: " +
                     realExpression.expressionType);
         };
@@ -416,7 +396,7 @@ public final class OolangSemanticAnalyzer {
                 && chainableExpression.children.getFirst() instanceof RealExpression onlyChild) {
             chainableExpression.replaceWith(onlyChild);
         } else {
-            chainableExpression.setDescriptorString(getKlassFromType(lastType).descriptorString());
+            chainableExpression.descriptorString(getKlassFromType(lastType).descriptorString());
         }
 
         return lastType;
@@ -438,7 +418,7 @@ public final class OolangSemanticAnalyzer {
         }
 
         if (isStringConcat) {
-            additiveExpression.setDescriptorString(STRING_KLASS.descriptorString());
+            additiveExpression.descriptorString(STRING_KLASS.descriptorString());
             return STRING_KLASS;
         }
         throw new UnsupportedOperationException("Unsupported non string additive expression");
@@ -465,7 +445,7 @@ public final class OolangSemanticAnalyzer {
             // get the component type of this array
             final var componentType = caller.componentType();
             assert componentType != null;
-            indexingExpression.setDescriptorString(getKlassFromType(componentType).descriptorString());
+            indexingExpression.descriptorString(getKlassFromType(componentType).descriptorString());
             return componentType;
         }
         throw new UnsupportedOperationException("todo List / Map indexing operations");
@@ -485,6 +465,71 @@ public final class OolangSemanticAnalyzer {
                 variableOrPropAccessExpression, scopes, currentKlass, applicableKlass, true);
     }
 
+    private static @NonNull ActualType visitVariableOrPropAssignment(
+            final @NonNull RealExpression variableOrPropAssignmentExpression,
+            final @NonNull Scopes scopes,
+            final @NonNull OolangKlass currentKlass,
+            final @Nullable Klass applicableKlass
+    ) {
+        assert variableOrPropAssignmentExpression != null;
+        assert scopes != null;
+        assert currentKlass != null;
+
+        final Klass caller;
+        if (variableOrPropAssignmentExpression.identifiers.size() == 1) {
+            // a simple property assignment without prefix
+            if (applicableKlass != null) {
+                caller = applicableKlass;
+            } else {
+                loadThis(variableOrPropAssignmentExpression, scopes);
+                caller = currentKlass;
+            }
+        } else {
+            // a property assignment with prefix, like 'aClass.property = something'
+            caller = getKlassFromType(visitVariableOrPropAccessChain(
+                    variableOrPropAssignmentExpression, scopes, currentKlass, applicableKlass, false));
+        }
+
+        // now resolve value for the assignment
+        assert variableOrPropAssignmentExpression.children.size() == 1;
+        // mutate AST to add variable access call expression upfront
+        final var valueExpression = variableOrPropAssignmentExpression.children.getFirst();
+        visitExpression(valueExpression, scopes, currentKlass, null);
+        addNewExpressionInAst(variableOrPropAssignmentExpression, valueExpression);
+        // todo verify that valueExpression type is compatible with the property's one
+        variableOrPropAssignmentExpression.children.clear();
+
+        final var id = variableOrPropAssignmentExpression.identifiers.getFirst();
+        final var funName = id.identifier;
+        final var includeSelf = caller == currentKlass;
+        final var property = caller.accessiblePropertyOrFunctionProperty(funName, includeSelf, includeSelf, true);
+        if (property == null) {
+            throw new OolangSemanticException("Could not resolve property '" + funName +
+                    "' from class " + caller.descriptorString());
+        }
+
+        final var propAssignmentExpression = new RealExpression(PROP_ASSIGNMENT);
+        propAssignmentExpression.identifiers.add(id);
+        propAssignmentExpression.invocation = property.isStatic() ? PUT_STATIC : PUT_FIELD;
+        propAssignmentExpression.ownerDescriptorString = property.declaringKlass.descriptorString();
+        propAssignmentExpression.descriptorString(property.descriptorString());
+        addNewExpressionInAst(variableOrPropAssignmentExpression, propAssignmentExpression);
+
+        return property.type();
+    }
+
+    private static boolean canAccessProtected(final @NonNull Klass caller, final @NonNull OolangKlass currentKlass) {
+        assert caller != null;
+        assert currentKlass != null;
+
+        for (final var superType : currentKlass.allSuperKlasses()) {
+            if (getKlassFromType(superType).equals(caller)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static @NonNull ActualType visitFunCallExpression(final @NonNull RealExpression funCallExpression,
                                                               final @NonNull Scopes scopes,
                                                               final @NonNull OolangKlass currentKlass,
@@ -499,7 +544,7 @@ public final class OolangSemanticAnalyzer {
             caller = getKlassFromType(TypeResolver.resolveType(funCallExpression.type, currentKlass, false));
             // NEW instruction to allocate memory
             final var newExpression = new RealExpression(NEW);
-            newExpression.setDescriptorString(caller.descriptorString());
+            newExpression.descriptorString(caller.descriptorString());
             // mutate AST to add NEW expression upfront
             addNewExpressionInAst(funCallExpression, newExpression);
         } else if (funCallExpression.identifiers.size() == 1) {
@@ -528,23 +573,17 @@ public final class OolangSemanticAnalyzer {
         }
 
         // search super classes for caller. If present, we can access its protected functions
-        var includeProtected = false;
-        for (final var superType : currentKlass.allSuperKlasses()) {
-            if (getKlassFromType(superType).equals(caller)) {
-                includeProtected = true;
-                break;
-            }
-        }
-
+        boolean includeProtected = canAccessProtected(caller, currentKlass);
         final var funName = funCallExpression.identifiers.getFirst().identifier;
         final var function = caller.accessibleFunction(funName, funParameters, includeProtected, caller == currentKlass);
         if (function == null) {
             throw new OolangSemanticException("Could not resolve function '" + funName +
                     "' from class " + caller.descriptorString());
         }
+
         funCallExpression.invocation = functionInvocation(caller, function);
         funCallExpression.ownerDescriptorString = function.declaringKlass.descriptorString();
-        funCallExpression.setDescriptorString(function.descriptorString());
+        funCallExpression.descriptorString(function.descriptorString());
         funCallExpression.typeDescriptorString = function.typeDescriptorString();
         return function.type();
     }
@@ -575,11 +614,11 @@ public final class OolangSemanticAnalyzer {
         final var lastIdIndex = expression.identifiers.size() - (untilLast ? 0 : 1);
 
         var caller = (applicableKlass != null)
-                ? propOrFunPropAccess(expression, applicableKlass, idIndex)
+                ? propOrFunPropAccess(expression, applicableKlass, currentKlass, idIndex)
                 : firstVariableOrPropAccessInCurrentKlass(expression, scopes, currentKlass, idIndex, lastIdIndex);
 
         while (idIndex.value < lastIdIndex) { // chained properties until last identifier
-            caller = propOrFunPropAccess(expression, caller, idIndex);
+            caller = propOrFunPropAccess(expression, caller, currentKlass, idIndex);
         }
 
         // clean identifiers after property access(es)
@@ -588,16 +627,17 @@ public final class OolangSemanticAnalyzer {
         return caller;
     }
 
-    @NonNull
-    private static Klass propOrFunPropAccess(final @NonNull RealExpression expression,
-                                             final @NonNull Klass caller,
-                                             final @NonNull IndexHolder idIndex) {
+    private static @NonNull Klass propOrFunPropAccess(final @NonNull RealExpression expression,
+                                                      final @NonNull Klass caller,
+                                                      final @NonNull OolangKlass currentKlass,
+                                                      final @NonNull IndexHolder idIndex) {
         assert expression != null;
         assert caller != null;
         assert idIndex != null;
 
         final var id = expression.identifiers.get(idIndex.value++);
-        final var propOrFunProp = caller.accessiblePropertyOrFunctionProperty(id.identifier, true);
+        final var propOrFunProp = caller
+                .accessiblePropertyOrFunctionProperty(id.identifier, true, caller == currentKlass, false);
         return switch (propOrFunProp) {
             case Property property -> {
                 final var propAccessExpression = propAccessExpression(property, id);
@@ -615,8 +655,6 @@ public final class OolangSemanticAnalyzer {
             }
             case null -> throw new OolangSemanticException("Could not resolve property " + id.identifier +
                     " from class " + caller.descriptorString());
-            default -> throw new IllegalStateException("propOrFunProp should be a Property or a Function. Was: " +
-                    propOrFunProp.getClass());
         };
     }
 
@@ -638,7 +676,8 @@ public final class OolangSemanticAnalyzer {
 
         if (variableOrPropOrFunProp == null) {
             // 2) else, first identifier may refer to a property from a parent
-            variableOrPropOrFunProp = currentKlass.accessiblePropertyOrFunctionProperty(identifier, false);
+            variableOrPropOrFunProp = currentKlass
+                    .accessiblePropertyOrFunctionProperty(identifier, false, false, false);
         }
 
         if (variableOrPropOrFunProp != null) {
@@ -698,12 +737,18 @@ public final class OolangSemanticAnalyzer {
         }
 
         final var indexOfExpression = expression.parent.children.indexOf(expression);
-        // "expression" was at index X in the parent list.
-        // Inserts "newExpression" at index X, pushing "expression" to X + 1
-        expression.parent.children.add(indexOfExpression, newExpression);
-        // also remove temporary VAR_OR_PROP_ACCESS
-        if (expression.expressionType == VARIABLE_OR_PROP_ACCESS) {
-            expression.parent.children.remove(indexOfExpression + 1);
+        if (indexOfExpression == -1) {
+            // add new expression after others
+            expression.parent.children.add(newExpression);
+        } else {
+            // "expression" was at index X in the parent list.
+            // Inserts "newExpression" at index X, pushing "expression" to X + 1
+            expression.parent.children.add(indexOfExpression, newExpression);
+            // also remove temporary VAR_OR_PROP_ACCESS or VARIABLE_OR_PROP_ASSIGNMENT if needed
+            if (expression.expressionType == VARIABLE_OR_PROP_ACCESS
+                    || expression.expressionType == VARIABLE_OR_PROP_ASSIGNMENT) {
+                expression.parent.children.remove(indexOfExpression + 1);
+            }
         }
     }
 
@@ -726,7 +771,7 @@ public final class OolangSemanticAnalyzer {
         propAccessExpression.identifiers.add(id);
         propAccessExpression.invocation = property.isStatic() ? GET_STATIC : GET_FIELD;
         propAccessExpression.ownerDescriptorString = property.declaringKlass.descriptorString();
-        propAccessExpression.setDescriptorString(property.descriptorString());
+        propAccessExpression.descriptorString(property.descriptorString());
         // set AST info from the identifier, if any
         if (id.info() != null) {
             propAccessExpression.setInfo(id.info());
@@ -746,7 +791,7 @@ public final class OolangSemanticAnalyzer {
         funCallExpression.identifiers.add(id);
         funCallExpression.invocation = functionInvocation(caller, function);
         funCallExpression.ownerDescriptorString = function.declaringKlass.descriptorString();
-        funCallExpression.setDescriptorString(function.descriptorString());
+        funCallExpression.descriptorString(function.descriptorString());
         funCallExpression.typeDescriptorString = function.typeDescriptorString();
         // set AST info from the identifier, if any
         if (id.info() != null) {
@@ -772,6 +817,23 @@ public final class OolangSemanticAnalyzer {
         }
         return INVOKE_VIRTUAL;
         // todo INVOKE_DYNAMIC
+    }
+
+    /// Add a load of the current klass in the provided expression if it is a `chainable`, else add it upfront.
+    private static void loadThis(final @NonNull RealExpression expression, final @NonNull Scopes scopes) {
+        assert expression != null;
+        assert scopes != null;
+
+        final var thisVariable = (SimpleVariable) scopes.resolveVariable("this");
+        assert thisVariable != null;
+        final var loadThis = loadExpression(thisVariable, new SimpleIdentifier("this"));
+        if (expression.parent != null) {
+            // add loadThis upfront
+            addNewExpressionInAst(expression, loadThis);
+        } else {
+            assert expression.expressionType == CHAINABLE;
+            expression.children.add(loadThis);
+        }
     }
 
     static @NonNull Map<@NonNull String, @NonNull String> buildImports(

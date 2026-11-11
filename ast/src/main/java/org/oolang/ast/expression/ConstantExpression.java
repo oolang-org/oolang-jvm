@@ -36,7 +36,7 @@ public final class ConstantExpression extends AbstractAst implements Expression 
         return descriptorString;
     }
 
-    public void setDescriptorString(final @NonNull String descriptorString) {
+    public void descriptorString(final @NonNull String descriptorString) {
         assert descriptorString != null;
         this.descriptorString = descriptorString;
     }

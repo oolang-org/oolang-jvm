@@ -19,7 +19,6 @@ import org.oolang.ast.expression.RealExpression;
 import org.oolang.ast.expression.RealExpression.ExpressionType;
 import org.oolang.ast.statement.CodeBlock;
 import org.oolang.ast.statement.RealStatement;
-import org.oolang.ast.statement.Statement;
 import org.oolang.parser.generated.OolangParser.*;
 import org.oolang.parser.generated.OolangParserBaseVisitor;
 
@@ -40,8 +39,8 @@ import static org.oolang.ast.expression.ExpressionUtils.addExpressionToChain;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.*;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.ADD;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.SUB;
+import static org.oolang.ast.statement.RealStatement.StatementType.*;
 import static org.oolang.ast.statement.RealStatement.StatementType.ASSIGNMENT;
-import static org.oolang.ast.statement.RealStatement.StatementType.EXPRESSION;
 
 public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     private static final @NonNull ConstantExpression EMPTY_STRING_EXPRESSION = new ConstantExpression("");
@@ -191,7 +190,7 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
                         singleAnnotationCtx.annotationUseSiteTarget()));
             }
             switch (delegation) {
-                case AstType astType -> astType.annotations = annotations;
+                case RealAstType realAstType -> realAstType.annotations = annotations;
                 case RealExpression realExpression -> realExpression.annotations = annotations;
                 default -> throw new IllegalStateException("Unexpected delegation type: " + delegation.getClass());
             }
@@ -346,7 +345,7 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     public @NonNull RealElement visitFunctionValueParameter(final @NonNull FunctionValueParameterContext ctx) {
         assert ctx != null;
 
-        var funParam = new RealElement(PARAMETER);
+        final var funParam = new RealElement(PARAMETER);
         final var parameterCtx = ctx.parameter();
         funParam.identifier = visitSimpleIdentifier(parameterCtx.simpleIdentifier());
         funParam.type = visitType(parameterCtx.type());
@@ -391,7 +390,7 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     /// | blockLevelDeclaration
     /// ```
     @Override
-    public @NonNull Statement visitStatement(final @NonNull StatementContext ctx) {
+    public @NonNull RealStatement visitStatement(final @NonNull StatementContext ctx) {
         assert ctx != null;
 
         final var blockLevelExpressionCtx = ctx.blockLevelExpression();
@@ -408,7 +407,7 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     /// annotation* NL* expression
     /// ```
     @Override
-    public @NonNull Statement visitBlockLevelExpression(final @NonNull BlockLevelExpressionContext ctx) {
+    public @NonNull RealStatement visitBlockLevelExpression(final @NonNull BlockLevelExpressionContext ctx) {
         assert ctx != null;
 
         final var statement = new RealStatement(EXPRESSION);
@@ -424,19 +423,22 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     public @NonNull RealStatement visitBlockLevelDeclaration(final @NonNull BlockLevelDeclarationContext ctx) {
         assert ctx != null;
 
-        final RealStatement statement;
-        final var assignmentCtx = ctx.assignment();
-        if (assignmentCtx != null) {
-            statement = visitAssignment(assignmentCtx);
-        } else {
-            throw new UnsupportedOperationException("Non assignment declaration statement not supported yet");
-        }
-
         if (!ctx.label().isEmpty()) {
             throw new UnsupportedOperationException("Label in declaration statement not supported yet");
         }
 
-        return statement;
+        final var assignmentCtx = ctx.assignment();
+        if (assignmentCtx != null) {
+            return visitAssignment(assignmentCtx);
+        }
+
+        final var declarationCtx = ctx.declaration();
+        if (declarationCtx != null) {
+            final var declarationStatement = new RealStatement(DECLARATION);
+            declarationStatement.children.add(visitDeclaration(declarationCtx));
+            return declarationStatement;
+        }
+        throw new UnsupportedOperationException("Loop statement is not supported yet");
     }
 
     /// ```
@@ -449,14 +451,18 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         final var statement = new RealStatement(ASSIGNMENT);
 
         // normal assignment '='
+        final RealExpression variableOrPropAssignmentExpression;
         final var directlyAssignableExpressionCtx = ctx.directlyAssignableExpression();
         if (directlyAssignableExpressionCtx != null) {
-            statement.children.add(visitDirectlyAssignableExpression(directlyAssignableExpressionCtx));
+            final var assignmentExpression = visitDirectlyAssignableExpression(directlyAssignableExpressionCtx);
+            variableOrPropAssignmentExpression = (RealExpression) assignmentExpression.children.getFirst();
+            statement.children.add(assignmentExpression);
         } else {
             throw new UnsupportedOperationException("Assignment statement with operator not supported yet");
         }
 
-        statement.children.add(visitExpression(ctx.expression()));
+        // the right-side of the assignment (= the value) is added as child to the var/prop assignment expression
+        variableOrPropAssignmentExpression.children.add(visitExpression(ctx.expression()));
 
         return statement;
     }
@@ -466,23 +472,34 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     /// | simpleIdentifier
     /// ```
     @Override
-    public @NonNull Expression visitDirectlyAssignableExpression(
+    public @NonNull RealExpression visitDirectlyAssignableExpression(
             final @NonNull DirectlyAssignableExpressionContext ctx
     ) {
         assert ctx != null;
 
         final var simpleIdentifierCtx = ctx.simpleIdentifier();
         if (simpleIdentifierCtx != null) {
-            final var expression = new RealExpression(VARIABLE_OR_PROP_ACCESS);
-            expression.identifiers.add(visitSimpleIdentifier(simpleIdentifierCtx));
-            return addAstInfo(expression, ctx);
+            final var realExpression = new RealExpression(VARIABLE_OR_PROP_ASSIGNMENT);
+            realExpression.identifiers.add(visitSimpleIdentifier(simpleIdentifierCtx));
+            // Always add a chainable expression as parent to the variable or property access,
+            // so we can clean it in the semantic analysis phase
+            final var chainableExpression = new RealExpression(CHAINABLE);
+            addExpressionToChain(chainableExpression, realExpression);
+            return addAstInfo(chainableExpression, ctx);
         }
 
-        final var postfixUnaryExpressionCtx = ctx.postfixUnaryExpression();
-        assert postfixUnaryExpressionCtx != null;
-        assert ctx.assignableSuffix() != null;
-        // visitPostfixUnaryExpression(postfixUnaryExpressionCtx); // + todo handle assignableSuffix
-        throw new UnsupportedOperationException("postfixUnaryExpression assignableSuffix");
+        assert ctx.assignableSuffix() != null; // + todo assignableSuffix
+        final var postfixUnaryExpression = visitPostfixUnaryExpression(ctx.postfixUnaryExpression());
+        assert postfixUnaryExpression != null;
+        if (!(postfixUnaryExpression instanceof RealExpression chainableExpression)
+                || chainableExpression.expressionType != CHAINABLE
+                || chainableExpression.children.size() != 1
+                || !(chainableExpression.children.getFirst() instanceof RealExpression variableOrProp)
+                || variableOrProp.expressionType != VARIABLE_OR_PROP_ACCESS) {
+            throw new OolangSyntaxException("Not a valid assignment expression: " + postfixUnaryExpression);
+        }
+        variableOrProp.expressionType = VARIABLE_OR_PROP_ASSIGNMENT;
+        return addAstInfo(chainableExpression, ctx);
     }
 
     /// ```
@@ -865,10 +882,10 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     /// annotation* (functionType | parenthesizedType | nullableType | userType)
     /// ```
     @Override
-    public @NonNull AstType visitType(final @NonNull TypeContext ctx) {
+    public @NonNull RealAstType visitType(final @NonNull TypeContext ctx) {
         assert ctx != null;
 
-        final AstType type;
+        final RealAstType type;
         final var userTypeCtx = ctx.userType();
         if (userTypeCtx != null) {
             type = visitUserType(userTypeCtx);
@@ -883,13 +900,13 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     /// simpleUserType (NL* DOT NL* simpleUserType)*
     /// ```
     @Override
-    public @NonNull AstType visitUserType(final @NonNull UserTypeContext ctx) {
+    public @NonNull RealAstType visitUserType(final @NonNull UserTypeContext ctx) {
         assert ctx != null;
 
         final var simpleUserTypes = ctx.simpleUserType();
         if (simpleUserTypes.size() == 1) {
             final var simpleUserTypeCtx = simpleUserTypes.getFirst();
-            return new AstType(
+            return new RealAstType(
                     visitSimpleIdentifier(simpleUserTypeCtx.simpleIdentifier()),
                     genericParameters(simpleUserTypeCtx) // add generic parameters
             );
@@ -900,7 +917,7 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         for (final var simpleUserTypeCtx : simpleUserTypes) {
             multipleIdentifier.identifiers.add(visitSimpleIdentifier(simpleUserTypeCtx.simpleIdentifier()));
         }
-        return new AstType(
+        return new RealAstType(
                 multipleIdentifier,
                 genericParameters(simpleUserTypes.getLast()) // the last item contains the generic parameters
         );
@@ -928,7 +945,7 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     /// | MULT
     /// ```
     @Override
-    public @NonNull AstType visitTypeProjection(final @NonNull TypeProjectionContext ctx) {
+    public @NonNull RealAstType visitTypeProjection(final @NonNull TypeProjectionContext ctx) {
         assert ctx != null;
 
         final var type = visitType(ctx.type());

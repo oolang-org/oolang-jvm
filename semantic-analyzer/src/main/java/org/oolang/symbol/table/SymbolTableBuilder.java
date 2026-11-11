@@ -7,14 +7,16 @@ package org.oolang.symbol.table;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.oolang.ast.AstFile;
-import org.oolang.ast.AstType;
 import org.oolang.ast.Identifier.SimpleIdentifier;
+import org.oolang.ast.RealAstType;
 import org.oolang.ast.element.ClassBody;
 import org.oolang.ast.element.ElementModifier;
 import org.oolang.ast.element.RealElement;
 import org.oolang.ast.expression.Expression;
 import org.oolang.ast.expression.RealExpression;
+import org.oolang.ast.statement.CodeBlock;
 import org.oolang.ast.statement.ConstructorCodeBlock;
+import org.oolang.ast.statement.RealStatement;
 import org.oolang.symbol.table.Function.Parameter;
 
 import java.lang.constant.ConstantDescs;
@@ -25,14 +27,16 @@ import java.util.Map;
 import static org.oolang.ast.element.ElementModifier.ModifierType.VISIBILITY;
 import static org.oolang.ast.element.RealElement.ElementType.*;
 import static org.oolang.ast.expression.ExpressionUtils.addExpressionToChain;
-import static org.oolang.ast.expression.RealExpression.ExpressionType.CHAINABLE;
-import static org.oolang.ast.expression.RealExpression.ExpressionType.VARIABLE_OR_PROP_ACCESS;
+import static org.oolang.ast.expression.RealExpression.ExpressionType.*;
+import static org.oolang.ast.statement.RealStatement.StatementType.ASSIGNMENT;
 import static org.oolang.symbol.table.TypeResolver.VOID_KLASS;
 
 public final class SymbolTableBuilder {
     // un-instantiable
     private SymbolTableBuilder() {
     }
+
+    private static final @NonNull SimpleIdentifier THIS_IDENTIFIER = new SimpleIdentifier("this");
 
     /// @return a virtual [class][OolangKlass] representing the symbol table of the given [AstFile].
     public static @NonNull OolangKlass build(final @NonNull AstFile ast,
@@ -58,7 +62,7 @@ public final class SymbolTableBuilder {
 
         for (final var child : classElement.children) {
             switch (child) /* of mine */ {
-                case AstType astType -> klass.ancestors.add(new Type.Lazy(astType, klass));
+                case RealAstType realAstType -> klass.ancestors.add(new Type.Lazy(realAstType, klass));
                 case ClassBody classBody -> visitClassBody(classBody.children, klass);
                 default -> throw new IllegalStateException("Unexpected child type: " + child.getClass());
             }
@@ -126,7 +130,7 @@ public final class SymbolTableBuilder {
             functionReturnType = returnType;
         } else if (funElement.type != null) {
             // type case (2) : type is explicit in the function declaration
-            functionReturnType = new Type.Lazy(funElement.type, klass);
+            functionReturnType = new Type.Lazy((RealAstType) funElement.type, klass);
         }
 
         final var parameters = new ArrayList<@NonNull Parameter>();
@@ -135,9 +139,10 @@ public final class SymbolTableBuilder {
                 case RealElement element -> {
                     if (element.elementType == PARAMETER) {
                         assert element.identifier != null;
-                        final var paramName = element.identifier.identifier; // a function parameter has a simple identifier
+                        // a function parameter has a simple identifier
+                        final var paramName = element.identifier.identifier;
                         assert element.type != null;
-                        parameters.add(new Parameter(paramName, new Type.Lazy(element.type, klass)));
+                        parameters.add(new Parameter(paramName, TypeResolver.getTypeFromAstType(element.type, klass)));
                     }
                 }
                 case Expression expression -> {
@@ -182,7 +187,7 @@ public final class SymbolTableBuilder {
         final Type propType;
         // 1) type is explicit
         if (propertyElement.type != null) {
-            propType = new Type.Lazy(propertyElement.type, klass);
+            propType = new Type.Lazy((RealAstType) propertyElement.type, klass);
         } else {
             // 2) type can be directly inferred for some cases, or it will have to be resolved during semantic analysis
             Klass klassOrNull = null;
@@ -197,11 +202,18 @@ public final class SymbolTableBuilder {
 
         final var property = new Property(klass, baseSymbol, propType);
 
-        // if not private, also add a getter function and visit it
+        // if not private and not static, also add a getter function and visit it
         if (!property.isStatic() && property.visibility() != Visibility.PRIVATE) {
-            final var getterFunction = buildAndVisitGetterFunction(property);
+            final var getterFunction = buildGetterFunction(property);
             property.getter = visitFunction(getterFunction, klass, propType);
             children.add(getterFunction);
+
+            if (!property.isFinal()) {
+                // non-final, also add the setter function and visit it
+                final var setterFunction = buildSetterFunction(property);
+                property.setter = visitFunction(setterFunction, klass, null);
+                children.add(setterFunction);
+            }
 
             // the property becomes private, also in the AST
             property.visibility = Visibility.PRIVATE;
@@ -210,6 +222,52 @@ public final class SymbolTableBuilder {
 
         klass.properties().put(baseSymbol.name(), property);
         return property;
+    }
+
+    private static @NonNull RealElement buildGetterFunction(final @NonNull Property property) {
+        assert property != null;
+
+        final var getterFunction = new RealElement(FUN);
+        getterFunction.identifier = new SimpleIdentifier(property.name());
+        getterFunction.hasCustomAttribute = true;
+        final var chainableExpression = new RealExpression(CHAINABLE);
+        final var propAccessExpression = new RealExpression(VARIABLE_OR_PROP_ACCESS);
+        propAccessExpression.identifiers.add(new SimpleIdentifier(property.name()));
+        addExpressionToChain(chainableExpression, propAccessExpression);
+        getterFunction.children.add(chainableExpression);
+        return getterFunction;
+    }
+
+    private static @NonNull RealElement buildSetterFunction(final @NonNull Property property) {
+        assert property != null;
+
+        final var setterFunction = new RealElement(FUN);
+        setterFunction.identifier = new SimpleIdentifier(property.name());
+        setterFunction.hasCustomAttribute = true;
+
+        final var funParam = new RealElement(PARAMETER);
+        funParam.identifier = setterFunction.identifier; // the function parameter has the same name as the property
+        funParam.type = new LazyAstType(property.type);
+        setterFunction.children.add(funParam);
+
+        final var assignmentChainableExpression = new RealExpression(CHAINABLE);
+        final var assignmentExpression = new RealExpression(VARIABLE_OR_PROP_ASSIGNMENT);
+        assignmentExpression.identifiers.add(THIS_IDENTIFIER);
+        assignmentExpression.identifiers.add(new SimpleIdentifier(property.name()));
+        addExpressionToChain(assignmentChainableExpression, assignmentExpression);
+
+        final var variableChainableExpression = new RealExpression(CHAINABLE);
+        final var variableExpression = new RealExpression(VARIABLE_OR_PROP_ACCESS);
+        variableExpression.identifiers.add(new SimpleIdentifier(property.name()));
+        addExpressionToChain(variableChainableExpression, variableExpression);
+        assignmentExpression.children.add(variableChainableExpression);
+
+        final var functionBody = new CodeBlock();
+        final var assignment = new RealStatement(ASSIGNMENT);
+        assignment.children.add(assignmentChainableExpression);
+        functionBody.statements.add(assignment);
+        setterFunction.children.add(functionBody);
+        return setterFunction;
     }
 
     private static void makeElementPrivate(final @NonNull RealElement propertyElement) {
@@ -225,20 +283,6 @@ public final class SymbolTableBuilder {
         if (!hasVisibility) {
             propertyElement.modifiers.add(new ElementModifier(VISIBILITY, "private"));
         }
-    }
-
-    private static @NonNull RealElement buildAndVisitGetterFunction(final @NonNull Property property) {
-        assert property != null;
-
-        final var getterFunction = new RealElement(FUN);
-        getterFunction.identifier = new SimpleIdentifier(property.name());
-        getterFunction.hasCustomAttribute = true;
-        final var chainableExpression = new RealExpression(CHAINABLE);
-        final var propAccessExpression = new RealExpression(VARIABLE_OR_PROP_ACCESS);
-        propAccessExpression.identifiers.add(new SimpleIdentifier(property.name()));
-        addExpressionToChain(chainableExpression, propAccessExpression);
-        getterFunction.children.add(chainableExpression);
-        return getterFunction;
     }
 
     private static @NonNull BaseSymbol baseSymbol(final @NonNull RealElement element,
