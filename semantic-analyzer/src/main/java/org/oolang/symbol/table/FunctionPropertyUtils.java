@@ -103,8 +103,8 @@ final class FunctionPropertyUtils {
                 functionName = propertyName;
                 oldSchoolGetter = true;
             }
-        } else if ((returnType == BOOLEAN_PRIMITIVE_KLASS || returnType == BOOLEAN_WRAPPER_KLASS) &&
-                functionName.startsWith("is")) {
+        } else if ((returnType == BOOLEAN_PRIMITIVE_KLASS || returnType == BOOLEAN_WRAPPER_KLASS)
+                && functionName.startsWith("is")) {
             if (functionName.length() > 2 && Character.isUpperCase(functionName.charAt(2))) {
                 oldSchoolGetter = true;
             }

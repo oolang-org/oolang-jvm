@@ -105,14 +105,8 @@ public final class OolangCompiler {
         final var interfaces = new ArrayList<@NonNull ClassDesc>();
         for (final var child : classElement.children) {
             switch (child) /* of mine */ {
-                case AstType astType -> {
-                    final var ancestor = ClassDesc.ofDescriptor(astType.descriptorString);
-                    if (astType.isInterface) {
-                        interfaces.add(ancestor);
-                    } else {
-                        classBuilder.withSuperclass(ancestor);
-                    }
-                }
+                // this is an interface ancestor
+                case AstType astType -> interfaces.add(ClassDesc.ofDescriptor(astType.descriptorString()));
                 case ClassBody classBody -> visitClassBody(classBody, classBuilder);
                 default -> throw new IllegalStateException("Unexpected child type: " + child.getClass());
             }
@@ -235,11 +229,11 @@ public final class OolangCompiler {
         assert codeBuilder != null;
 
         var hasReturned = false;
-        for (final var statement : codeBlock.statements) {
-            if (statement instanceof RealStatement realStatement && realStatement.statementType == RETURN) {
+        for (final var realStatement : codeBlock.statements) {
+            if (realStatement.statementType == RETURN) {
                 if (realStatement.children.size() == 1) {
                     // return with value. Visit the only child expression, then return
-                    final var childExpression = realStatement.children.getFirst();
+                    final var childExpression = (Expression) realStatement.children.getFirst();
                     visitExpression(childExpression, codeBuilder);
 
                     assert childExpression.descriptorString() != null;
@@ -249,7 +243,7 @@ public final class OolangCompiler {
                 }
                 hasReturned = true;
             } else {
-                visitStatement(statement, codeBuilder);
+                visitStatement(realStatement, codeBuilder);
             }
         }
         // add implicit return unless a previous explicit one was declared.
@@ -273,8 +267,14 @@ public final class OolangCompiler {
         assert realStatement != null;
         assert codeBuilder != null;
 
-        for (final var childExpression : realStatement.children) {
-            visitExpression(childExpression, codeBuilder);
+        switch (realStatement.statementType) {
+            case EXPRESSION, ASSIGNMENT -> {
+                for (final var childExpression : realStatement.children) {
+                    visitExpression((Expression) childExpression, codeBuilder);
+                }
+            }
+            default -> throw new UnsupportedOperationException("statement type not yet supported: " +
+                    realStatement.statementType);
         }
     }
 
@@ -420,7 +420,8 @@ public final class OolangCompiler {
         assert propAssignmentExpression.identifiers.size() == 1;
 
         final var owner = ClassDesc.ofDescriptor(propAssignmentExpression.ownerDescriptorString);
-        final var name = propAssignmentExpression.identifiers.getFirst().identifier; // a property has a simple identifier
+        // a property has a simple identifier
+        final var name = propAssignmentExpression.identifiers.getFirst().identifier;
         final var type = ClassDesc.ofDescriptor(propDescriptorString);
 
         switch (propAssignmentExpression.invocation) {

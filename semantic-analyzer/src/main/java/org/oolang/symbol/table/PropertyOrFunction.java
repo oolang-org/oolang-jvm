@@ -10,14 +10,14 @@ import org.jspecify.annotations.Nullable;
 import java.lang.invoke.TypeDescriptor;
 
 @SuppressWarnings("preview")
-sealed abstract class PropertyOrFunction implements Symbol, TypeDescriptor permits Function, Property {
+public sealed abstract class PropertyOrFunction implements Symbol, TypeDescriptor permits Function, Property {
     public final @NonNull Klass declaringKlass;
     public final @NonNull String name;
     public @NonNull Visibility visibility;
     public final boolean isStatic;
     public final boolean isAbstract;
     private final boolean isFinal;
-    private final @NonNull Type type;
+    final @NonNull Type type;
 
     private final @NonNull LazyConstant<@NonNull String> descriptorString =
             LazyConstant.of(this::buildDescriptorString);
@@ -52,11 +52,7 @@ sealed abstract class PropertyOrFunction implements Symbol, TypeDescriptor permi
     }
 
     public @NonNull ActualType type() {
-        return switch (type) {
-            case ActualType actualType -> actualType;
-            case Type.Lazy lazyType -> lazyType.type();
-            case Type.Lateinit lateinitType -> lateinitType.type();
-        };
+        return TypeResolver.getActualTypeFromType(type);
     }
 
     public Type.@Nullable Lateinit lateinitTypeOrNull() {

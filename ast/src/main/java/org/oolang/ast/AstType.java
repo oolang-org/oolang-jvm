@@ -7,57 +7,19 @@ package org.oolang.ast;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.lang.invoke.TypeDescriptor;
 import java.util.List;
 
-import static org.oolang.ast.Identifier.*;
+public interface AstType extends Ast, TypeDescriptor {
 
-public final class AstType extends AbstractAst implements Ast.Node {
-    public final @NonNull Identifier identifier;
-    public final @Nullable List<@NonNull AstType> parameters;
+    @Nullable List<@NonNull AstType> parameters();
 
-    public @Nullable List<@NonNull Annotation> annotations = null;
-    public boolean nullable = false;
+    @Nullable List<@NonNull Annotation> annotations();
 
-    // set during type resolution in the semantic analysis phase.
-    public /* lateinit */ Boolean isInterface = null;
-    public /* lateinit */ String descriptorString = null;
-
-    public AstType(final @NonNull Identifier identifier, final @Nullable List<@NonNull AstType> parameters) {
-        assert identifier != null;
-
-        this.identifier = identifier;
-        this.parameters = parameters;
-    }
-
-    public @NonNull String rawName() {
-        final var sb = new StringBuilder();
-        switch (identifier) {
-            case SimpleIdentifier simpleId -> sb.append(simpleId.identifier);
-            case MultipleIdentifier multipleId -> identifierName(multipleId.identifiers, sb);
-        }
-        if (parameters != null && !parameters.isEmpty()) {
-            sb.append("<");
-            for (var i = 0; i < parameters.size(); i++) {
-                if (i > 0) {
-                    sb.append(", ");
-                }
-                sb.append(parameters.get(i).rawName());
-            }
-            sb.append(">");
-        }
-        if (nullable) {
-            sb.append("?");
-        }
-        return sb.toString();
-    }
+    @NonNull String rawName();
 
     @Override
-    public @NonNull String description() {
+    default @NonNull String description() {
         return "Type(" + rawName() + ")";
-    }
-
-    @Override
-    public @NonNull List<@NonNull Annotation> content() {
-        return (annotations != null) ? annotations : List.of();
     }
 }

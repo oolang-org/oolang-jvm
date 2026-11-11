@@ -10,6 +10,7 @@ import org.jspecify.annotations.Nullable;
 public final class Property extends PropertyOrFunction implements Variable {
     // For function property
     public @Nullable Function getter = null;
+    public @Nullable Function setter = null;
 
     Property(final @NonNull OolangKlass declaringKlass,
              final @NonNull BaseSymbol baseSymbol,

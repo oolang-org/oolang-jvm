@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class CodeBlock extends AbstractAst implements StatementNode {
-    public final @NonNull List<@NonNull Statement> statements = new ArrayList<>();
+    public final @NonNull List<@NonNull RealStatement> statements = new ArrayList<>();
 
     @Override
     public @NonNull String description() {

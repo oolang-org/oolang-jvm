@@ -5,7 +5,7 @@
 package org.oolang.symbol.table;
 
 import org.jspecify.annotations.NonNull;
-import org.oolang.ast.AstType;
+import org.oolang.ast.RealAstType;
 
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -16,7 +16,7 @@ public sealed interface Type permits ActualType, Type.Lazy, Type.Lateinit {
     final class Lazy implements Type {
         private final @NonNull LazyConstant<@NonNull ActualType> lazyType;
 
-        Lazy(final @NonNull AstType astType, final @NonNull OolangKlass oolangKlass) {
+        Lazy(final @NonNull RealAstType astType, final @NonNull OolangKlass oolangKlass) {
             assert astType != null;
             assert oolangKlass != null;
 
@@ -24,9 +24,7 @@ public sealed interface Type permits ActualType, Type.Lazy, Type.Lateinit {
                 final var type = TypeResolver.resolveType(astType, oolangKlass, false);
 
                 // type resolution, the compiler will use that descriptor string
-                final var typeKlass = TypeResolver.getKlassFromType(type);
-                astType.isInterface = typeKlass.isInterface();
-                astType.descriptorString = typeKlass.descriptorString();
+                astType.descriptorString = TypeResolver.getKlassFromType(type).descriptorString();
 
                 return type;
             });

@@ -9,7 +9,7 @@ import org.jspecify.annotations.Nullable;
 import org.oolang.ast.AbstractAst;
 import org.oolang.ast.Annotation;
 import org.oolang.ast.Ast;
-import org.oolang.ast.AstType;
+import org.oolang.ast.RealAstType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +20,7 @@ import static org.oolang.ast.Identifier.SimpleIdentifier;
 public non-sealed class RealExpression extends AbstractAst implements Expression.Node {
     public /* lateinit */ ExpressionType expressionType;
     public final @NonNull List<@NonNull SimpleIdentifier> identifiers = new ArrayList<>();
-    public @Nullable AstType type = null;
+    public @Nullable RealAstType type = null;
     public @Nullable List<@NonNull Annotation> annotations = null;
     public @Nullable RealExpression parent = null;
     public final @NonNull List<@NonNull Expression> children = new ArrayList<>();
@@ -72,7 +72,7 @@ public non-sealed class RealExpression extends AbstractAst implements Expression
         return descriptorString;
     }
 
-    public void setDescriptorString(final @NonNull String descriptorString) {
+    public void descriptorString(final @NonNull String descriptorString) {
         assert descriptorString != null;
         this.descriptorString = descriptorString;
     }
@@ -101,9 +101,14 @@ public non-sealed class RealExpression extends AbstractAst implements Expression
         /// - **property access** = a [RealExpression] with a [#PROP_ACCESS] type.
         /// - **variable access** = a [LoadExpression].
         VARIABLE_OR_PROP_ACCESS,
-        CHAINABLE,
         PROP_ACCESS,
+
+        /// Semantic analysis will replace this undetermined type with either a
+        /// - **property assignment** = a [RealExpression] with a [#PROP_ASSIGNMENT] type.
+        /// - **variable assignment** = a todo put the link.
+        VARIABLE_OR_PROP_ASSIGNMENT,
         PROP_ASSIGNMENT,
+        CHAINABLE,
         FUN_CALL,
         FUN_CALL_PARAMETER,
         NEW,

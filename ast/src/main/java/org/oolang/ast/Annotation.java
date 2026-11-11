@@ -12,10 +12,10 @@ import java.util.Locale;
 import java.util.Objects;
 
 public final class Annotation extends AbstractAst implements Ast.Node {
-    public final @NonNull AstType type;
+    public final @NonNull RealAstType type;
     public @Nullable UseSiteTarget useSiteTarget;
 
-    public Annotation(final @NonNull AstType type) {
+    public Annotation(final @NonNull RealAstType type) {
         this.type = Objects.requireNonNull(type);
     }
 

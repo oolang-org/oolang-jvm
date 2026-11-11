@@ -9,16 +9,16 @@ import org.jspecify.annotations.Nullable;
 import org.oolang.ast.AbstractAst;
 import org.oolang.ast.Annotation;
 import org.oolang.ast.Ast;
-import org.oolang.ast.expression.Expression;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 public final class RealStatement extends AbstractAst implements StatementNode {
     public final @NonNull StatementType statementType;
     public @Nullable List<@NonNull Annotation> annotations = null;
-    public @NonNull List<@NonNull Expression> children = new ArrayList<>();
+    public @NonNull List<@NonNull Ast> children = new ArrayList<>();
 
     public RealStatement(final @NonNull StatementType statementType) {
         this.statementType = Objects.requireNonNull(statementType);
@@ -26,7 +26,7 @@ public final class RealStatement extends AbstractAst implements StatementNode {
 
     @Override
     public @NonNull String description() {
-        return "Statement";
+        return "Statement(" + statementType.name().toLowerCase(Locale.US) + ")";
     }
 
     @Override
@@ -40,8 +40,16 @@ public final class RealStatement extends AbstractAst implements StatementNode {
     }
 
     public enum StatementType {
+        /// a class / function / variable declaration. `children` is a single
+        ///  [RealElement][org.oolang.ast.element.RealElement]
+        DECLARATION,
+        /// a statement that executes an expression. `children` is a single
+        /// [Expression][org.oolang.ast.expression.Expression]
         EXPRESSION,
-        ASSIGNMENT,
+        /// a `return` statement. A single `children` is present for value return, empty for no-value return.
         RETURN,
+        /// An assignment. First child is the left-side [Expression][org.oolang.ast.expression.Expression], the second
+        /// children is the value [Expression][org.oolang.ast.expression.Expression].
+        ASSIGNMENT,
     }
 }
