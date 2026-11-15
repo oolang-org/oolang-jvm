@@ -14,7 +14,6 @@ import org.oolang.ast.element.ElementModifier;
 import org.oolang.ast.element.RealElement;
 import org.oolang.ast.expression.ConstantExpression;
 import org.oolang.ast.expression.Expression;
-import org.oolang.ast.expression.LoadExpression;
 import org.oolang.ast.expression.RealExpression;
 import org.oolang.ast.statement.CodeBlock;
 import org.oolang.ast.statement.ConstructorCodeBlock;
@@ -284,7 +283,6 @@ public final class OolangCompiler {
 
         switch (expression) {
             case ConstantExpression constantExpression -> visitConstantExpression(constantExpression, codeBuilder);
-            case LoadExpression loadExpression -> visitLoadExpression(loadExpression, codeBuilder);
             case RealExpression realExpression -> visitRealExpression(realExpression, codeBuilder);
         }
     }
@@ -297,20 +295,6 @@ public final class OolangCompiler {
         codeBuilder.loadConstant(constantExpression.value);
     }
 
-    private static void visitLoadExpression(final @NonNull LoadExpression loadExpression,
-                                            final @NonNull CodeBuilder codeBuilder) {
-        assert loadExpression != null;
-        assert codeBuilder != null;
-
-        switch (loadExpression.descriptorString()) {
-            case INTEGER -> codeBuilder.iload(loadExpression.slot());
-            case LONG -> codeBuilder.lload(loadExpression.slot());
-            case FLOAT -> codeBuilder.fload(loadExpression.slot());
-            case DOUBLE -> codeBuilder.dload(loadExpression.slot());
-            default -> codeBuilder.aload(loadExpression.slot());
-        }
-    }
-
     private static void visitRealExpression(final @NonNull RealExpression realExpression,
                                             final @NonNull CodeBuilder codeBuilder) {
         assert realExpression != null;
@@ -321,6 +305,7 @@ public final class OolangCompiler {
             case CHAINABLE -> visitChainableExpression(realExpression, codeBuilder);
             case ADD -> visitAdditiveExpression(realExpression, codeBuilder);
             case INDEXING -> visitIndexingExpression(realExpression, codeBuilder);
+            case LOAD -> visitLoadExpression(realExpression, codeBuilder);
             case PROP_ACCESS -> visitPropAccess(realExpression, codeBuilder);
             case PROP_ASSIGNMENT -> visitPropAssignmentExpression(realExpression, codeBuilder);
             case FUN_CALL -> visitFunCallExpression(realExpression, codeBuilder);
@@ -370,10 +355,9 @@ public final class OolangCompiler {
         assert indexingExpression != null;
         assert codeBuilder != null;
 
-        // loop on fun call children: preliminary expressions and index
+        // loop on indexing children: preliminary expression, and index = a constant expression
         for (final var child : indexingExpression.children) {
             switch (child) /* of mine */ {
-                case LoadExpression loadExpression -> visitLoadExpression(loadExpression, codeBuilder);
                 case RealExpression realExpression -> {
                     assert realExpression.expressionType == PROP_ACCESS;
                     visitPropAccess(realExpression, codeBuilder);
@@ -385,6 +369,22 @@ public final class OolangCompiler {
 
         // then load the array
         codeBuilder.aaload();
+    }
+
+    private static void visitLoadExpression(final @NonNull RealExpression loadExpression,
+                                            final @NonNull CodeBuilder codeBuilder) {
+        assert loadExpression != null;
+        assert codeBuilder != null;
+
+        final var descriptorString = loadExpression.descriptorString();
+        assert descriptorString != null;
+        switch (descriptorString) {
+            case INTEGER -> codeBuilder.iload(loadExpression.slot);
+            case LONG -> codeBuilder.lload(loadExpression.slot);
+            case FLOAT -> codeBuilder.fload(loadExpression.slot);
+            case DOUBLE -> codeBuilder.dload(loadExpression.slot);
+            default -> codeBuilder.aload(loadExpression.slot);
+        }
     }
 
     private static void visitPropAccess(final @NonNull RealExpression propAccessExpression,

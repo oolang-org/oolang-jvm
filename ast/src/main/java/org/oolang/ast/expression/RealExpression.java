@@ -21,7 +21,9 @@ public non-sealed class RealExpression extends AbstractAst implements Expression
     public /* lateinit */ ExpressionType expressionType;
     public final @NonNull List<@NonNull SimpleIdentifier> identifiers = new ArrayList<>();
     public @Nullable RealAstType type = null;
+    public int slot = -1;
     public @Nullable List<@NonNull Annotation> annotations = null;
+
     public @Nullable RealExpression parent = null;
     public final @NonNull List<@NonNull Expression> children = new ArrayList<>();
 
@@ -84,6 +86,7 @@ public non-sealed class RealExpression extends AbstractAst implements Expression
         this.expressionType = other.expressionType;
         this.identifiers.clear();
         this.identifiers.addAll(other.identifiers);
+        this.slot = other.slot;
         this.type = other.type;
         this.annotations = other.annotations;
         // we do not copy parent, keeping the current one, if any
@@ -97,23 +100,38 @@ public non-sealed class RealExpression extends AbstractAst implements Expression
     }
 
     public enum ExpressionType {
+        /// A variable or property access from the parser phase that must be wrapped in a [#CHAINABLE] expression.
         /// Semantic analysis will replace this undetermined type with either a
-        /// - **property access** = a [RealExpression] with a [#PROP_ACCESS] type.
-        /// - **variable access** = a [LoadExpression].
+        /// - **property access** = a [#PROP_ACCESS] expression.
+        /// - **variable access** = a [#LOAD] expression.
         VARIABLE_OR_PROP_ACCESS,
         PROP_ACCESS,
 
+        /// A variable or property assignment from the parser phase that must be wrapped in a [#CHAINABLE] expression.
         /// Semantic analysis will replace this undetermined type with either a
         /// - **property assignment** = a [RealExpression] with a [#PROP_ASSIGNMENT] type.
         /// - **variable assignment** = a todo put the link.
         VARIABLE_OR_PROP_ASSIGNMENT,
         PROP_ASSIGNMENT,
-        CHAINABLE,
+
+        /// An expression that loads a value from a variable or a field into the operand stack.
+        /// It is set during the semantic analysis phase, and need a [slot][RealExpression#slot] number.
+        LOAD,
+
+        /// A function call expression that may have some [parameters][#FUN_CALL_PARAMETER].
+        /// It must be wrapped in a [#CHAINABLE] expression.
+        ///
+        /// Note: a constructor invocation is a function call.
         FUN_CALL,
         FUN_CALL_PARAMETER,
+
         NEW,
         ADD,
         SUB,
         INDEXING,
+
+        /// A "virtual" expression for composed expressions. For example `this.aProperty` will resolve to 2 expressions
+        /// in the semantic analysis phase : [load(this)][#LOAD] and [prop aProperty][#PROP_ACCESS].
+        CHAINABLE,
     }
 }

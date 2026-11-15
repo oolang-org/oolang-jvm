@@ -147,8 +147,8 @@ public final class SymbolTableBuilder {
                 }
                 case Expression expression -> {
                     if (functionReturnType == null) {
-                        // type case (3) :  type can be directly inferred for some cases, or it will have to be resolved
-                        // during semantic analysis
+                        // type case (3) :  type can be directly inferred from the expression itself for some cases,
+                        // or it will have to be resolved during semantic analysis
                         final var klassOrNull = TypeResolver.inferKlass(expression);
                         functionReturnType = (klassOrNull != null) ? klassOrNull : new Type.Lateinit();
                     }
@@ -185,11 +185,12 @@ public final class SymbolTableBuilder {
                 propertyElement.elementType == RealElement.ElementType.VAL);
 
         final Type propType;
-        // 1) type is explicit
+        // type case (1) : type is explicit in the property declaration
         if (propertyElement.type != null) {
             propType = new Type.Lazy((RealAstType) propertyElement.type, klass);
         } else {
-            // 2) type can be directly inferred for some cases, or it will have to be resolved during semantic analysis
+            // type case (2) :  type can be directly inferred from the expression itself for some cases,
+            // or it will have to be resolved during semantic analysis
             Klass klassOrNull = null;
             for (final var child : propertyElement.children) {
                 if (child instanceof RealElement realElement && realElement.elementType == PROPERTY_INITIALIZER) {
@@ -202,7 +203,7 @@ public final class SymbolTableBuilder {
 
         final var property = new Property(klass, baseSymbol, propType);
 
-        // if not private and not static, also add a getter function and visit it
+        // if not private and not static, we add a getter function and visit it
         if (!property.isStatic() && property.visibility() != Visibility.PRIVATE) {
             final var getterFunction = buildGetterFunction(property);
             property.getter = visitFunction(getterFunction, klass, propType);
@@ -215,7 +216,7 @@ public final class SymbolTableBuilder {
                 children.add(setterFunction);
             }
 
-            // the property becomes private, also in the AST
+            // the property becomes private. We do it also in the AST
             property.visibility = Visibility.PRIVATE;
             makeElementPrivate(propertyElement);
         }
