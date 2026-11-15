@@ -17,7 +17,6 @@ import org.oolang.ast.RealAstType;
 import org.oolang.ast.element.ClassBody;
 import org.oolang.ast.element.RealElement;
 import org.oolang.ast.expression.ConstantExpression;
-import org.oolang.ast.expression.LoadExpression;
 import org.oolang.ast.expression.RealExpression;
 import org.oolang.ast.statement.CodeBlock;
 import org.oolang.ast.statement.ConstructorCodeBlock;
@@ -146,9 +145,12 @@ public class OolangSemanticAnalyzerTest {
         assertThat(propAccessChainable.expressionType).isEqualTo(CHAINABLE);
         assertThat(propAccessChainable.content()).hasSize(2);
 
-        var loadExpression = (LoadExpression) propAccessChainable.content().getFirst();
-        assertThat(loadExpression.description()).isEqualTo("LoadExpression(this, 0)");
+        var loadExpression = (RealExpression) propAccessChainable.content().getFirst();
+        assertThat(loadExpression.expressionType).isEqualTo(LOAD);
+        assertThat(loadExpression.description()).isEqualTo("Expression(load this)");
         assertThat(loadExpression.descriptorString()).isEqualTo("Lcom/example/Example;");
+        assertThat(loadExpression.slot).isEqualTo(0);
+        assertThat(loadExpression.content()).isEmpty();
 
         var propAccess = (RealExpression) propAccessChainable.content().getLast();
         assertThat(propAccess.expressionType).isEqualTo(PROP_ACCESS);
@@ -178,17 +180,19 @@ public class OolangSemanticAnalyzerTest {
         assertThat(propAssignmentChainable.expressionType).isEqualTo(CHAINABLE);
         assertThat(propAssignmentChainable.content()).hasSize(3);
 
-        loadExpression = (LoadExpression) propAssignmentChainable.content().getFirst();
-        assertThat(loadExpression.description()).isEqualTo("LoadExpression(this, 0)");
+        loadExpression = (RealExpression) propAssignmentChainable.content().getFirst();
+        assertThat(loadExpression.expressionType).isEqualTo(LOAD);
+        assertThat(loadExpression.description()).isEqualTo("Expression(load this)");
         assertThat(loadExpression.descriptorString()).isEqualTo("Lcom/example/Example;");
+        assertThat(loadExpression.slot).isEqualTo(0);
+        assertThat(loadExpression.content()).isEmpty();
 
-        var variableChainable = (RealExpression) propAssignmentChainable.content().get(1);
-        assertThat(variableChainable.expressionType).isEqualTo(CHAINABLE);
-        assertThat(variableChainable.content()).hasSize(1);
-
-        loadExpression = (LoadExpression) variableChainable.content().getFirst();
-        assertThat(loadExpression.description()).isEqualTo("LoadExpression(foo, 1)");
+        loadExpression = (RealExpression) propAssignmentChainable.content().get(1);
+        assertThat(loadExpression.expressionType).isEqualTo(LOAD);
+        assertThat(loadExpression.description()).isEqualTo("Expression(load foo)");
         assertThat(loadExpression.descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(loadExpression.slot).isEqualTo(1);
+        assertThat(loadExpression.content()).isEmpty();
 
         var propAssignment = (RealExpression) propAssignmentChainable.content().getLast();
         assertThat(propAssignment.expressionType).isEqualTo(PROP_ASSIGNMENT);
@@ -309,9 +313,14 @@ public class OolangSemanticAnalyzerTest {
         assertThat(funCallParamChainable1.description()).isEqualTo("Expression(chainable)");
         assertThat(funCallParamChainable1.expressionType).isEqualTo(CHAINABLE);
         assertThat(funCallParamChainable1.content()).hasSize(2);
-        var funCallParamArrayLoad1 = (LoadExpression) funCallParamChainable1.content().getFirst();
-        assertThat(funCallParamArrayLoad1.description()).isEqualTo("LoadExpression(args, 0)");
+
+        var funCallParamArrayLoad1 = (RealExpression) funCallParamChainable1.content().getFirst();
+        assertThat(funCallParamArrayLoad1.expressionType).isEqualTo(LOAD);
+        assertThat(funCallParamArrayLoad1.description()).isEqualTo("Expression(load args)");
         assertThat(funCallParamArrayLoad1.descriptorString()).isEqualTo("[Ljava/lang/String;");
+        assertThat(funCallParamArrayLoad1.slot).isEqualTo(0);
+        assertThat(funCallParamArrayLoad1.content()).isEmpty();
+
         var funCallParamArray1 = (RealExpression) funCallParamChainable1.content().getLast();
         assertThat(funCallParamArray1.description()).isEqualTo("Expression(indexing)");
         assertThat(funCallParamArray1.expressionType).isEqualTo(INDEXING);
@@ -329,15 +338,21 @@ public class OolangSemanticAnalyzerTest {
         assertThat(funCallParamChainable2.description()).isEqualTo("Expression(chainable)");
         assertThat(funCallParamChainable2.expressionType).isEqualTo(CHAINABLE);
         assertThat(funCallParamChainable2.content()).hasSize(2);
-        var funCallParamArrayLoad2 = (LoadExpression) funCallParamChainable2.content().getFirst();
-        assertThat(funCallParamArrayLoad2.description()).isEqualTo("LoadExpression(args, 0)");
+
+        var funCallParamArrayLoad2 = (RealExpression) funCallParamChainable2.content().getFirst();
+        assertThat(funCallParamArrayLoad2.expressionType).isEqualTo(LOAD);
+        assertThat(funCallParamArrayLoad2.description()).isEqualTo("Expression(load args)");
         assertThat(funCallParamArrayLoad2.descriptorString()).isEqualTo("[Ljava/lang/String;");
+        assertThat(funCallParamArrayLoad2.slot).isEqualTo(0);
+        assertThat(funCallParamArrayLoad2.content()).isEmpty();
+
         var funCallParamArray2 = (RealExpression) funCallParamChainable2.content().getLast();
         assertThat(funCallParamArray2.description()).isEqualTo("Expression(indexing)");
         assertThat(funCallParamArray2.expressionType).isEqualTo(INDEXING);
         assertThat(funCallParamArray2.descriptorString()).isEqualTo("Ljava/lang/String;");
         assertThat(funCallParamArray2.parent).isEqualTo(funCallParamChainable2);
         assertThat(funCallParamArray2.content()).hasSize(1);
+
         var funCallParamArrayIndex2 = (ConstantExpression) funCallParamArray2.content().getFirst();
         assertThat(funCallParamArrayIndex2.description()).isEqualTo("ConstantExpression(1)");
 
@@ -890,9 +905,12 @@ public class OolangSemanticAnalyzerTest {
         assertThat(assignmentChainable.expressionType).isEqualTo(CHAINABLE);
         assertThat(assignmentChainable.content()).hasSize(3);
 
-        var assignmentLoad = (LoadExpression) assignmentChainable.content().get(0);
-        assertThat(assignmentLoad.description()).isEqualTo("LoadExpression(this, 0)");
+        var assignmentLoad = (RealExpression) assignmentChainable.content().getFirst();
+        assertThat(assignmentLoad.expressionType).isEqualTo(LOAD);
+        assertThat(assignmentLoad.description()).isEqualTo("Expression(load this)");
         assertThat(assignmentLoad.descriptorString()).isEqualTo("Lcom/example/Example;");
+        assertThat(assignmentLoad.slot).isEqualTo(0);
+        assertThat(assignmentLoad.content()).isEmpty();
 
         var constant = (ConstantExpression) assignmentChainable.content().get(1);
         assertThat(constant.value).isEqualTo("Hello, World!");
@@ -910,9 +928,12 @@ public class OolangSemanticAnalyzerTest {
         assertThat(superCall.expressionType).isEqualTo(CHAINABLE);
         assertThat(superCall.content()).hasSize(2);
 
-        var superCallLoad = (LoadExpression) superCall.content().getFirst();
-        assertThat(superCallLoad.description()).isEqualTo("LoadExpression(this, 0)");
+        var superCallLoad = (RealExpression) superCall.content().getFirst();
+        assertThat(superCallLoad.expressionType).isEqualTo(LOAD);
+        assertThat(superCallLoad.description()).isEqualTo("Expression(load this)");
         assertThat(superCallLoad.descriptorString()).isEqualTo("Lcom/example/Example;");
+        assertThat(superCallLoad.slot).isEqualTo(0);
+        assertThat(superCallLoad.content()).isEmpty();
 
         var superFunCall = (RealExpression) superCall.content().getLast();
         assertThat(superFunCall.expressionType).isEqualTo(FUN_CALL);
@@ -969,9 +990,12 @@ public class OolangSemanticAnalyzerTest {
         assertThat(assignmentChainable.expressionType).isEqualTo(CHAINABLE);
         assertThat(assignmentChainable.content()).hasSize(3);
 
-        var assignmentLoad = (LoadExpression) assignmentChainable.content().get(0);
-        assertThat(assignmentLoad.description()).isEqualTo("LoadExpression(this, 0)");
+        var assignmentLoad = (RealExpression) assignmentChainable.content().getFirst();
+        assertThat(assignmentLoad.expressionType).isEqualTo(LOAD);
+        assertThat(assignmentLoad.description()).isEqualTo("Expression(load this)");
         assertThat(assignmentLoad.descriptorString()).isEqualTo("Lcom/example/Example;");
+        assertThat(assignmentLoad.slot).isEqualTo(0);
+        assertThat(assignmentLoad.content()).isEmpty();
 
         var assignmentConcat = (RealExpression) assignmentChainable.content().get(1);
         assertThat(assignmentConcat.expressionType).isEqualTo(ADD);
@@ -1002,9 +1026,12 @@ public class OolangSemanticAnalyzerTest {
         assertThat(superCall.expressionType).isEqualTo(CHAINABLE);
         assertThat(superCall.content()).hasSize(2);
 
-        var superCallLoad = (LoadExpression) superCall.content().getFirst();
-        assertThat(superCallLoad.description()).isEqualTo("LoadExpression(this, 0)");
+        var superCallLoad = (RealExpression) superCall.content().getFirst();
+        assertThat(superCallLoad.expressionType).isEqualTo(LOAD);
+        assertThat(superCallLoad.description()).isEqualTo("Expression(load this)");
         assertThat(superCallLoad.descriptorString()).isEqualTo("Lcom/example/Example;");
+        assertThat(superCallLoad.slot).isEqualTo(0);
+        assertThat(superCallLoad.content()).isEmpty();
 
         var superFunCall = (RealExpression) superCall.content().getLast();
         assertThat(superFunCall.expressionType).isEqualTo(FUN_CALL);
@@ -1075,17 +1102,25 @@ public class OolangSemanticAnalyzerTest {
         assertThat(propertyGetter.descriptorString()).isEqualTo("Ljava/lang/String;");
         assertThat(propertyGetter.hasCustomAttribute).isTrue();
         assertThat(propertyGetter.children).hasSize(1);
+
         var propertyGetterCodeBlock = (CodeBlock) propertyGetter.children.getFirst();
         assertThat(propertyGetterCodeBlock.statements).hasSize(1);
+
         var propertyGetterReturn = propertyGetterCodeBlock.statements.getFirst();
         assertThat(propertyGetterReturn.statementType).isEqualTo(RETURN);
         assertThat(propertyGetterReturn.children).hasSize(1);
+
         var chainablePropertyAccess = (RealExpression) propertyGetterReturn.children.getFirst();
         assertThat(chainablePropertyAccess.expressionType).isEqualTo(CHAINABLE);
         assertThat(chainablePropertyAccess.children).hasSize(2);
-        var propertyAccessLoad = (LoadExpression) chainablePropertyAccess.children.getFirst();
-        assertThat(propertyAccessLoad.description()).isEqualTo("LoadExpression(this, 0)");
+
+        var propertyAccessLoad = (RealExpression) chainablePropertyAccess.children.getFirst();
+        assertThat(propertyAccessLoad.expressionType).isEqualTo(LOAD);
+        assertThat(propertyAccessLoad.description()).isEqualTo("Expression(load this)");
         assertThat(propertyAccessLoad.descriptorString()).isEqualTo("Lcom/example/Example;");
+        assertThat(propertyAccessLoad.slot).isEqualTo(0);
+        assertThat(propertyAccessLoad.content()).isEmpty();
+
         var propertyAccess = (RealExpression) chainablePropertyAccess.children.getLast();
         assertThat(propertyAccess.expressionType).isEqualTo(PROP_ACCESS);
         assertThat(propertyAccess.description()).isEqualTo("Expression(prop_access prop)");

@@ -14,7 +14,6 @@ import org.oolang.ast.element.ElementModifier;
 import org.oolang.ast.element.RealElement;
 import org.oolang.ast.expression.ConstantExpression;
 import org.oolang.ast.expression.Expression;
-import org.oolang.ast.expression.LoadExpression;
 import org.oolang.ast.expression.RealExpression;
 import org.oolang.ast.statement.CodeBlock;
 import org.oolang.ast.statement.ConstructorCodeBlock;
@@ -346,7 +345,6 @@ public final class OolangSemanticAnalyzer {
                 constantExpression.descriptorString(constantKlass.descriptorString());
                 yield constantKlass;
             }
-            case LoadExpression _ -> throw new IllegalStateException("Unexpected load expression");
         };
     }
 
@@ -752,14 +750,16 @@ public final class OolangSemanticAnalyzer {
         }
     }
 
-    private static @NonNull LoadExpression loadExpression(final @NonNull SimpleVariable variable,
+    private static @NonNull RealExpression loadExpression(final @NonNull SimpleVariable variable,
                                                           final @NonNull SimpleIdentifier id) {
         assert variable != null;
         assert id != null;
 
-        return new LoadExpression(id,
-                variable.slot(),
-                getKlassFromType(variable.type()).descriptorString());
+        final var loadExpression = new RealExpression(LOAD);
+        loadExpression.identifiers.add(id);
+        loadExpression.slot = variable.slot();
+        loadExpression.descriptorString(variable.descriptorString());
+        return loadExpression;
     }
 
     private static @NonNull RealExpression propAccessExpression(final @NonNull Property property,
