@@ -16,7 +16,7 @@ import java.util.Locale;
 import java.util.Objects;
 
 public final class RealStatement extends AbstractAst implements StatementNode {
-    public final @NonNull StatementType statementType;
+    public @NonNull StatementType statementType;
     public @Nullable List<@NonNull Annotation> annotations = null;
     public @NonNull List<@NonNull Ast> children = new ArrayList<>();
 
@@ -41,7 +41,8 @@ public final class RealStatement extends AbstractAst implements StatementNode {
 
     public enum StatementType {
         /// a class / function / variable declaration. `children` is a single
-        ///  [RealElement][org.oolang.ast.element.RealElement]
+        ///  [RealElement][org.oolang.ast.element.RealElement]. This type is dropped during semantic analysis, and can
+        /// be transformed to an [#ASSIGNMENT] if the variable has an initializer expression.
         DECLARATION,
         /// a statement that executes an expression. `children` is a single
         /// [Expression][org.oolang.ast.expression.Expression]

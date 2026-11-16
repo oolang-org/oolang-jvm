@@ -9,5 +9,6 @@ public enum Visibility {
     JAVA_PROTECTED,
     OOLANG_PROTECTED,
     JAVA_PACKAGE_PRIVATE,
-    PRIVATE
+    PRIVATE,
+    HIDDEN, // a pure function property is not visible, its getter/setter are
 }

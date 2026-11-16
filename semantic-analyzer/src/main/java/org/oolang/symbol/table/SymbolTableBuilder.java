@@ -98,7 +98,7 @@ public final class SymbolTableBuilder {
         // functions while iterating
         for (final var child : List.copyOf(children)) {
             switch (child.elementType) {
-                case VAR, VAL -> {
+                case VAL, VAR -> {
                     final var property = visitProperty(child, children, klass);
                     if (!property.isStatic()) {
                         hasInstanceFunOrProp = true;

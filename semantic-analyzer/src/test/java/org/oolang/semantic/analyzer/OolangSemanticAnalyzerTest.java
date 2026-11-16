@@ -7,7 +7,6 @@ package org.oolang.semantic.analyzer;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.jspecify.annotations.NonNull;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.oolang.ast.AstFile;
@@ -250,7 +249,7 @@ public class OolangSemanticAnalyzerTest {
                 System.out.println("Hello, World!")
                 }
                 }""");
-        var chainable = verifyMainUntilStatement(astFile);
+        var chainable = verifyMainUntilStatementExpression(astFile);
         assertThat(chainable.expressionType).isEqualTo(CHAINABLE);
         assertThat(chainable.children).hasSize(2);
         var propAccess = (RealExpression) chainable.children.getFirst();
@@ -292,7 +291,7 @@ public class OolangSemanticAnalyzerTest {
                 System.out.println("Hello, " + args[0] + " and " + args[1])
                 }
                 }""");
-        var chainable = verifyMainUntilStatement(astFile);
+        var chainable = verifyMainUntilStatementExpression(astFile);
         assertThat(chainable.children).hasSize(2);
         var funCall = (RealExpression) chainable.children.getLast();
         assertThat(funCall.children).hasSize(1);
@@ -369,7 +368,7 @@ public class OolangSemanticAnalyzerTest {
                 System.out.println(OldSchoolFunctionProperty.createPrincipal().name)
                 }
                 }""");
-        var chainable = verifyMainUntilStatement(astFile);
+        var chainable = verifyMainUntilStatementExpression(astFile);
         assertThat(chainable.expressionType).isEqualTo(CHAINABLE);
         assertThat(chainable.children).hasSize(2);
         var propAccess = (RealExpression) chainable.children.getFirst();
@@ -434,7 +433,7 @@ public class OolangSemanticAnalyzerTest {
                 System.out.println(new OldSchoolFunctionProperty().name)
                 }
                 }""");
-        var chainable = verifyMainUntilStatement(astFile);
+        var chainable = verifyMainUntilStatementExpression(astFile);
         assertThat(chainable.expressionType).isEqualTo(CHAINABLE);
         assertThat(chainable.children).hasSize(2);
         var propAccess = (RealExpression) chainable.children.getFirst();
@@ -510,7 +509,7 @@ public class OolangSemanticAnalyzerTest {
                 System.out.println(new OolangFunctionProperty().name)
                 }
                 }""");
-        var chainable = verifyMainUntilStatement(astFile);
+        var chainable = verifyMainUntilStatementExpression(astFile);
         assertThat(chainable.expressionType).isEqualTo(CHAINABLE);
         assertThat(chainable.children).hasSize(2);
         var propAccess = (RealExpression) chainable.children.getFirst();
@@ -585,7 +584,7 @@ public class OolangSemanticAnalyzerTest {
                 System.out.println(OolangFunctionProperty.createPrincipal().name)
                 }
                 }""");
-        var chainable = verifyMainUntilStatement(astFile);
+        var chainable = verifyMainUntilStatementExpression(astFile);
         assertThat(chainable.expressionType).isEqualTo(CHAINABLE);
         assertThat(chainable.children).hasSize(2);
         var propAccess = (RealExpression) chainable.children.getFirst();
@@ -654,7 +653,7 @@ public class OolangSemanticAnalyzerTest {
                         System.out.println(new OolangFunctionProperty2().name)
                         }
                         }""");
-        var chainable = verifyMainUntilStatement(astFile);
+        var chainable = verifyMainUntilStatementExpression(astFile);
         assertThat(chainable.expressionType).isEqualTo(CHAINABLE);
         assertThat(chainable.children).hasSize(2);
         var propAccess = (RealExpression) chainable.children.getFirst();
@@ -720,7 +719,6 @@ public class OolangSemanticAnalyzerTest {
         assertThat(funCallParamFunPropAccess.children).isEmpty();
     }
 
-    @Disabled
     @Test
     public void parseClassWithMainFunctionAndOolangFunctionPropertyAssignAndAccess3() {
         var astFile = astForCodes("""
@@ -733,14 +731,88 @@ public class OolangSemanticAnalyzerTest {
                         class Example {
                         static fun main(args: Array<String>) {
                         val oolangInstance = new OolangFunctionProperty2()
-                        oolangInstance.name = "World"
+                        oolangInstance.name = "World!"
                         System.out.println("Hello, " + oolangInstance.name)
                         }
                         }""");
-        var chainable = verifyMainUntilStatement(astFile);
+        var codeBlock = verifyMainUntilCodeBlock(astFile);
+        assertThat(codeBlock.statements).hasSize(3);
+
+        // statement 1: `val oolangInstance = new OolangFunctionProperty2()`
+        var statement = codeBlock.statements.get(0);
+
+        var chainable = (RealExpression) statement.children.getFirst();
         assertThat(chainable.expressionType).isEqualTo(CHAINABLE);
         assertThat(chainable.children).hasSize(2);
-        var propAccess = (RealExpression) chainable.children.getFirst();
+
+        var variableStoreChainable = (RealExpression) chainable.children.getFirst();
+        assertThat(variableStoreChainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(variableStoreChainable.content()).hasSize(2);
+
+        var variableValueNew = (RealExpression) variableStoreChainable.content().get(0);
+        assertThat(variableValueNew.expressionType).isEqualTo(NEW);
+        assertThat(variableValueNew.parent).isEqualTo(variableStoreChainable);
+        assertThat(variableValueNew.descriptorString()).isEqualTo("Lcom/example/OolangFunctionProperty2;");
+
+        var variableValueInstantiation = (RealExpression) variableStoreChainable.content().get(1);
+        assertThat(variableValueInstantiation.expressionType).isEqualTo(FUN_CALL);
+        assertThat(variableValueInstantiation.parent).isEqualTo(variableStoreChainable);
+        assertThat(variableValueInstantiation.type).isNotNull();
+        assertThat(variableValueInstantiation.type.description())
+                .isEqualTo("Type(OolangFunctionProperty2)");
+        assertThat(variableValueInstantiation.invocation).isEqualTo(INVOKE_SPECIAL);
+        assertThat(variableValueInstantiation.ownerDescriptorString)
+                .isEqualTo("Lcom/example/OolangFunctionProperty2;");
+        assertThat(variableValueInstantiation.identifiers).hasSize(1);
+        assertThat(variableValueInstantiation.identifiers.getFirst().identifier).isEqualTo(ConstantDescs.INIT_NAME);
+        assertThat(variableValueInstantiation.descriptorString())
+                .isEqualTo("Lcom/example/OolangFunctionProperty2;");
+        assertThat(variableValueInstantiation.typeDescriptorString).isEqualTo("()V");
+        assertThat(variableValueInstantiation.content()).isEmpty();
+
+        var variableStore = (RealExpression) chainable.children.getLast();
+        assertThat(variableStore.expressionType).isEqualTo(VARIABLE_STORE);
+        assertThat(variableStore.invocation).isNull();
+        assertThat(variableStore.identifiers).hasSize(1);
+        assertThat(variableStore.identifiers.getFirst().identifier).isEqualTo("oolangInstance");
+        assertThat(variableStore.slot).isEqualTo(0);
+        assertThat(variableStore.descriptorString()).isEqualTo("Lcom/example/OolangFunctionProperty2;");
+        assertThat(variableStore.children).isEmpty();
+
+        // statement 2: `oolangInstance.name = "World!"`
+        statement = codeBlock.statements.get(1);
+
+        var propAssignmentChainable = (RealExpression) statement.children.getFirst();
+        assertThat(propAssignmentChainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(propAssignmentChainable.content()).hasSize(3);
+
+        var loadVariable1 = (RealExpression) propAssignmentChainable.content().get(0);
+        assertThat(loadVariable1.expressionType).isEqualTo(LOAD);
+        assertThat(loadVariable1.description()).isEqualTo("Expression(load oolangInstance)");
+        assertThat(loadVariable1.descriptorString()).isEqualTo("Lcom/example/OolangFunctionProperty2;");
+        assertThat(loadVariable1.slot).isEqualTo(0);
+        assertThat(loadVariable1.content()).isEmpty();
+
+        var constant = (ConstantExpression) propAssignmentChainable.content().get(1);
+        assertThat(constant.value).isEqualTo("World!");
+
+        var propAssignment = (RealExpression) propAssignmentChainable.content().get(2);
+        assertThat(propAssignment.expressionType).isEqualTo(FUN_CALL);
+        assertThat(propAssignment.description()).isEqualTo("Expression(fun_call name)");
+        assertThat(propAssignment.invocation).isEqualTo(INVOKE_SPECIAL);
+        assertThat(propAssignment.ownerDescriptorString).isEqualTo("Lcom/example/OolangFunctionProperty2;");
+        assertThat(propAssignment.descriptorString()).isEqualTo("V");
+        assertThat(propAssignment.typeDescriptorString).isEqualTo("(Ljava/lang/String;)V");
+        assertThat(propAssignment.content()).isEmpty();
+
+        // statement 3: `System.out.println("Hello, " + oolangInstance.name)`
+        statement = codeBlock.statements.get(2);
+
+        var funCallParamChainable1 = (RealExpression) statement.children.getFirst();
+        assertThat(funCallParamChainable1.expressionType).isEqualTo(CHAINABLE);
+        assertThat(funCallParamChainable1.content()).hasSize(2);
+
+        var propAccess = (RealExpression) funCallParamChainable1.children.getFirst();
         assertThat(propAccess.expressionType).isEqualTo(PROP_ACCESS);
         assertThat(propAccess.invocation).isEqualTo(GET_STATIC);
         assertThat(propAccess.ownerDescriptorString).isEqualTo("Ljava/lang/System;");
@@ -749,7 +821,7 @@ public class OolangSemanticAnalyzerTest {
         assertThat(propAccess.descriptorString()).isEqualTo("Ljava/io/PrintStream;");
         assertThat(propAccess.children).isEmpty();
 
-        var funCall = (RealExpression) chainable.children.getLast();
+        var funCall = (RealExpression) funCallParamChainable1.children.getLast();
         assertThat(funCall.expressionType).isEqualTo(FUN_CALL);
         assertThat(funCall.invocation).isEqualTo(INVOKE_VIRTUAL);
         assertThat(funCall.ownerDescriptorString).isEqualTo("Ljava/io/PrintStream;");
@@ -766,44 +838,42 @@ public class OolangSemanticAnalyzerTest {
         assertThat(funCallParam.typeDescriptorString).isNull();
         assertThat(funCallParam.children).hasSize(1);
 
-        var funCallParamChainable = (RealExpression) funCallParam.content().getFirst();
-        assertThat(funCallParamChainable.expressionType).isEqualTo(CHAINABLE);
-        assertThat(funCallParamChainable.content()).hasSize(3);
+        var funCallParamFunPropAccess1 = (RealExpression) funCallParam.content().getFirst();
+        assertThat(funCallParamFunPropAccess1.description()).isEqualTo("Expression(add)");
+        assertThat(funCallParamFunPropAccess1.expressionType).isEqualTo(ADD);
+        assertThat(funCallParamFunPropAccess1.ownerDescriptorString).isNull();
+        assertThat(funCallParamFunPropAccess1.descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(funCallParamFunPropAccess1.content()).hasSize(2);
 
-        var funCallParamNew = (RealExpression) funCallParamChainable.content().get(0);
-        assertThat(funCallParamNew.expressionType).isEqualTo(NEW);
-        assertThat(funCallParamNew.parent).isEqualTo(funCallParamChainable);
-        assertThat(funCallParamNew.descriptorString()).isEqualTo("Lcom/example/OolangFunctionProperty2;");
+        var funCallParamConstant = (ConstantExpression) funCallParamFunPropAccess1.content().getFirst();
+        assertThat(funCallParamConstant.description()).isEqualTo("ConstantExpression(\"Hello, \")");
+        assertThat(funCallParamConstant.descriptorString()).isEqualTo("Ljava/lang/String;");
 
-        var funCallParamClassInstantiation = (RealExpression) funCallParamChainable.content().get(1);
-        assertThat(funCallParamClassInstantiation.expressionType).isEqualTo(FUN_CALL);
-        assertThat(funCallParamClassInstantiation.parent).isEqualTo(funCallParamChainable);
-        assertThat(funCallParamClassInstantiation.type).isNotNull();
-        assertThat(funCallParamClassInstantiation.type.description())
-                .isEqualTo("Type(OolangFunctionProperty2)");
-        assertThat(funCallParamClassInstantiation.invocation).isEqualTo(INVOKE_SPECIAL);
-        assertThat(funCallParamClassInstantiation.ownerDescriptorString)
-                .isEqualTo("Lcom/example/OolangFunctionProperty2;");
-        assertThat(funCallParamClassInstantiation.identifiers).hasSize(1);
-        assertThat(funCallParamClassInstantiation.identifiers.getFirst().identifier).isEqualTo(ConstantDescs.INIT_NAME);
-        assertThat(funCallParamClassInstantiation.descriptorString())
-                .isEqualTo("Lcom/example/OolangFunctionProperty2;");
-        assertThat(funCallParamClassInstantiation.typeDescriptorString).isEqualTo("()V");
-        assertThat(funCallParamClassInstantiation.content()).isEmpty();
+        var funCallParamChainable2 = (RealExpression) funCallParamFunPropAccess1.content().getLast();
+        assertThat(funCallParamChainable2.description()).isEqualTo("Expression(chainable)");
+        assertThat(funCallParamChainable2.expressionType).isEqualTo(CHAINABLE);
+        assertThat(funCallParamChainable2.content()).hasSize(2);
 
-        var funCallParamFunPropAccess = (RealExpression) funCallParamChainable.content().get(2);
-        assertThat(funCallParamFunPropAccess.expressionType).isEqualTo(FUN_CALL);
-        assertThat(funCallParamFunPropAccess.invocation).isEqualTo(INVOKE_VIRTUAL);
-        assertThat(funCallParamFunPropAccess.ownerDescriptorString)
+        var loadVariable2 = (RealExpression) funCallParamChainable2.content().getFirst();
+        assertThat(loadVariable2.expressionType).isEqualTo(LOAD);
+        assertThat(loadVariable2.description()).isEqualTo("Expression(load oolangInstance)");
+        assertThat(loadVariable2.descriptorString()).isEqualTo("Lcom/example/OolangFunctionProperty2;");
+        assertThat(loadVariable2.slot).isEqualTo(0);
+        assertThat(loadVariable2.content()).isEmpty();
+
+        var funCallParamFunPropAccess2 = (RealExpression) funCallParamChainable2.content().getLast();
+        assertThat(funCallParamFunPropAccess2.expressionType).isEqualTo(FUN_CALL);
+        assertThat(funCallParamFunPropAccess2.invocation).isEqualTo(INVOKE_VIRTUAL);
+        assertThat(funCallParamFunPropAccess2.ownerDescriptorString)
                 .isEqualTo("Lcom/example/OolangFunctionProperty2;");
-        assertThat(funCallParamFunPropAccess.identifiers).hasSize(1);
-        assertThat(funCallParamFunPropAccess.identifiers.getFirst().identifier).isEqualTo("name");
-        assertThat(funCallParamFunPropAccess.descriptorString()).isEqualTo("Ljava/lang/String;");
-        assertThat(funCallParamFunPropAccess.typeDescriptorString).isEqualTo("()Ljava/lang/String;");
-        assertThat(funCallParamFunPropAccess.children).isEmpty();
+        assertThat(funCallParamFunPropAccess2.identifiers).hasSize(1);
+        assertThat(funCallParamFunPropAccess2.identifiers.getFirst().identifier).isEqualTo("name");
+        assertThat(funCallParamFunPropAccess2.descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(funCallParamFunPropAccess2.typeDescriptorString).isEqualTo("()Ljava/lang/String;");
+        assertThat(funCallParamFunPropAccess2.children).isEmpty();
     }
 
-    private @NonNull RealExpression verifyMainUntilStatement(AstFile astFile) {
+    @NonNull CodeBlock verifyMainUntilCodeBlock(AstFile astFile) {
         var root = astFile.rootElements.getFirst();
         var classBody = (ClassBody) root.children.getFirst();
         var funDeclaration = classBody.children.getFirst();
@@ -813,7 +883,11 @@ public class OolangSemanticAnalyzerTest {
         assertThat(funParam.type).isNotNull();
         assertThat(funParam.type.descriptorString()).isEqualTo("[Ljava/lang/String;");
         assertThat(funDeclaration.children.getLast()).isInstanceOf(CodeBlock.class);
-        var codeBlock = (CodeBlock) funDeclaration.children.getLast();
+        return (CodeBlock) funDeclaration.children.getLast();
+    }
+
+    private @NonNull RealExpression verifyMainUntilStatementExpression(AstFile astFile) {
+        var codeBlock = verifyMainUntilCodeBlock(astFile);
         var statement = codeBlock.statements.getFirst();
         return (RealExpression) statement.children.getFirst();
     }
@@ -897,8 +971,8 @@ public class OolangSemanticAnalyzerTest {
         assertThat(defaultConstructor.modifiers.getFirst().modifier).isEqualTo("open");
         assertThat(defaultConstructor.children).hasSize(1);
         var constructorCodeBlock = (ConstructorCodeBlock) defaultConstructor.children.getFirst();
-        assertThat(constructorCodeBlock.earlyLarvalStatements).hasSize(1);
-        var assignmentStatement = constructorCodeBlock.earlyLarvalStatements.getFirst();
+        assertThat(constructorCodeBlock.initBlock.statements).hasSize(1);
+        var assignmentStatement = constructorCodeBlock.initBlock.statements.getFirst();
         assertThat(assignmentStatement.children).hasSize(1);
 
         var assignmentChainable = (RealExpression) assignmentStatement.children.getFirst();
@@ -982,8 +1056,8 @@ public class OolangSemanticAnalyzerTest {
         assertThat(defaultConstructor.modifiers.getFirst().modifier).isEqualTo("open");
         assertThat(defaultConstructor.children).hasSize(1);
         var constructorCodeBlock = (ConstructorCodeBlock) defaultConstructor.children.getFirst();
-        assertThat(constructorCodeBlock.earlyLarvalStatements).hasSize(1);
-        var assignmentStatement = constructorCodeBlock.earlyLarvalStatements.getFirst();
+        assertThat(constructorCodeBlock.initBlock.statements).hasSize(1);
+        var assignmentStatement = constructorCodeBlock.initBlock.statements.getFirst();
         assertThat(assignmentStatement.children).hasSize(1);
 
         var assignmentChainable = (RealExpression) assignmentStatement.children.getFirst();

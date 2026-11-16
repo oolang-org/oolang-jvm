@@ -6,12 +6,7 @@ package org.oolang.symbol.table;
 
 import org.jspecify.annotations.NonNull;
 
-import java.lang.invoke.TypeDescriptor;
-
-public sealed interface Variable extends TypeDescriptor permits Property, Variable.SimpleVariable {
-    @NonNull ActualType type();
-
-    boolean isFinal();
+public sealed interface Variable extends ScopeElement permits Property, Variable.SimpleVariable {
 
     @SuppressWarnings("preview")
     final class SimpleVariable implements Variable {
@@ -31,10 +26,6 @@ public sealed interface Variable extends TypeDescriptor permits Property, Variab
             this.slot = slot;
         }
 
-        private @NonNull String buildDescriptorString() {
-            return TypeResolver.getKlassFromType(type).descriptorString();
-        }
-
         @Override
         public @NonNull ActualType type() {
             return type;
@@ -46,8 +37,12 @@ public sealed interface Variable extends TypeDescriptor permits Property, Variab
         }
 
         @Override
-        public String descriptorString() {
+        public @NonNull String descriptorString() {
             return descriptorString.get();
+        }
+
+        private @NonNull String buildDescriptorString() {
+            return TypeResolver.getKlassFromType(type).descriptorString();
         }
 
         public int slot() {

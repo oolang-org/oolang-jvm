@@ -7,10 +7,8 @@ package org.oolang.symbol.table;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import java.lang.invoke.TypeDescriptor;
-
 @SuppressWarnings("preview")
-public sealed abstract class PropertyOrFunction implements Symbol, TypeDescriptor permits Function, Property {
+public sealed abstract class PropertyOrFunction implements Symbol, ScopeElement permits Function, Property {
     public final @NonNull Klass declaringKlass;
     public final @NonNull String name;
     public @NonNull Visibility visibility;
@@ -51,21 +49,13 @@ public sealed abstract class PropertyOrFunction implements Symbol, TypeDescripto
         this.type = type;
     }
 
-    public @NonNull ActualType type() {
-        return TypeResolver.getActualTypeFromType(type);
-    }
-
     public Type.@Nullable Lateinit lateinitTypeOrNull() {
         return (type instanceof Type.Lateinit lateinitType && lateinitType.type == null) ? lateinitType : null;
     }
 
-    private @NonNull String buildDescriptorString() {
-        return TypeResolver.getKlassFromType(type()).descriptorString();
-    }
-
     @Override
-    public @NonNull String descriptorString() {
-        return descriptorString.get();
+    public @NonNull ActualType type() {
+        return TypeResolver.getActualTypeFromType(type);
     }
 
     @Override
@@ -88,7 +78,17 @@ public sealed abstract class PropertyOrFunction implements Symbol, TypeDescripto
         return isAbstract;
     }
 
+    @Override
     public boolean isFinal() {
         return isFinal;
+    }
+
+    @Override
+    public @NonNull String descriptorString() {
+        return descriptorString.get();
+    }
+
+    private @NonNull String buildDescriptorString() {
+        return TypeResolver.getKlassFromType(type()).descriptorString();
     }
 }

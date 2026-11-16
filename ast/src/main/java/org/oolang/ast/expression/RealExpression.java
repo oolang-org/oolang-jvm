@@ -110,9 +110,12 @@ public non-sealed class RealExpression extends AbstractAst implements Expression
         /// A variable or property assignment from the parser phase that must be wrapped in a [#CHAINABLE] expression.
         /// Semantic analysis will replace this undetermined type with either a
         /// - **property assignment** = a [RealExpression] with a [#PROP_ASSIGNMENT] type.
-        /// - **variable assignment** = a todo put the link.
+        /// - **variable assignment** = a [RealExpression] with a [#VARIABLE_STORE] type.
         VARIABLE_OR_PROP_ASSIGNMENT,
         PROP_ASSIGNMENT,
+        /// An expression that store a value into a local variable. It is set during the semantic analysis phase, and
+        /// need a [slot][RealExpression#slot] number.
+        VARIABLE_STORE,
 
         /// An expression that loads a value from a variable or a field into the operand stack.
         /// It is set during the semantic analysis phase, and need a [slot][RealExpression#slot] number.

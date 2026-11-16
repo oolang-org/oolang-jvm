@@ -6,10 +6,7 @@ package org.oolang.semantic.analyzer;
 
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-import org.oolang.symbol.table.ActualType;
-import org.oolang.symbol.table.OolangKlass;
-import org.oolang.symbol.table.Property;
-import org.oolang.symbol.table.Variable;
+import org.oolang.symbol.table.*;
 import org.oolang.symbol.table.Variable.SimpleVariable;
 
 import java.util.HashMap;
@@ -17,6 +14,7 @@ import java.util.Map;
 
 import static org.oolang.symbol.table.TypeResolver.DOUBLE_PRIMITIVE_KLASS;
 import static org.oolang.symbol.table.TypeResolver.LONG_PRIMITIVE_KLASS;
+import static org.oolang.symbol.table.Visibility.HIDDEN;
 
 final class Scopes {
     private /* lateinit */ Scope currentStaticScope = null;
@@ -71,44 +69,67 @@ final class Scopes {
         }
     }
 
-    void putVariable(final @NonNull String name,
-                     final @NonNull ActualType type,
-                     final boolean isFinal,
-                     final boolean isStatic) {
+    int putVariable(final @NonNull String name,
+                    final @NonNull ActualType type,
+                    final boolean isFinal,
+                    final boolean isStatic) {
         assert name != null;
         assert type != null;
 
-        if (isStatic) {
-            currentStaticScope.putVariable(name, type, isFinal);
-        } else {
-            currentInstanceScope.putVariable(name, type, isFinal);
-        }
+        return (isStatic)
+                ? currentStaticScope.putVariable(name, type, isFinal)
+                : currentInstanceScope.putVariable(name, type, isFinal);
     }
 
-    @Nullable Variable resolveVariable(final @NonNull String name) {
+    @Nullable ScopeElement resolveScopeElement(final @NonNull String name, final boolean setter) {
         assert name != null;
 
-        var variable = resolveVariable(name, currentInstanceScope);
+        var variable = resolveScopeElement(name, currentInstanceScope, setter);
         if (variable == null) {
-            variable = resolveVariable(name, currentStaticScope);
+            variable = resolveScopeElement(name, currentStaticScope, setter);
         }
         return variable;
     }
 
-    private static @Nullable Variable resolveVariable(final @NonNull String name,
-                                                      final @NonNull Scope current) {
+    private static @Nullable ScopeElement resolveScopeElement(final @NonNull String name,
+                                                              final @NonNull Scope current,
+                                                              final boolean setter) {
         assert name != null;
         assert current != null;
 
-        var scope = current;
+        Scope scope = current;
         while (scope != null) {
             final var variable = scope.variables.get(name);
             if (variable != null) {
-                return variable;
+                final var scopeElement = accessibleScopeElement(variable, setter);
+                if (scopeElement != null) {
+                    return scopeElement;
+                }
             }
             scope = scope.previous;
         }
         return null;
+    }
+
+    private static @Nullable ScopeElement accessibleScopeElement(final @NonNull Variable variable,
+                                                                 final boolean setter) {
+        assert variable != null;
+
+        if (setter && variable.isFinal()) {
+            return null;
+        }
+
+        return switch (variable) {
+            case SimpleVariable var -> var;
+            case Property prop -> {
+                // 1) property can be an accessible field
+                if (prop.visibility != HIDDEN) {
+                    yield prop;
+                }
+                // 2) property can be a function property
+                yield setter ? prop.setter : prop.getter;
+            }
+        };
     }
 
     static final class Scope {
@@ -128,14 +149,16 @@ final class Scopes {
             variables.put(property.name(), property);
         }
 
-        private void putVariable(final @NonNull String name,
-                                 final @NonNull ActualType type,
-                                 final boolean isFinal) {
+        private int putVariable(final @NonNull String name,
+                                final @NonNull ActualType type,
+                                final boolean isFinal) {
             assert name != null;
             assert type != null;
 
-            variables.put(name, new SimpleVariable(type, isFinal, slot));
+            final var variableSlot = slot;
+            variables.put(name, new SimpleVariable(type, isFinal, variableSlot));
             slot += (type == LONG_PRIMITIVE_KLASS || type == DOUBLE_PRIMITIVE_KLASS) ? 2 : 1;
+            return variableSlot;
         }
     }
 }
