@@ -488,7 +488,6 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
             return addAstInfo(chainableExpression, ctx);
         }
 
-        assert ctx.assignableSuffix() != null; // + todo assignableSuffix
         final var postfixUnaryExpression = visitPostfixUnaryExpression(ctx.postfixUnaryExpression());
         assert postfixUnaryExpression != null;
         if (!(postfixUnaryExpression instanceof RealExpression chainableExpression)
@@ -499,6 +498,21 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
             throw new OolangSyntaxException("Not a valid assignment expression: " + postfixUnaryExpression);
         }
         variableOrProp.expressionType = VARIABLE_OR_PROP_ASSIGNMENT;
+        final var assignableSuffixCtx = ctx.assignableSuffix();
+        assert assignableSuffixCtx != null;
+        final var navSuffixCtx = assignableSuffixCtx.navigationSuffix();
+        if (navSuffixCtx != null) {
+            if (navSuffixCtx.memberAccessOperator().DOT() != null) {
+                variableOrProp.identifiers.add(visitSimpleIdentifier(navSuffixCtx.simpleIdentifier()));
+            }
+        }
+
+        final var typeArgumentsCtx = assignableSuffixCtx.typeArguments();
+        if (typeArgumentsCtx != null) {
+            throw new UnsupportedOperationException("Type arguments are not supported yet: " +
+                    typeArgumentsCtx.getText());
+        }
+
         return addAstInfo(chainableExpression, ctx);
     }
 

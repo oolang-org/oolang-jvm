@@ -9,6 +9,7 @@ import org.jspecify.annotations.Nullable;
 import org.oolang.ast.AstFile;
 import org.oolang.ast.Identifier.SimpleIdentifier;
 import org.oolang.ast.Import;
+import org.oolang.ast.RealAstType;
 import org.oolang.ast.element.ClassBody;
 import org.oolang.ast.element.ElementModifier;
 import org.oolang.ast.element.RealElement;
@@ -26,7 +27,7 @@ import java.util.*;
 
 import static org.oolang.JvmInvocationUtils.*;
 import static org.oolang.ast.element.ElementModifier.ModifierType.INHERITANCE;
-import static org.oolang.ast.element.RealElement.ElementType.PROPERTY_INITIALIZER;
+import static org.oolang.ast.element.RealElement.ElementType.*;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.*;
 import static org.oolang.ast.statement.RealStatement.StatementType.ASSIGNMENT;
 import static org.oolang.ast.statement.RealStatement.StatementType.RETURN;
@@ -94,7 +95,7 @@ public final class OolangSemanticAnalyzer {
         // first loop to resolve all properties and add them to the current scope
         for (final var child : classBody.children) {
             switch (child.elementType) {
-                case VAR, VAL -> {
+                case VAL, VAR -> {
                     final var propAssignment = visitProperty(child, scopes, currentKlass);
                     if (propAssignment != null) {
                         initializedPropAssignments.add(propAssignment);
@@ -158,14 +159,14 @@ public final class OolangSemanticAnalyzer {
         }
 
         return (propertyExpression != null)
-                ? buildAssignmentForConstructor(propertyExpression, propertyElement, scopes, currentKlass)
+                ? buildPropertyAssignment(propertyExpression, propertyElement, scopes, currentKlass)
                 : null;
     }
 
-    private static @NonNull RealStatement buildAssignmentForConstructor(final @NonNull Expression propertyExpression,
-                                                                        final @NonNull RealElement propertyElement,
-                                                                        final @NonNull Scopes scopes,
-                                                                        final @NonNull OolangKlass currentKlass) {
+    private static @NonNull RealStatement buildPropertyAssignment(final @NonNull Expression propertyExpression,
+                                                                  final @NonNull RealElement propertyElement,
+                                                                  final @NonNull Scopes scopes,
+                                                                  final @NonNull OolangKlass currentKlass) {
         assert propertyExpression != null;
         assert propertyElement != null;
         assert scopes != null;
@@ -230,8 +231,8 @@ public final class OolangSemanticAnalyzer {
                         // add the "open" inheritance modifier, a constructor cannot be final
                         functionElement.modifiers.add(new ElementModifier(INHERITANCE, "open"));
                         visitConstructorCodeBlock(constructorCodeBlock, effectiveScopes, currentKlass);
-                        // add initialized property assignments upfront in early larval
-                        constructorCodeBlock.earlyLarvalStatements.addAll(0, initializedPropAssignments);
+                        // add initialized property assignments upfront in init phase
+                        constructorCodeBlock.initBlock.statements.addAll(0, initializedPropAssignments);
                     }
                     case Expression expression -> {
                         // 1) visit the expression
@@ -283,8 +284,8 @@ public final class OolangSemanticAnalyzer {
         assert scopes != null;
         assert currentKlass != null;
 
-        for (final var earlyLarvalStatement : constructorCodeBlock.earlyLarvalStatements) {
-            visitRealStatement(earlyLarvalStatement, scopes, currentKlass);
+        for (final var initStatement : constructorCodeBlock.initBlock.statements) {
+            visitRealStatement(initStatement, scopes, currentKlass);
         }
 
         if (constructorCodeBlock.initCall != null) {
@@ -306,8 +307,8 @@ public final class OolangSemanticAnalyzer {
             constructorCodeBlock.initCall = chainableExpression;
         }
 
-        for (final var lateLarvalStatement : constructorCodeBlock.lateLarvalStatements) {
-            visitRealStatement(lateLarvalStatement, scopes, currentKlass);
+        for (final var postConstructStatement : constructorCodeBlock.postConstructBlock.statements) {
+            visitRealStatement(postConstructStatement, scopes, currentKlass);
         }
     }
 
@@ -323,9 +324,101 @@ public final class OolangSemanticAnalyzer {
                 assert realStatement.children.size() == 1;
                 visitExpression((Expression) realStatement.children.getFirst(), scopes, currentKlass, null);
             }
+            case DECLARATION -> {
+                // Note: a variable declaration does not translate in a bytecode operation, we just add this new
+                // variable in the scope. It will be materialized when first stored, either now if there is an
+                // initializer, or later in a subsequent expression.
+                assert realStatement.children.size() == 1;
+
+                final var realElement = (RealElement) realStatement.children.getFirst();
+                assert realElement.elementType == VAL || realElement.elementType == VAR;
+                final var variableStore = addVariable(realElement, scopes, currentKlass);
+                if (variableStore != null) {
+                    // transform declaration statement to an assignment.
+                    realStatement.statementType = ASSIGNMENT;
+                    // replace the property element child to a variable store expression
+                    realStatement.children.set(0, variableStore);
+                }
+            }
             default -> throw new UnsupportedOperationException("statement type not yet supported: " +
                     realStatement.statementType);
         }
+    }
+
+    private static @Nullable RealExpression addVariable(final @NonNull RealElement variableElement,
+                                                        final @NonNull Scopes scopes,
+                                                        final @NonNull OolangKlass currentKlass) {
+        assert variableElement != null;
+        assert scopes != null;
+        assert currentKlass != null;
+        assert variableElement.identifier != null;
+
+        Expression variableExpression = null;
+        ActualType variableType = null;
+
+        if (variableElement.type != null) {
+            variableType = resolveType(variableElement.type, currentKlass, false);
+            final var descriptorString = getKlassFromType(variableType).descriptorString();
+            ((RealAstType) variableElement.type).descriptorString = descriptorString;
+            variableElement.descriptorString(descriptorString);
+        }
+
+        // type case (2) :  type is inferred from the expression itself
+        for (final var child : variableElement.children) {
+            if (child instanceof RealElement realElement && realElement.elementType == PROPERTY_INITIALIZER) {
+                variableExpression = (Expression) realElement.children.getFirst();
+                final var expressionType = visitExpression(variableExpression, scopes, currentKlass, null);
+
+                // only use the expression type if type was not explicit
+                if (variableType == null) {
+                    variableType = expressionType;
+                    final var descriptorString = getKlassFromType(variableType).descriptorString();
+                    variableElement.descriptorString(descriptorString);
+                }
+                break;
+            }
+        }
+
+        final var name = elementName(variableElement);
+        if (variableType == null) {
+            throw new OolangSemanticException("No explicit type nor initializer for variable " + name);
+        }
+
+        // add this new variable to the current scope
+        final var slot = scopes.putVariable(
+                name,
+                variableType,
+                variableElement.elementType == RealElement.ElementType.VAL,
+                false);
+
+        return (variableExpression != null)
+                ? buildVariableStore(variableExpression, variableElement, slot, currentKlass)
+                : null;
+    }
+
+    private static @NonNull RealExpression buildVariableStore(final @NonNull Expression variableExpression,
+                                                              final @NonNull RealElement variableElement,
+                                                              final int slot,
+                                                              final @NonNull OolangKlass currentKlass) {
+        assert variableExpression != null;
+        assert variableElement != null;
+        assert currentKlass != null;
+
+        // build the assigned property
+        final var storeExpression = new RealExpression(CHAINABLE);
+        // 1) resolve value to assign to the property = the variable initializer expression
+        storeExpression.children.add(variableExpression);
+        // 2) assign variable to its value
+        final var variableStoreExpression = new RealExpression(VARIABLE_STORE);
+        variableStoreExpression.identifiers.add(new SimpleIdentifier(elementName(variableElement)));
+        variableStoreExpression.slot = slot;
+        final var variableDescriptorString = variableElement.descriptorString();
+        assert variableDescriptorString != null;
+        variableStoreExpression.descriptorString(variableDescriptorString);
+        variableStoreExpression.parent = storeExpression;
+        storeExpression.children.add(variableStoreExpression);
+
+        return storeExpression;
     }
 
     /// @param applicableKlass the [Klass] this expression applies to. If null, the scope's current klass is used.
@@ -473,47 +566,89 @@ public final class OolangSemanticAnalyzer {
         assert scopes != null;
         assert currentKlass != null;
 
-        final Klass caller;
-        if (variableOrPropAssignmentExpression.identifiers.size() == 1) {
-            // a simple property assignment without prefix
-            if (applicableKlass != null) {
-                caller = applicableKlass;
-            } else {
-                loadThis(variableOrPropAssignmentExpression, scopes);
-                caller = currentKlass;
-            }
-        } else {
-            // a property assignment with prefix, like 'aClass.property = something'
-            caller = getKlassFromType(visitVariableOrPropAccessChain(
-                    variableOrPropAssignmentExpression, scopes, currentKlass, applicableKlass, false));
-        }
-
-        // now resolve value for the assignment
+        // resolve value for the assignment
         assert variableOrPropAssignmentExpression.children.size() == 1;
         // mutate AST to add variable access call expression upfront
         final var valueExpression = variableOrPropAssignmentExpression.children.getFirst();
         visitExpression(valueExpression, scopes, currentKlass, null);
-        addNewExpressionInAst(variableOrPropAssignmentExpression, valueExpression);
         // todo verify that valueExpression type is compatible with the property's one
         variableOrPropAssignmentExpression.children.clear();
 
-        final var id = variableOrPropAssignmentExpression.identifiers.getFirst();
-        final var funName = id.identifier;
-        final var includeSelf = caller == currentKlass;
-        final var property = caller.accessiblePropertyOrFunctionProperty(funName, includeSelf, includeSelf, true);
-        if (property == null) {
-            throw new OolangSemanticException("Could not resolve property '" + funName +
-                    "' from class " + caller.descriptorString());
+        Klass caller = null;
+        if (variableOrPropAssignmentExpression.identifiers.size() > 1) {
+            // a property assignment with prefix, like 'aClass.property = something'
+            caller = getKlassFromType(visitVariableOrPropAccessChain(
+                    variableOrPropAssignmentExpression, scopes, currentKlass, applicableKlass, false));
+        } else if (applicableKlass != null) {
+            caller = applicableKlass;
         }
 
-        final var propAssignmentExpression = new RealExpression(PROP_ASSIGNMENT);
-        propAssignmentExpression.identifiers.add(id);
-        propAssignmentExpression.invocation = property.isStatic() ? PUT_STATIC : PUT_FIELD;
-        propAssignmentExpression.ownerDescriptorString = property.declaringKlass.descriptorString();
-        propAssignmentExpression.descriptorString(property.descriptorString());
-        addNewExpressionInAst(variableOrPropAssignmentExpression, propAssignmentExpression);
+        final var id = variableOrPropAssignmentExpression.identifiers.getFirst();
+        final var identifier = id.identifier;
 
-        return property.type();
+        ScopeElement scopeElement;
+        if (caller == null) {
+            // 1) first identifier may refer to a variable / property / function property from the current scope
+            scopeElement = scopes.resolveScopeElement(identifier, true);
+            if (scopeElement == null) {
+                // 2) else, first identifier may refer to a property / function property from a parent
+                scopeElement = currentKlass.accessiblePropertyOrFunctionProperty(identifier,
+                        /* includeSelf */ false, // currentKlass properties are in the scope, don't scan it twice
+                        /* includeProtected */  true,
+                        /* includePrivate */ false,
+                        /* setter */ true);
+            }
+        } else {
+            scopeElement = caller.accessiblePropertyOrFunctionProperty(identifier,
+                    /* includeSelf */ true,
+                    /* includeProtected */  canAccessProtected(caller, currentKlass),
+                    /* includePrivate */ caller == currentKlass,
+                    /* setter */ true);
+        }
+
+
+        if (scopeElement == null) {
+            throw new OolangSemanticException("Could not resolve variable or property '" + identifier);
+        }
+
+        return switch (scopeElement) {
+            case SimpleVariable variable -> {
+                final var variableStore = new RealExpression(VARIABLE_STORE);
+                variableStore.identifiers.add(id);
+                variableStore.slot = variable.slot();
+                variableStore.descriptorString(variable.descriptorString());
+                addNewExpressionInAst(variableOrPropAssignmentExpression, variableStore);
+                addNewExpressionInAst(variableStore, valueExpression);
+                yield getKlassFromType(variable.type());
+            }
+            case Property property -> {
+                final var propertyAssignment = new RealExpression(PROP_ASSIGNMENT);
+                propertyAssignment.identifiers.add(id);
+                propertyAssignment.invocation = property.isStatic() ? PUT_STATIC : PUT_FIELD;
+                propertyAssignment.ownerDescriptorString = property.declaringKlass.descriptorString();
+                propertyAssignment.descriptorString(property.descriptorString());
+                // mutate AST to add variable access call expression upfront
+                addNewExpressionInAst(variableOrPropAssignmentExpression, propertyAssignment);
+
+                if (caller == null && !property.isStatic()) {
+                    // must load current klass
+                    loadThis(propertyAssignment, scopes);
+                }
+                addNewExpressionInAst(propertyAssignment, valueExpression);
+                yield getKlassFromType(property.type());
+            }
+            case Function function -> {
+                final var funCall = funCallExpression(function, id, currentKlass);
+                // mutate AST to add variable access call expression upfront
+                addNewExpressionInAst(variableOrPropAssignmentExpression, funCall);
+                if (caller == null) {
+                    // must load current klass
+                    loadThis(funCall, scopes);
+                }
+                addNewExpressionInAst(funCall, valueExpression);
+                yield getKlassFromType(function.type());
+            }
+        };
     }
 
     private static boolean canAccessProtected(final @NonNull Klass caller, final @NonNull OolangKlass currentKlass) {
@@ -634,8 +769,12 @@ public final class OolangSemanticAnalyzer {
         assert idIndex != null;
 
         final var id = expression.identifiers.get(idIndex.value++);
-        final var propOrFunProp = caller
-                .accessiblePropertyOrFunctionProperty(id.identifier, true, caller == currentKlass, false);
+
+        final var propOrFunProp = caller.accessiblePropertyOrFunctionProperty(id.identifier,
+                /* includeSelf */ true,
+                /* includeProtected */  canAccessProtected(caller, currentKlass),
+                /* includePrivate */ caller == currentKlass,
+                /* setter */ false);
         return switch (propOrFunProp) {
             case Property property -> {
                 final var propAccessExpression = propAccessExpression(property, id);
@@ -669,17 +808,21 @@ public final class OolangSemanticAnalyzer {
         final var id = expression.identifiers.get(idIndex.value++);
         var identifier = id.identifier;
 
-        // 1) first identifier may refer to a property or variable from this class's scope
-        Object variableOrPropOrFunProp = scopes.resolveVariable(identifier);
+        // 1) first identifier may refer to a variable / property / function property from the current scope
+        ScopeElement scopeElement = scopes.resolveScopeElement(identifier, false);
 
-        if (variableOrPropOrFunProp == null) {
-            // 2) else, first identifier may refer to a property from a parent
-            variableOrPropOrFunProp = currentKlass
-                    .accessiblePropertyOrFunctionProperty(identifier, false, false, false);
+        if (scopeElement == null) {
+            // 2) else, first identifier may refer to a property / function property from a parent
+            scopeElement = currentKlass
+                    .accessiblePropertyOrFunctionProperty(identifier,
+                            /* includeSelf */ false, // currentKlass properties are in the scope, don't scan it twice
+                            /* includeProtected */  true,
+                            /* includePrivate */ false,
+                            /* setter */ true);
         }
 
-        if (variableOrPropOrFunProp != null) {
-            return switch (variableOrPropOrFunProp) {
+        if (scopeElement != null) {
+            return switch (scopeElement) {
                 case SimpleVariable variable -> {
                     final var variableAccess = loadExpression(variable, id);
                     // mutate AST to add variable access call expression upfront
@@ -704,9 +847,6 @@ public final class OolangSemanticAnalyzer {
                     loadThis(funCall, scopes);
                     yield getKlassFromType(function.type());
                 }
-                default -> throw new IllegalStateException(
-                        "variableOrPropOrFunProp should be a Variable, a Property or a Function. Was: " +
-                                variableOrPropOrFunProp.getClass());
             };
         }
 
@@ -824,7 +964,7 @@ public final class OolangSemanticAnalyzer {
         assert expression != null;
         assert scopes != null;
 
-        final var thisVariable = (SimpleVariable) scopes.resolveVariable("this");
+        final var thisVariable = (SimpleVariable) scopes.resolveScopeElement("this", false);
         assert thisVariable != null;
         final var loadThis = loadExpression(thisVariable, new SimpleIdentifier("this"));
         if (expression.parent != null) {

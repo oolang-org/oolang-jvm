@@ -13,12 +13,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class ConstructorCodeBlock extends AbstractAst implements StatementNode {
-    public final @NonNull List<@NonNull RealStatement> earlyLarvalStatements = new ArrayList<>();
+    public final @NonNull CodeBlock initBlock = new CodeBlock();
+
     /// Expression to another constructor in the current class or a super constructor.
     ///
     /// If null, an implicit call to the no-arg super constructor is built during semantic analysis.
     public /* lateinit */ RealExpression initCall = null;
-    public final @NonNull List<@NonNull RealStatement> lateLarvalStatements = new ArrayList<>();
+
+    public final @NonNull CodeBlock postConstructBlock = new CodeBlock();
 
     @Override
     public @NonNull String description() {
@@ -27,11 +29,11 @@ public final class ConstructorCodeBlock extends AbstractAst implements Statement
 
     @Override
     public @NonNull List<? extends @NonNull Ast> content() {
-        final var content = new ArrayList<@NonNull Ast>(earlyLarvalStatements);
+        final var content = new ArrayList<@NonNull Ast>(initBlock.statements);
         if (initCall != null) {
             content.add(initCall);
         }
-        content.addAll(lateLarvalStatements);
+        content.addAll(postConstructBlock.statements);
         return content;
     }
 }

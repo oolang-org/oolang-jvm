@@ -120,7 +120,7 @@ public final class OolangCompiler {
         for (final var child : classBody.children) {
             switch (child.elementType) {
                 case CONSTRUCTOR -> visitConstructor(child, classBuilder);
-                case VAR, VAL -> visitProperty(child, classBuilder);
+                case VAL, VAR -> visitProperty(child, classBuilder);
                 case FUN -> visitFun(child, classBuilder);
                 case CLASS -> visitClass(child, classBuilder);
                 case INTERFACE -> throw new UnsupportedOperationException();
@@ -151,7 +151,7 @@ public final class OolangCompiler {
         assert codeBuilder != null;
 
         // 1) execute early-larval statements
-        for (final var earlyStatement : constructorCodeBlock.earlyLarvalStatements) {
+        for (final var earlyStatement : constructorCodeBlock.initBlock.statements) {
             visitStatement(earlyStatement, codeBuilder);
         }
 
@@ -160,7 +160,7 @@ public final class OolangCompiler {
         visitRealExpression(constructorCodeBlock.initCall, codeBuilder);
 
         // 3) execute late-larval statements
-        for (final var lateStatement : constructorCodeBlock.lateLarvalStatements) {
+        for (final var lateStatement : constructorCodeBlock.postConstructBlock.statements) {
             visitStatement(lateStatement, codeBuilder);
         }
 

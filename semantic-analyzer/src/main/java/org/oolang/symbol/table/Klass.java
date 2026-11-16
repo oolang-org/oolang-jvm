@@ -71,14 +71,13 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
 
     public final @Nullable PropertyOrFunction accessiblePropertyOrFunctionProperty(final @NonNull String name,
                                                                                    final boolean includeSelf,
+                                                                                   final boolean includeProtected,
                                                                                    final boolean includePrivate,
                                                                                    final boolean setter) {
         assert name != null;
 
-        final var includeProtected = !includeSelf;
-
         if (includeSelf) {
-            final var property = accessiblePropertyOrFunctionProperty(name, false, includePrivate,
+            final var property = accessiblePropertyOrFunctionProperty(name, includeProtected, includePrivate,
                     this, setter);
             if (property != null) {
                 return property;
@@ -112,10 +111,7 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
         assert klass != null;
 
         final var property = klass.properties().get(name);
-        if (property == null) {
-            return null;
-        }
-        if (setter && property.isFinal()) {
+        if (property == null || (setter && property.isFinal())) {
             return null;
         }
 
