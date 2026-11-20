@@ -6,47 +6,44 @@ package org.oolang.symbol.table;
 
 import org.jspecify.annotations.NonNull;
 
-public sealed interface Variable extends ScopeElement permits Property, Variable.SimpleVariable {
+@SuppressWarnings("preview")
+public final class Variable implements VariableOrProperty {
+    private final @NonNull ActualType type;
+    private final boolean isFinal;
+    final int slot;
 
-    @SuppressWarnings("preview")
-    final class SimpleVariable implements Variable {
-        private final @NonNull ActualType type;
-        private final boolean isFinal;
-        final int slot;
+    private final @NonNull LazyConstant<@NonNull String> descriptorString =
+            LazyConstant.of(this::buildDescriptorString);
 
-        private final @NonNull LazyConstant<@NonNull String> descriptorString =
-                LazyConstant.of(this::buildDescriptorString);
+    public Variable(final @NonNull ActualType type,
+                    final boolean isFinal,
+                    final int slot) {
+        assert type != null;
+        this.type = type;
+        this.isFinal = isFinal;
+        this.slot = slot;
+    }
 
-        public SimpleVariable(final @NonNull ActualType type,
-                       final boolean isFinal,
-                       final int slot) {
-            assert type != null;
-            this.type = type;
-            this.isFinal = isFinal;
-            this.slot = slot;
-        }
+    @Override
+    public @NonNull ActualType type() {
+        return type;
+    }
 
-        @Override
-        public @NonNull ActualType type() {
-            return type;
-        }
+    @Override
+    public boolean isFinal() {
+        return isFinal;
+    }
 
-        @Override
-        public boolean isFinal() {
-            return isFinal;
-        }
+    @Override
+    public @NonNull String descriptorString() {
+        return descriptorString.get();
+    }
 
-        @Override
-        public @NonNull String descriptorString() {
-            return descriptorString.get();
-        }
+    private @NonNull String buildDescriptorString() {
+        return TypeResolver.getKlassFromType(type).descriptorString();
+    }
 
-        private @NonNull String buildDescriptorString() {
-            return TypeResolver.getKlassFromType(type).descriptorString();
-        }
-
-        public int slot() {
-            return slot;
-        }
+    public int slot() {
+        return slot;
     }
 }

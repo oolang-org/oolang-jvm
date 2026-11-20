@@ -8,8 +8,6 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
-import java.util.Map;
-import java.util.SortedSet;
 
 /// This Array pseudo-class represents an array type in the Oolang language.
 final class Array extends Klass {
@@ -32,7 +30,7 @@ final class Array extends Klass {
     }
 
     @Override
-    public @NonNull String packageName() {
+    @NonNull String packageName() {
         throw new IllegalCallerException("Array is a pseudo-class, don't call it!");
     }
 
@@ -47,12 +45,12 @@ final class Array extends Klass {
     }
 
     @Override
-    public @NonNull Map<@NonNull String, @NonNull Property> properties() {
+    @NonNull Properties properties() {
         throw new IllegalCallerException("Array is a pseudo-class, don't call it!");
     }
 
     @Override
-    public @NonNull SortedSet<@NonNull BaseFunction> functions() {
+    @NonNull Functions functions() {
         throw new IllegalCallerException("Array is a pseudo-class, don't call it!");
     }
 

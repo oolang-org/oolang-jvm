@@ -7,7 +7,7 @@ package org.oolang.symbol.table;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-public final class Property extends PropertyOrFunction implements Variable {
+public final class Property extends PropertyOrFunction implements VariableOrProperty {
     // For function property
     public @Nullable Function getter = null;
     public @Nullable Function setter = null;

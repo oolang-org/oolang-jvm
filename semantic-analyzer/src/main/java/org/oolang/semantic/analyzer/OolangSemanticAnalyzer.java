@@ -20,7 +20,6 @@ import org.oolang.ast.statement.CodeBlock;
 import org.oolang.ast.statement.ConstructorCodeBlock;
 import org.oolang.ast.statement.RealStatement;
 import org.oolang.symbol.table.*;
-import org.oolang.symbol.table.Variable.SimpleVariable;
 
 import java.lang.constant.ConstantDescs;
 import java.util.*;
@@ -31,6 +30,7 @@ import static org.oolang.ast.element.RealElement.ElementType.*;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.*;
 import static org.oolang.ast.statement.RealStatement.StatementType.ASSIGNMENT;
 import static org.oolang.ast.statement.RealStatement.StatementType.RETURN;
+import static org.oolang.symbol.table.Klass.*;
 import static org.oolang.symbol.table.TypeResolver.*;
 import static org.oolang.symbol.table.Visibility.PRIVATE;
 
@@ -128,8 +128,7 @@ public final class OolangSemanticAnalyzer {
         assert scopes != null;
         assert currentKlass != null;
 
-        final var property = currentKlass.properties().get(elementName(propertyElement));
-        scopes.putProperty(property);
+        final var property = currentKlass.rawProperties.get(elementName(propertyElement));
 
         Expression propertyExpression = null;
         try {
@@ -204,7 +203,7 @@ public final class OolangSemanticAnalyzer {
         assert currentKlass != null;
         assert initializedPropAssignments != null;
 
-        final var function = currentKlass.functions.get(funIndex);
+        final var function = currentKlass.rawFunctions.get(funIndex);
 
         final Scopes effectiveScopes = (function.isStatic())
                 ? scopes.enterStatic() // static function = start a new fresh Scopes
@@ -218,7 +217,8 @@ public final class OolangSemanticAnalyzer {
             final var parameterType = parameter.type(); // resolve function param type
             if (!function.isAbstract()) {
                 assert parameter.name != null;
-                effectiveScopes.putVariable(parameter.name, parameterType, true, function.isStatic());
+                effectiveScopes.putVariable(parameter.name, parameterType,
+                        /* isFinal */ true, function.isStatic(), /* noDuplicate */ false);
             }
         }
 
@@ -388,8 +388,9 @@ public final class OolangSemanticAnalyzer {
         final var slot = scopes.putVariable(
                 name,
                 variableType,
-                variableElement.elementType == RealElement.ElementType.VAL,
-                false);
+                /* isFinal */ variableElement.elementType == RealElement.ElementType.VAL,
+                /* isStatic */ false,
+                /* noDuplicate */ true);
 
         return (variableExpression != null)
                 ? buildVariableStore(variableExpression, variableElement, slot, currentKlass)
@@ -524,7 +525,7 @@ public final class OolangSemanticAnalyzer {
         assert currentKlass != null;
 
         final var callerType = visitVariableOrPropAccessChain(
-                indexingExpression, scopes, currentKlass, applicableKlass, true);
+                indexingExpression, scopes, currentKlass, applicableKlass, true).klass;
         final var indexType = visitExpression(
                 indexingExpression.children.getLast(), scopes, currentKlass, null);
 
@@ -542,7 +543,7 @@ public final class OolangSemanticAnalyzer {
         throw new UnsupportedOperationException("todo List / Map indexing operations");
     }
 
-    private static @NonNull ActualType visitVariableOrPropAccessExpression(
+    private static @NonNull Klass visitVariableOrPropAccessExpression(
             final @NonNull RealExpression variableOrPropAccessExpression,
             final @NonNull Scopes scopes,
             final @NonNull OolangKlass currentKlass,
@@ -552,8 +553,13 @@ public final class OolangSemanticAnalyzer {
         assert scopes != null;
         assert currentKlass != null;
 
-        return visitVariableOrPropAccessChain(
+        final var caller = visitVariableOrPropAccessChain(
                 variableOrPropAccessExpression, scopes, currentKlass, applicableKlass, true);
+        if (caller.isStatic) {
+            throw new OolangSemanticException("Expected a variable or property, had the " + caller.klass +
+                    " static class");
+        }
+        return caller.klass;
     }
 
     private static @NonNull ActualType visitVariableOrPropAssignment(
@@ -574,13 +580,13 @@ public final class OolangSemanticAnalyzer {
         // todo verify that valueExpression type is compatible with the property's one
         variableOrPropAssignmentExpression.children.clear();
 
-        Klass caller = null;
+        Caller caller = null;
         if (variableOrPropAssignmentExpression.identifiers.size() > 1) {
             // a property assignment with prefix, like 'aClass.property = something'
-            caller = getKlassFromType(visitVariableOrPropAccessChain(
-                    variableOrPropAssignmentExpression, scopes, currentKlass, applicableKlass, false));
+            caller = visitVariableOrPropAccessChain(
+                    variableOrPropAssignmentExpression, scopes, currentKlass, applicableKlass, false);
         } else if (applicableKlass != null) {
-            caller = applicableKlass;
+            caller = new Caller(applicableKlass, false /* fixme is it always non-static ?*/);
         }
 
         final var id = variableOrPropAssignmentExpression.identifiers.getFirst();
@@ -589,21 +595,24 @@ public final class OolangSemanticAnalyzer {
         ScopeElement scopeElement;
         if (caller == null) {
             // 1) first identifier may refer to a variable / property / function property from the current scope
-            scopeElement = scopes.resolveScopeElement(identifier, true);
+            scopeElement = scopes.resolveVariableOrProperty(identifier, true);
             if (scopeElement == null) {
                 // 2) else, first identifier may refer to a property / function property from a parent
                 scopeElement = currentKlass.accessiblePropertyOrFunctionProperty(identifier,
                         /* includeSelf */ false, // currentKlass properties are in the scope, don't scan it twice
                         /* includeProtected */  true,
                         /* includePrivate */ false,
-                        /* setter */ true);
+                        /* setter */ true,
+                        /* access */ ACCESS_BOTH);
             }
         } else {
-            scopeElement = caller.accessiblePropertyOrFunctionProperty(identifier,
+            final var callerKlass = caller.klass;
+            scopeElement = callerKlass.accessiblePropertyOrFunctionProperty(identifier,
                     /* includeSelf */ true,
-                    /* includeProtected */  canAccessProtected(caller, currentKlass),
-                    /* includePrivate */ caller == currentKlass,
-                    /* setter */ true);
+                    /* includeProtected */  canAccessProtected(callerKlass, currentKlass),
+                    /* includePrivate */ callerKlass == currentKlass,
+                    /* setter */ true,
+                    /* access */ caller.isStatic ? ACCESS_STATIC : ACCESS_INSTANCE);
         }
 
 
@@ -612,7 +621,7 @@ public final class OolangSemanticAnalyzer {
         }
 
         return switch (scopeElement) {
-            case SimpleVariable variable -> {
+            case Variable variable -> {
                 final var variableStore = new RealExpression(VARIABLE_STORE);
                 variableStore.identifiers.add(id);
                 variableStore.slot = variable.slot();
@@ -671,27 +680,26 @@ public final class OolangSemanticAnalyzer {
         assert scopes != null;
         assert currentKlass != null;
 
-        final Klass caller;
+        Caller caller = null;
         if (funCallExpression.type != null) {
             // constructor call
-            caller = getKlassFromType(TypeResolver.resolveType(funCallExpression.type, currentKlass, false));
+            final var callerKlass = getKlassFromType(
+                    TypeResolver.resolveType(funCallExpression.type, currentKlass, false));
             // NEW instruction to allocate memory
             final var newExpression = new RealExpression(NEW);
-            newExpression.descriptorString(caller.descriptorString());
+            newExpression.descriptorString(callerKlass.descriptorString());
             // mutate AST to add NEW expression upfront
             addNewExpressionInAst(funCallExpression, newExpression);
+            caller = new Caller(callerKlass, false);
         } else if (funCallExpression.identifiers.size() == 1) {
             // a simple fun call without prefix
             if (applicableKlass != null) {
-                caller = applicableKlass;
-            } else {
-                loadThis(funCallExpression, scopes);
-                caller = currentKlass;
+                caller = new Caller(applicableKlass, false /* fixme is it always non-static ?*/);
             }
         } else {
             // a fun call with prefix, like 'System.out.println'
-            caller = getKlassFromType(visitVariableOrPropAccessChain(
-                    funCallExpression, scopes, currentKlass, applicableKlass, false));
+            caller = visitVariableOrPropAccessChain(
+                    funCallExpression, scopes, currentKlass, applicableKlass, false);
         }
 
         // resolve the function to call and its parameters
@@ -705,16 +713,43 @@ public final class OolangSemanticAnalyzer {
             }
         }
 
-        // search super classes for caller. If present, we can access its protected functions
-        boolean includeProtected = canAccessProtected(caller, currentKlass);
         final var funName = funCallExpression.identifiers.getFirst().identifier;
-        final var function = caller.accessibleFunction(funName, funParameters, includeProtected, caller == currentKlass);
-        if (function == null) {
-            throw new OolangSemanticException("Could not resolve function '" + funName +
-                    "' from class " + caller.descriptorString());
+        final Klass callerKlass;
+        Function function;
+
+        if (caller == null) {
+            callerKlass = currentKlass;
+
+            // 1) first identifier may refer to a function from the current scope
+            function = scopes.resolveFunction(funName, funParameters);
+            if (function == null) {
+                // 2) else, first identifier may refer to a function from a parent
+                function = callerKlass.accessibleFunction(funName, funParameters,
+                        /* includeSelf */ false, // currentKlass functions are in the scope, don't scan it twice
+                        /* includeProtected */ true,
+                        /* includePrivate */ true,
+                        /* access */ ACCESS_BOTH);
+            }
+            if (function != null && !function.isStatic()) {
+                loadThis(funCallExpression, scopes);
+            }
+        } else {
+            callerKlass = caller.klass;
+            // search super classes for caller. If present, we can access its protected functions
+            boolean includeProtected = canAccessProtected(callerKlass, currentKlass);
+            function = callerKlass.accessibleFunction(funName, funParameters,
+                    /* includeSelf */ true,
+                    includeProtected,
+                    /* includePrivate */ callerKlass == currentKlass,
+                    /* access */ caller.isStatic ? ACCESS_STATIC : ACCESS_INSTANCE);
         }
 
-        funCallExpression.invocation = functionInvocation(caller, function);
+        if (function == null) {
+            throw new OolangSemanticException("Could not resolve function '" + funName +
+                    "' from class " + callerKlass.descriptorString());
+        }
+
+        funCallExpression.invocation = functionInvocation(callerKlass, function);
         funCallExpression.ownerDescriptorString = function.declaringKlass.descriptorString();
         funCallExpression.descriptorString(function.descriptorString());
         funCallExpression.typeDescriptorString = function.typeDescriptorString();
@@ -732,11 +767,11 @@ public final class OolangSemanticAnalyzer {
         return visitExpression(funChild.children.getFirst(), scopes, currentKlass, null);
     }
 
-    private static @NonNull ActualType visitVariableOrPropAccessChain(final @NonNull RealExpression expression,
-                                                                      final @NonNull Scopes scopes,
-                                                                      final @NonNull OolangKlass currentKlass,
-                                                                      final @Nullable Klass applicableKlass,
-                                                                      final boolean untilLast) {
+    private static @NonNull Caller visitVariableOrPropAccessChain(final @NonNull RealExpression expression,
+                                                                  final @NonNull Scopes scopes,
+                                                                  final @NonNull OolangKlass currentKlass,
+                                                                  final @Nullable Klass applicableKlass,
+                                                                  final boolean untilLast) {
         assert expression != null;
         assert scopes != null;
         assert currentKlass != null;
@@ -747,7 +782,7 @@ public final class OolangSemanticAnalyzer {
         final var lastIdIndex = expression.identifiers.size() - (untilLast ? 0 : 1);
 
         var caller = (applicableKlass != null)
-                ? propOrFunPropAccess(expression, applicableKlass, currentKlass, idIndex)
+                ? propOrFunPropAccess(expression, new Caller(applicableKlass, false), currentKlass, idIndex)
                 : firstVariableOrPropAccessInCurrentKlass(expression, scopes, currentKlass, idIndex, lastIdIndex);
 
         while (idIndex.value < lastIdIndex) { // chained properties until last identifier
@@ -760,46 +795,48 @@ public final class OolangSemanticAnalyzer {
         return caller;
     }
 
-    private static @NonNull Klass propOrFunPropAccess(final @NonNull RealExpression expression,
-                                                      final @NonNull Klass caller,
-                                                      final @NonNull OolangKlass currentKlass,
-                                                      final @NonNull IndexHolder idIndex) {
+    private static @NonNull Caller propOrFunPropAccess(final @NonNull RealExpression expression,
+                                                       final @NonNull Caller caller,
+                                                       final @NonNull OolangKlass currentKlass,
+                                                       final @NonNull IndexHolder idIndex) {
         assert expression != null;
         assert caller != null;
         assert idIndex != null;
 
+        final var callerKlass = caller.klass;
         final var id = expression.identifiers.get(idIndex.value++);
 
-        final var propOrFunProp = caller.accessiblePropertyOrFunctionProperty(id.identifier,
+        final var propOrFunProp = callerKlass.accessiblePropertyOrFunctionProperty(id.identifier,
                 /* includeSelf */ true,
-                /* includeProtected */  canAccessProtected(caller, currentKlass),
-                /* includePrivate */ caller == currentKlass,
-                /* setter */ false);
+                /* includeProtected */  canAccessProtected(callerKlass, currentKlass),
+                /* includePrivate */ callerKlass == currentKlass,
+                /* setter */ false,
+                /* access */ caller.isStatic ? ACCESS_STATIC : ACCESS_INSTANCE);
         return switch (propOrFunProp) {
             case Property property -> {
                 final var propAccessExpression = propAccessExpression(property, id);
                 // mutate AST to add property call expression upfront
                 addNewExpressionInAst(expression, propAccessExpression);
                 // caller becomes property's klass
-                yield getKlassFromType(property.type());
+                yield new Caller(getKlassFromType(property.type()), false);
             }
             case Function functionProperty -> {
-                final var funCallExpression = funCallExpression(functionProperty, id, caller);
+                final var funCallExpression = funCallExpression(functionProperty, id, callerKlass);
                 // mutate AST to add function call expression upfront
                 addNewExpressionInAst(expression, funCallExpression);
                 // caller becomes function's return klass
-                yield getKlassFromType(functionProperty.type());
+                yield new Caller(getKlassFromType(functionProperty.type()), false);
             }
             case null -> throw new OolangSemanticException("Could not resolve property " + id.identifier +
-                    " from class " + caller.descriptorString());
+                    " from class " + callerKlass.descriptorString());
         };
     }
 
-    private static @NonNull Klass firstVariableOrPropAccessInCurrentKlass(final @NonNull RealExpression expression,
-                                                                          final @NonNull Scopes scopes,
-                                                                          final @NonNull OolangKlass currentKlass,
-                                                                          final @NonNull IndexHolder idIndex,
-                                                                          final int lastIdIndex) {
+    private static @NonNull Caller firstVariableOrPropAccessInCurrentKlass(final @NonNull RealExpression expression,
+                                                                           final @NonNull Scopes scopes,
+                                                                           final @NonNull OolangKlass currentKlass,
+                                                                           final @NonNull IndexHolder idIndex,
+                                                                           final int lastIdIndex) {
         assert expression != null;
         assert scopes != null;
         assert currentKlass != null;
@@ -809,7 +846,7 @@ public final class OolangSemanticAnalyzer {
         var identifier = id.identifier;
 
         // 1) first identifier may refer to a variable / property / function property from the current scope
-        ScopeElement scopeElement = scopes.resolveScopeElement(identifier, false);
+        ScopeElement scopeElement = scopes.resolveVariableOrProperty(identifier, false);
 
         if (scopeElement == null) {
             // 2) else, first identifier may refer to a property / function property from a parent
@@ -818,16 +855,17 @@ public final class OolangSemanticAnalyzer {
                             /* includeSelf */ false, // currentKlass properties are in the scope, don't scan it twice
                             /* includeProtected */  true,
                             /* includePrivate */ false,
-                            /* setter */ true);
+                            /* setter */ true,
+                            /* access */ ACCESS_BOTH);
         }
 
         if (scopeElement != null) {
             return switch (scopeElement) {
-                case SimpleVariable variable -> {
+                case Variable variable -> {
                     final var variableAccess = loadExpression(variable, id);
                     // mutate AST to add variable access call expression upfront
                     addNewExpressionInAst(expression, variableAccess);
-                    yield getKlassFromType(variable.type());
+                    yield new Caller(getKlassFromType(variable.type()), false);
                 }
                 case Property property -> {
                     final var propertyAccess = propAccessExpression(property, id);
@@ -837,7 +875,7 @@ public final class OolangSemanticAnalyzer {
                         // must load current klass
                         loadThis(propertyAccess, scopes);
                     }
-                    yield getKlassFromType(property.type());
+                    yield new Caller(getKlassFromType(property.type()), false);
                 }
                 case Function function -> {
                     final var funCall = funCallExpression(function, id, currentKlass);
@@ -845,7 +883,7 @@ public final class OolangSemanticAnalyzer {
                     addNewExpressionInAst(expression, funCall);
                     // must load current klass
                     loadThis(funCall, scopes);
-                    yield getKlassFromType(function.type());
+                    yield new Caller(getKlassFromType(function.type()), false);
                 }
             };
         }
@@ -860,7 +898,7 @@ public final class OolangSemanticAnalyzer {
         if (caller == null) {
             throw new OolangSemanticException("Could not resolve static klass from identifier " + identifier);
         }
-        return caller;
+        return new Caller(caller, true);
     }
 
     private static void addNewExpressionInAst(final @NonNull RealExpression expression,
@@ -890,7 +928,7 @@ public final class OolangSemanticAnalyzer {
         }
     }
 
-    private static @NonNull RealExpression loadExpression(final @NonNull SimpleVariable variable,
+    private static @NonNull RealExpression loadExpression(final @NonNull Variable variable,
                                                           final @NonNull SimpleIdentifier id) {
         assert variable != null;
         assert id != null;
@@ -964,7 +1002,7 @@ public final class OolangSemanticAnalyzer {
         assert expression != null;
         assert scopes != null;
 
-        final var thisVariable = (SimpleVariable) scopes.resolveScopeElement("this", false);
+        final var thisVariable = (Variable) scopes.resolveVariableOrProperty("this", false);
         assert thisVariable != null;
         final var loadThis = loadExpression(thisVariable, new SimpleIdentifier("this"));
         if (expression.parent != null) {
@@ -1000,5 +1038,8 @@ public final class OolangSemanticAnalyzer {
 
     private static final class IndexHolder {
         private int value = 0;
+    }
+
+    private record Caller(@NonNull Klass klass, boolean isStatic) {
     }
 }
