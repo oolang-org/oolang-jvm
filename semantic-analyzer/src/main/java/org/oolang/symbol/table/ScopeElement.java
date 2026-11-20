@@ -8,7 +8,7 @@ import org.jspecify.annotations.NonNull;
 
 import java.lang.invoke.TypeDescriptor;
 
-public sealed interface ScopeElement extends TypeDescriptor permits PropertyOrFunction, Variable {
+public sealed interface ScopeElement extends TypeDescriptor permits PropertyOrFunction, VariableOrProperty {
     @NonNull ActualType type();
 
     boolean isFinal();

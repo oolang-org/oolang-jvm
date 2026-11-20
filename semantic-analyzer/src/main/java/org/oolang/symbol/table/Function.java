@@ -52,7 +52,7 @@ public final class Function extends PropertyOrFunction implements BaseFunction {
     }
 
     private @NonNull String buildTypeDescriptorString() {
-        final var suffix = (name.equals(ConstantDescs.INIT_NAME)) ? ")V" : ")" + descriptorString();
+        final var suffix = (name().equals(ConstantDescs.INIT_NAME)) ? ")V" : ")" + descriptorString();
         return parameters.stream()
                 .map(parameter -> TypeResolver.getKlassFromType(parameter.type()).descriptorString())
                 .collect(Collectors.joining(

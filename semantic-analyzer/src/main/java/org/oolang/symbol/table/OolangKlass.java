@@ -7,7 +7,10 @@ package org.oolang.symbol.table;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.oolang.symbol.table.TypeResolver.OBJECT_KLASS;
 import static org.oolang.symbol.table.Visibility.PUBLIC;
@@ -41,13 +44,40 @@ public final class OolangKlass extends Klass implements Symbol {
     // ------------------------------------------------------------------------------
 
     @NonNull List<Type.@NonNull Lazy> ancestors = new ArrayList<>();
-    private final @NonNull Map<@NonNull String, @NonNull Property> properties = new HashMap<>();
-    public @NonNull List<@NonNull Function> functions = new ArrayList<>();
+    public final @NonNull Map<@NonNull String, @NonNull Property> rawProperties = new HashMap<>();
+    public final @NonNull List<@NonNull Function> rawFunctions = new ArrayList<>();
     public @Nullable Map<@NonNull String, @NonNull OolangKlass> klasses = null;
 
 
-    private final @NonNull LazyConstant<@NonNull SortedSet<@NonNull BaseFunction>> searchableFunctions =
-            LazyConstant.of(() -> new TreeSet<>(functions));
+    private final @NonNull LazyConstant<@NonNull Properties> properties =
+            LazyConstant.of(this::buildProperties);
+    private final @NonNull LazyConstant<@NonNull Functions> functions =
+            LazyConstant.of(this::buildFunctions);
+
+    private @NonNull Properties buildProperties() {
+        final var searchableProperties = new Properties();
+        for (final var property : rawProperties.values()) {
+            if (property.isStatic()) {
+                searchableProperties.staticProperties.put(property.name(), property);
+            } else {
+                searchableProperties.instanceProperties.put(property.name(), property);
+            }
+        }
+        return searchableProperties;
+    }
+
+    private @NonNull Functions buildFunctions() {
+        final var searchableFunctions = new Functions();
+        for (final var function : rawFunctions) {
+            if (function.isStatic()) {
+                searchableFunctions.staticFunctions.add(function);
+            } else {
+                searchableFunctions.instanceFunctions.add(function);
+            }
+        }
+        return searchableFunctions;
+    }
+
     private final @NonNull LazyConstant<@NonNull Ancestors> resolvedAncestors =
             LazyConstant.of(this::buildAncestors);
 
@@ -168,13 +198,13 @@ public final class OolangKlass extends Klass implements Symbol {
     }
 
     @Override
-    public @NonNull Map<@NonNull String, @NonNull Property> properties() {
-        return properties;
+    public @NonNull Properties properties() {
+        return properties.get();
     }
 
     @Override
-    public @NonNull SortedSet<@NonNull BaseFunction> functions() {
-        return searchableFunctions.get();
+    public @NonNull Functions functions() {
+        return functions.get();
     }
 
     @Override

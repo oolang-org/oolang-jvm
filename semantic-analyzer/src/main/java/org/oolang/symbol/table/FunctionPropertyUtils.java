@@ -28,7 +28,7 @@ final class FunctionPropertyUtils {
 
     private static final byte @NonNull [] OOLANG_COMPILER_PREFIX = "compiler: Oolang".getBytes(StandardCharsets.UTF_8);
 
-    private final static @NonNull Set<@NonNull String> NON_GETTER_FUNCTION_NAMES = Set.of(
+    private static final @NonNull Set<@NonNull String> NON_GETTER_FUNCTION_NAMES = Set.of(
             "toString",
             "hashCode",
             "getClass",
@@ -37,7 +37,7 @@ final class FunctionPropertyUtils {
 
     /// The Class-File API [AttributeMapperOption] that allows reading the
     /// [Oolang custom attribute][OolangPropCustomAttribute]
-    private final static @NonNull AttributeMapperOption OOLANG_PROP_CUSTOM_ATTRIBUTE_OPTION =
+    private static final @NonNull AttributeMapperOption OOLANG_PROP_CUSTOM_ATTRIBUTE_OPTION =
             ClassFile.AttributeMapperOption.of(utf8Entry ->
                     utf8Entry.equalsString(OolangPropCustomAttribute.NAME)
                             ? new OolangPropCustomAttribute().attributeMapper()
@@ -50,10 +50,7 @@ final class FunctionPropertyUtils {
     ) {
         assert function != null;
         assert maybeProperties != null;
-
-        if (function.isStatic()) {
-            return; // static functions cannot be properties
-        }
+        assert !function.isStatic();
 
         switch (function.parameters.size()) {
             // maybe a getter
@@ -190,15 +187,16 @@ final class FunctionPropertyUtils {
 
     static void addFunctionProperties(final @NonNull PropertyCandidates propertyCandidates,
                                       final @NonNull Class<?> javaClass,
-                                      final @NonNull Map<@NonNull String, @NonNull Property> properties) {
+                                      final @NonNull Map<@NonNull String, @NonNull Property> instanceProperties) {
         assert propertyCandidates != null;
         assert javaClass != null;
-        assert properties != null;
+        assert instanceProperties != null;
 
         // 1) If there are some Oolang compatible property candidates,
         // we must parse their Class using the Class-file API to look for `OolangPropCustomAttribute`
         if (!propertyCandidates.oolangPropertyCandidates.isEmpty()) {
-            addOolangFunctionProperties(propertyCandidates.oolangPropertyCandidates, javaClass, properties);
+            addOolangFunctionProperties(propertyCandidates.oolangPropertyCandidates, javaClass, instanceProperties);
+
             // actual Oolang function properties were removed from the map, transfer remaining one if old-school
             for (final var oolangPropertyCandidateEntry : propertyCandidates.oolangPropertyCandidates.entrySet()) {
                 final var oolangPropertyCandidate = oolangPropertyCandidateEntry.getValue();
@@ -215,17 +213,17 @@ final class FunctionPropertyUtils {
         // 2) If there are some old-school property candidates, aka getters and setters,
         // we add them without any parsing
         if (!propertyCandidates.oldSchoolPropertyCandidates.isEmpty()) {
-            addOldSchoolFunctionProperties(propertyCandidates.oldSchoolPropertyCandidates, properties);
+            addOldSchoolFunctionProperties(propertyCandidates.oldSchoolPropertyCandidates, instanceProperties);
         }
     }
 
     private static void addOolangFunctionProperties(
             final @NonNull Map<@NonNull String, @NonNull PropertyCandidate> oolangPropertyCandidates,
             final @NonNull Class<?> javaClass,
-            final @NonNull Map<@NonNull String, @NonNull Property> properties) {
+            final @NonNull Map<@NonNull String, @NonNull Property> instanceProperties) {
         assert oolangPropertyCandidates != null;
         assert javaClass != null;
-        assert properties != null;
+        assert instanceProperties != null;
 
         final var classModel = parseClassFile(javaClass);
         if (classModel == null) {
@@ -263,7 +261,7 @@ final class FunctionPropertyUtils {
                         matchingGetterFunction.isAbstract(),
                         matchingPropertyCandidate.setter.isPresent(),
                         matchingGetterFunction.type());
-                properties.put(newProperty.name(), newProperty);
+                instanceProperties.put(newProperty.name(), newProperty);
 
                 // add reference between the property and the associated function(s)
                 newProperty.getter = matchingGetterFunction;

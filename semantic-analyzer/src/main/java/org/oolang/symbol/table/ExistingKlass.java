@@ -12,7 +12,6 @@ import java.lang.constant.ConstantDescs;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Modifier;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static org.oolang.symbol.table.FunctionPropertyUtils.*;
 
@@ -20,9 +19,9 @@ import static org.oolang.symbol.table.FunctionPropertyUtils.*;
 @SuppressWarnings("preview")
 final class ExistingKlass extends Klass {
     private final @NonNull Class<?> javaClass;
-    private final @NonNull LazyConstant<@NonNull Map<@NonNull String, @NonNull Property>> properties =
+    private final @NonNull LazyConstant<@NonNull Properties> properties =
             LazyConstant.of(this::getProperties);
-    private final @NonNull LazyConstant<@NonNull Functions> functions =
+    private final @NonNull LazyConstant<@NonNull FunctionsAndPropertyCandidates> functions =
             LazyConstant.of(this::getFunctions);
 
     ExistingKlass(final @NonNull Class<?> javaClass) {
@@ -55,25 +54,25 @@ final class ExistingKlass extends Klass {
     }
 
     @Override
-    public @NonNull Map<@NonNull String, @NonNull Property> properties() {
+    public @NonNull Properties properties() {
         return properties.get();
     }
 
     @Override
-    public @NonNull SortedSet<@NonNull BaseFunction> functions() {
-        return functions.get().functions;
+    public @NonNull Functions functions() {
+        return functions.get();
     }
 
-    private @NonNull Map<@NonNull String, @NonNull Property> getProperties() {
-        final var properties = new HashMap<@NonNull String, @NonNull Property>();
+    private @NonNull Properties getProperties() {
+        final var properties = new Properties();
         // 1) add regular fields
         addFieldProperties(properties);
         // 2) add function properties, see `FunctionPropertyUtils`
-        addFunctionProperties(functions.get().propertyCandidates, javaClass, properties);
+        addFunctionProperties(functions.get().propertyCandidates, javaClass, properties.instanceProperties);
         return properties;
     }
 
-    private void addFieldProperties(final @NonNull Map<@NonNull String, @NonNull Property> properties) {
+    private void addFieldProperties(final @NonNull Properties properties) {
         assert properties != null;
 
         for (final var field : javaClass.getDeclaredFields()) {
@@ -82,44 +81,47 @@ final class ExistingKlass extends Klass {
                 continue;
             }
             final var name = field.getName();
+            final var isStatic = Modifier.isStatic(mod);
 
             final var property = new Property(this,
                     name,
                     visibilityFromModifiers(mod),
-                    Modifier.isStatic(mod),
+                    isStatic,
                     Modifier.isAbstract(mod),
                     Modifier.isFinal(mod),
                     TypeResolver.resolveType(field.getGenericType()));
-            properties.put(name, property);
+            (isStatic ? properties.staticProperties : properties.instanceProperties).put(name, property);
         }
     }
 
-    private @NonNull Functions getFunctions() {
-        final var maybeProperties = new HashMap<@NonNull String, @NonNull MaybeProperty>();
-        //1) add functions
-        final var functions = addFunctions(maybeProperties);
-        // 2) add constructors
-        addConstructors(functions);
-
-        return new Functions(
-                functions,
-                propertyCandidatesFromMaybeProperties(maybeProperties));
+    private @NonNull FunctionsAndPropertyCandidates getFunctions() {
+        final var functionsAndPropertyCandidates = new FunctionsAndPropertyCandidates();
+        addFunctionsAndPropertyCandidates(functionsAndPropertyCandidates);
+        addConstructors(functionsAndPropertyCandidates.instanceFunctions);
+        return functionsAndPropertyCandidates;
     }
 
-    private @NonNull SortedSet<@NonNull BaseFunction> addFunctions(
-            final @NonNull Map<@NonNull String, @NonNull MaybeProperty> maybeProperties
+    private void addFunctionsAndPropertyCandidates(
+            final @NonNull FunctionsAndPropertyCandidates functionsAndPropertyCandidates
     ) {
-        assert maybeProperties != null;
+        assert functionsAndPropertyCandidates != null;
 
-        return Arrays.stream(javaClass.getDeclaredMethods())
+        final var maybeProperties = new HashMap<@NonNull String, @NonNull MaybeProperty>();
+
+        Arrays.stream(javaClass.getDeclaredMethods())
                 .filter(method -> !Modifier.isPrivate(method.getModifiers()))
-                .map(method -> {
+                .forEach(method -> {
                     final var function = buildFunction(method, method.getName(),
                             TypeResolver.resolveType(method.getGenericReturnType()));
-                    // this function may be a property candidate
-                    addToMaybePropertiesIfEligible(function, maybeProperties);
-                    return function;
-                }).collect(Collectors.toCollection(TreeSet::new));
+                    if (function.isStatic()) {
+                        functionsAndPropertyCandidates.staticFunctions.add(function);
+                    } else {
+                        functionsAndPropertyCandidates.instanceFunctions.add(function);
+                        // this function may be a property candidate
+                        addToMaybePropertiesIfEligible(function, maybeProperties);
+                    }
+                });
+        functionsAndPropertyCandidates.propertyCandidates = propertyCandidatesFromMaybeProperties(maybeProperties);
     }
 
     private void addConstructors(final @NonNull Collection<@NonNull BaseFunction> functions) {
@@ -186,8 +188,7 @@ final class ExistingKlass extends Klass {
         return TypeResolver.resolveKlass(javaClass.arrayType());
     }
 
-    private record Functions(
-            @NonNull SortedSet<@NonNull BaseFunction> functions,
-            @NonNull PropertyCandidates propertyCandidates) {
+    static final class FunctionsAndPropertyCandidates extends Functions {
+        private /* lateinit */ PropertyCandidates propertyCandidates;
     }
 }

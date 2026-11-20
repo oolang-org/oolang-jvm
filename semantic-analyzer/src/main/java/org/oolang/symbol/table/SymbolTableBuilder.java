@@ -163,7 +163,7 @@ public final class SymbolTableBuilder {
                 baseSymbol(funElement, false, true),
                 (functionReturnType != null) ? functionReturnType : VOID_KLASS,
                 parameters);
-        klass.functions.add(function);
+        klass.rawFunctions.add(function);
         return function;
     }
 
@@ -221,7 +221,7 @@ public final class SymbolTableBuilder {
             makeElementPrivate(propertyElement);
         }
 
-        klass.properties().put(baseSymbol.name(), property);
+        klass.rawProperties.put(baseSymbol.name(), property);
         return property;
     }
 

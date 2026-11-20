@@ -10,10 +10,10 @@ import org.jspecify.annotations.Nullable;
 @SuppressWarnings("preview")
 public sealed abstract class PropertyOrFunction implements Symbol, ScopeElement permits Function, Property {
     public final @NonNull Klass declaringKlass;
-    public final @NonNull String name;
-    public @NonNull Visibility visibility;
-    public final boolean isStatic;
-    public final boolean isAbstract;
+    private final @NonNull String name;
+    @NonNull Visibility visibility;
+    private final boolean isStatic;
+    private final boolean isAbstract;
     private final boolean isFinal;
     final @NonNull Type type;
 

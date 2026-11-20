@@ -13,6 +13,7 @@ import org.oolang.symbol.table.external.ClassC;
 import java.security.Principal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.oolang.symbol.table.Klass.ACCESS_INSTANCE;
 
 @ExtendWith(KlassesCacheInterceptor.class)
 public class InheritanceTest {
@@ -41,43 +42,43 @@ public class InheritanceTest {
         var klass = new ExistingKlass(PrincipalImpl.class);
 
         // properties from the PrincipalImpl class itself
-        var property = (Property) klass.accessiblePropertyOrFunctionProperty("publicProp", true, true, false, false);
+        var property = (Property) klass.accessiblePropertyOrFunctionProperty("publicProp", true, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNotNull();
         assertThat(((ExistingKlass) property.type()).descriptorString()).isEqualTo("Ljava/lang/String;");
-        property = (Property) klass.accessiblePropertyOrFunctionProperty("protectedProp", true, true, false, false);
+        property = (Property) klass.accessiblePropertyOrFunctionProperty("protectedProp", true, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNotNull();
         assertThat(((ExistingKlass) property.type()).descriptorString()).isEqualTo("Ljava/lang/String;");
-        property = (Property) klass.accessiblePropertyOrFunctionProperty("packageProp", true, true, false, false);
+        property = (Property) klass.accessiblePropertyOrFunctionProperty("packageProp", true, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNotNull();
         assertThat(((ExistingKlass) property.type()).descriptorString()).isEqualTo("Ljava/lang/String;");
-        property = (Property) klass.accessiblePropertyOrFunctionProperty("privateProp", true, true, false, false);
+        property = (Property) klass.accessiblePropertyOrFunctionProperty("privateProp", true, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNull();
 
         // properties from lvl1 parent
-        property = (Property) klass.accessiblePropertyOrFunctionProperty("parentPublicPropLvl1", false, true, false, false);
+        property = (Property) klass.accessiblePropertyOrFunctionProperty("parentPublicPropLvl1", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNotNull();
         assertThat(((ExistingKlass) property.type()).descriptorString()).isEqualTo("Ljava/lang/String;");
-        property = (Property) klass.accessiblePropertyOrFunctionProperty("parentProtectedPropLvl1", false, true, false, false);
+        property = (Property) klass.accessiblePropertyOrFunctionProperty("parentProtectedPropLvl1", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNotNull();
         assertThat(((ExistingKlass) property.type()).descriptorString()).isEqualTo("Ljava/lang/String;");
         // not in the same package
-        property = (Property) klass.accessiblePropertyOrFunctionProperty("parentPackagePropLvl1", false, true, false, false);
+        property = (Property) klass.accessiblePropertyOrFunctionProperty("parentPackagePropLvl1", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNull();
-        property = (Property) klass.accessiblePropertyOrFunctionProperty("privatePropLvl1", false, true, false, false);
+        property = (Property) klass.accessiblePropertyOrFunctionProperty("privatePropLvl1", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNull();
 
         // properties from lvl2 parent
-        property = (Property) klass.accessiblePropertyOrFunctionProperty("parentPublicPropLvl2", false, true, false, false);
+        property = (Property) klass.accessiblePropertyOrFunctionProperty("parentPublicPropLvl2", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNotNull();
         assertThat(((ExistingKlass) property.type()).descriptorString()).isEqualTo("Ljava/lang/String;");
-        property = (Property) klass.accessiblePropertyOrFunctionProperty("parentProtectedPropLvl2", false, true, false, false);
+        property = (Property) klass.accessiblePropertyOrFunctionProperty("parentProtectedPropLvl2", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNotNull();
         assertThat(((ExistingKlass) property.type()).descriptorString()).isEqualTo("Ljava/lang/String;");
         // in the same package
-        property = (Property) klass.accessiblePropertyOrFunctionProperty("parentPackagePropLvl2", false, true, false, false);
+        property = (Property) klass.accessiblePropertyOrFunctionProperty("parentPackagePropLvl2", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNotNull();
         assertThat(((ExistingKlass) property.type()).descriptorString()).isEqualTo("Ljava/lang/String;");
-        property = (Property) klass.accessiblePropertyOrFunctionProperty("privatePropLvl2", false, true, false, false);
+        property = (Property) klass.accessiblePropertyOrFunctionProperty("privatePropLvl2", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNull();
     }
 
@@ -86,40 +87,40 @@ public class InheritanceTest {
         var type = new ExistingKlass(PrincipalImpl.class);
 
         // properties from the PrincipalImpl class itself
-        var property = (Property) type.accessiblePropertyOrFunctionProperty("publicProp", false, true, false, false);
+        var property = (Property) type.accessiblePropertyOrFunctionProperty("publicProp", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNull();
-        property = (Property) type.accessiblePropertyOrFunctionProperty("protectedProp", false, true, false, false);
+        property = (Property) type.accessiblePropertyOrFunctionProperty("protectedProp", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNull();
-        property = (Property) type.accessiblePropertyOrFunctionProperty("packageProp", false, true, false, false);
+        property = (Property) type.accessiblePropertyOrFunctionProperty("packageProp", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNull();
-        property = (Property) type.accessiblePropertyOrFunctionProperty("privateProp", false, true, false, false);
+        property = (Property) type.accessiblePropertyOrFunctionProperty("privateProp", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNull();
 
         // properties from lvl1 parent
-        property = (Property) type.accessiblePropertyOrFunctionProperty("parentPublicPropLvl1", false, true, false, false);
+        property = (Property) type.accessiblePropertyOrFunctionProperty("parentPublicPropLvl1", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNotNull();
         assertThat(((ExistingKlass) property.type()).descriptorString()).isEqualTo("Ljava/lang/String;");
-        property = (Property) type.accessiblePropertyOrFunctionProperty("parentProtectedPropLvl1", false, true, false, false);
+        property = (Property) type.accessiblePropertyOrFunctionProperty("parentProtectedPropLvl1", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNotNull();
         assertThat(((ExistingKlass) property.type()).descriptorString()).isEqualTo("Ljava/lang/String;");
         // not in the same package
-        property = (Property) type.accessiblePropertyOrFunctionProperty("parentPackagePropLvl1", false, true, false, false);
+        property = (Property) type.accessiblePropertyOrFunctionProperty("parentPackagePropLvl1", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNull();
-        property = (Property) type.accessiblePropertyOrFunctionProperty("privatePropLvl1", false, true, false, false);
+        property = (Property) type.accessiblePropertyOrFunctionProperty("privatePropLvl1", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNull();
 
         // properties from lvl2 parent
-        property = (Property) type.accessiblePropertyOrFunctionProperty("parentPublicPropLvl2", false, true, false, false);
+        property = (Property) type.accessiblePropertyOrFunctionProperty("parentPublicPropLvl2", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNotNull();
         assertThat(((ExistingKlass) property.type()).descriptorString()).isEqualTo("Ljava/lang/String;");
-        property = (Property) type.accessiblePropertyOrFunctionProperty("parentProtectedPropLvl2", false, true, false, false);
+        property = (Property) type.accessiblePropertyOrFunctionProperty("parentProtectedPropLvl2", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNotNull();
         assertThat(((ExistingKlass) property.type()).descriptorString()).isEqualTo("Ljava/lang/String;");
         // in the same package
-        property = (Property) type.accessiblePropertyOrFunctionProperty("parentPackagePropLvl2", false, true, false, false);
+        property = (Property) type.accessiblePropertyOrFunctionProperty("parentPackagePropLvl2", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNotNull();
         assertThat(((ExistingKlass) property.type()).descriptorString()).isEqualTo("Ljava/lang/String;");
-        property = (Property) type.accessiblePropertyOrFunctionProperty("privatePropLvl2", false, true, false, false);
+        property = (Property) type.accessiblePropertyOrFunctionProperty("privatePropLvl2", false, true, false, false, ACCESS_INSTANCE);
         assertThat(property).isNull();
     }
 }

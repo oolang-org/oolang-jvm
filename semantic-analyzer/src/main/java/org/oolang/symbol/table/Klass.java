@@ -6,14 +6,21 @@ package org.oolang.symbol.table;
 
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import org.oolang.symbol.table.BaseFunction.SimpleFunction;
 
 import java.lang.invoke.TypeDescriptor;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 
+import static org.oolang.symbol.table.FunctionUtils.compatibleParameters;
+
 @SuppressWarnings("preview")
 public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, ActualType
         permits Array, ExistingKlass, OolangKlass {
+
+    public static final byte ACCESS_INSTANCE = 1;
+    public static final byte ACCESS_STATIC = 2;
+    public static final byte ACCESS_BOTH = 3;
 
     private final @NonNull LazyConstant<@NonNull Parents> parents = LazyConstant.of(this::getAllParents);
 
@@ -41,13 +48,9 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
         return parents.get().allInterfaces;
     }
 
-    abstract @NonNull Map<@NonNull String, @NonNull Property> properties();
+    abstract @NonNull Properties properties();
 
-    /// A [TreeSet] allows quick O(log n) range search by function name.
-    ///
-    /// If we stored the functions with a regular collection, a [java.util.stream.Stream] could be used to filter the
-    /// functions by name, but with a worse 0(n) performance.
-    abstract @NonNull SortedSet<@NonNull BaseFunction> functions();
+    abstract @NonNull Functions functions();
 
     @Override
     public final boolean isAssignableFrom(final @NonNull ActualType otherType) {
@@ -73,12 +76,13 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
                                                                                    final boolean includeSelf,
                                                                                    final boolean includeProtected,
                                                                                    final boolean includePrivate,
-                                                                                   final boolean setter) {
+                                                                                   final boolean setter,
+                                                                                   final byte access) {
         assert name != null;
 
         if (includeSelf) {
-            final var property = accessiblePropertyOrFunctionProperty(name, includeProtected, includePrivate,
-                    this, setter);
+            final var property = accessiblePropertyOrFunctionProperty(name, includeProtected, includePrivate, setter,
+                    access, this);
             if (property != null) {
                 return property;
             }
@@ -86,15 +90,15 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
 
         // Try all superclasses, then all superinterfaces
         for (final var superKlass : allSuperKlasses()) {
-            final var property = accessiblePropertyOrFunctionProperty(name, includeProtected, false,
-                    TypeResolver.getKlassFromType(superKlass), setter);
+            final var property = accessiblePropertyOrFunctionProperty(name, includeProtected, false, setter,
+                    access, TypeResolver.getKlassFromType(superKlass));
             if (property != null) {
                 return property;
             }
         }
         for (final var superInterface : allInterfaces()) {
-            final var property = accessiblePropertyOrFunctionProperty(name, includeProtected, false,
-                    TypeResolver.getKlassFromType(superInterface), setter);
+            final var property = accessiblePropertyOrFunctionProperty(name, includeProtected, false, setter,
+                    access, TypeResolver.getKlassFromType(superInterface));
             if (property != null) {
                 return property;
             }
@@ -105,12 +109,38 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
     private @Nullable PropertyOrFunction accessiblePropertyOrFunctionProperty(final @NonNull String name,
                                                                               final boolean includeProtected,
                                                                               final boolean includePrivate,
-                                                                              final @NonNull Klass klass,
-                                                                              final boolean setter) {
+                                                                              final boolean setter,
+                                                                              final byte access,
+                                                                              final @NonNull Klass klass) {
         assert name != null;
         assert klass != null;
 
-        final var property = klass.properties().get(name);
+        PropertyOrFunction propertyOrFunction = null;
+        // search for instance function first
+        if ((access & ACCESS_INSTANCE) == ACCESS_INSTANCE) {
+            propertyOrFunction = accessiblePropertyOrFunctionProperty(name, includeProtected, includePrivate, setter,
+                    klass.properties().instanceProperties, klass.packageName(), klass.descriptorString());
+        }
+        if (propertyOrFunction == null && (access & ACCESS_STATIC) == ACCESS_STATIC) {
+            propertyOrFunction = accessiblePropertyOrFunctionProperty(name, includeProtected, includePrivate, setter,
+                    klass.properties().staticProperties, klass.packageName(), klass.descriptorString());
+        }
+        return propertyOrFunction;
+    }
+
+    private @Nullable PropertyOrFunction accessiblePropertyOrFunctionProperty(
+            final @NonNull String name,
+            final boolean includeProtected,
+            final boolean includePrivate,
+            final boolean setter,
+            final @NonNull Map<@NonNull String, @NonNull Property> properties,
+            final @NonNull String klassPackageName,
+            final @NonNull String klassDescriptoString
+    ) {
+        assert name != null;
+        assert properties != null;
+
+        final var property = properties.get(name);
         if (property == null || (setter && property.isFinal())) {
             return null;
         }
@@ -122,7 +152,7 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
             }
             case JAVA_PROTECTED -> {
                 if (includeProtected // protected in a superclass or itself
-                        || this.packageName().equals(klass.packageName())) { // within the same package
+                        || this.packageName().equals(klassPackageName)) { // within the same package
                     return property;
                 }
             }
@@ -132,12 +162,12 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
                 }
             }
             case JAVA_PACKAGE_PRIVATE -> {
-                if (this.packageName().equals(klass.packageName())) { // within the same package
+                if (this.packageName().equals(klassPackageName)) { // within the same package
                     return property;
                 }
             }
             case PRIVATE -> {
-                if (includePrivate && this.descriptorString().equals(klass.descriptorString())) { // the current class
+                if (includePrivate && this.descriptorString().equals(klassDescriptoString)) { // the current class
                     return property;
                 }
             }
@@ -152,7 +182,7 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
                 }
                 case JAVA_PROTECTED -> {
                     if (includeProtected // protected in a superclass or itself
-                            || this.packageName().equals(klass.packageName())) { // within the same package
+                            || this.packageName().equals(klassPackageName)) { // within the same package
                         return function;
                     }
                 }
@@ -169,26 +199,31 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
 
     public final @Nullable Function accessibleFunction(final @NonNull String name,
                                                        final @NonNull List<@NonNull ActualType> parameterTypes,
+                                                       final boolean includeSelf,
                                                        final boolean includeProtected,
-                                                       final boolean includePrivate) {
+                                                       final boolean includePrivate,
+                                                       final byte access) {
         assert name != null;
         assert parameterTypes != null;
 
-        var function = accessibleFunction(name, parameterTypes, includeProtected, includePrivate, this);
-        if (function != null) {
-            return function;
+        if (includeSelf) {
+            final var function = accessibleFunction(name, parameterTypes, includeProtected, includePrivate, access,
+                    this);
+            if (function != null) {
+                return function;
+            }
         }
 
         // Try all superclasses, then all superinterfaces
         for (final var superKlass : allSuperKlasses()) {
-            function = accessibleFunction(name, parameterTypes, includeProtected, false,
+            final var function = accessibleFunction(name, parameterTypes, includeProtected, false, access,
                     TypeResolver.getKlassFromType(superKlass));
             if (function != null) {
                 return function;
             }
         }
         for (final var superInterface : allInterfaces()) {
-            function = accessibleFunction(name, parameterTypes, includeProtected, false,
+            final var function = accessibleFunction(name, parameterTypes, includeProtected, false, access,
                     TypeResolver.getKlassFromType(superInterface));
             if (function != null) {
                 return function;
@@ -201,6 +236,7 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
                                                   final @NonNull List<@NonNull ActualType> parameterTypes,
                                                   final boolean includeProtected,
                                                   final boolean includePrivate,
+                                                  final byte access,
                                                   final @NonNull Klass klass) {
         assert name != null;
         assert parameterTypes != null;
@@ -208,8 +244,34 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
 
         // search limits = funName / funName0. There may be several functions with the same name.
         final var searchFunctionFrom = new SimpleFunction(name);
-        final var searchFunctionTo = new SimpleFunction(name + "0");
-        final var candidateFunctions = klass.functions().subSet(searchFunctionFrom, searchFunctionTo);
+        final var searchFunctionTo = new BaseFunction.SimpleFunction(name + "0");
+        Function function = null;
+        // search for instance function first
+        if ((access & ACCESS_INSTANCE) == ACCESS_INSTANCE) {
+            function = accessibleFunction(searchFunctionFrom, searchFunctionTo, parameterTypes,
+                    includeProtected, includePrivate, klass.functions().instanceFunctions, klass.packageName());
+        }
+        if (function == null && (access & ACCESS_STATIC) == ACCESS_STATIC) {
+            function = accessibleFunction(searchFunctionFrom, searchFunctionTo, parameterTypes,
+                    includeProtected, includePrivate, klass.functions().staticFunctions, klass.packageName());
+        }
+        return function;
+    }
+
+    private @Nullable Function accessibleFunction(final @NonNull SimpleFunction searchFunctionFrom,
+                                                  final @NonNull SimpleFunction searchFunctionTo,
+                                                  final @NonNull List<@NonNull ActualType> parameterTypes,
+                                                  final boolean includeProtected,
+                                                  final boolean includePrivate,
+                                                  final @NonNull SortedSet<@NonNull BaseFunction> klassFunctions,
+                                                  final @NonNull String klassPackageName) {
+        assert searchFunctionFrom != null;
+        assert searchFunctionTo != null;
+        assert parameterTypes != null;
+        assert klassFunctions != null;
+        assert klassPackageName != null;
+
+        final var candidateFunctions = klassFunctions.subSet(searchFunctionFrom, searchFunctionTo);
         for (final var candidateBaseFunction : candidateFunctions) {
             final var candidateFunction = (Function) candidateBaseFunction;
             switch (candidateFunction.visibility()) {
@@ -224,13 +286,13 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
                     }
                 }
                 case JAVA_PACKAGE_PRIVATE -> {
-                    if (this.packageName().equals(klass.packageName()) // within the same package
+                    if (this.packageName().equals(klassPackageName) // within the same package
                             && compatibleParameters(candidateFunction, parameterTypes)) {
                         return candidateFunction;
                     }
                 }
                 case JAVA_PROTECTED -> {
-                    if ((includeProtected || /*within the same package*/ this.packageName().equals(klass.packageName()))
+                    if ((includeProtected || /*within the same package*/ this.packageName().equals(klassPackageName))
                             && compatibleParameters(candidateFunction, parameterTypes)) {
                         return candidateFunction;
                     }
@@ -243,24 +305,6 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
             }
         }
         return null;
-    }
-
-    private static boolean compatibleParameters(final @NonNull Function candidateFunction,
-                                                final @NonNull List<@NonNull ActualType> parameterTypes) {
-        assert candidateFunction != null;
-        assert parameterTypes != null;
-
-        // fail-fast if candidate function has wrong number of parameters
-        if (candidateFunction.parameters.size() != parameterTypes.size()) {
-            return false;
-        }
-
-        for (var i = 0; i < candidateFunction.parameters.size(); i++) {
-            if (!candidateFunction.parameters.get(i).type().isAssignableFrom(parameterTypes.get(i))) {
-                return false;
-            }
-        }
-        return true;
     }
 
     /// Recursively finds all superclasses and interfaces this klass extends/implements.
@@ -303,12 +347,23 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
         }
     }
 
-    record SimpleFunction(@NonNull String name) implements org.oolang.symbol.table.BaseFunction {
-    }
-
     private static final class Parents {
         private final @NonNull SequencedCollection<@NonNull ActualType> allSuperKlasses = new ArrayList<>();
         private final @NonNull SequencedCollection<@NonNull ActualType> allInterfaces = new TreeSet<>();
+    }
+
+    public static final class Properties {
+        public final @NonNull Map<@NonNull String, @NonNull Property> instanceProperties = new HashMap<>();
+        public final @NonNull Map<@NonNull String, @NonNull Property> staticProperties = new HashMap<>();
+    }
+
+    /// Impl note: A [TreeSet] allows quick O(log n) range search by function name.
+    ///
+    /// If we stored the functions with a regular collection, a [java.util.stream.Stream] could be used to filter the
+    /// functions by name, but with a worse 0(n) performance.
+    public static sealed class Functions permits ExistingKlass.FunctionsAndPropertyCandidates {
+        public final @NonNull SortedSet<@NonNull BaseFunction> instanceFunctions = new TreeSet<>();
+        public final @NonNull SortedSet<@NonNull BaseFunction> staticFunctions = new TreeSet<>();
     }
 
     @Override
