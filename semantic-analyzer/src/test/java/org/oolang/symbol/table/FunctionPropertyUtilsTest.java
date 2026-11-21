@@ -22,85 +22,106 @@ import static org.oolang.symbol.table.Visibility.PUBLIC;
 public class FunctionPropertyUtilsTest {
     @ParameterizedTest
     @CsvSource({
-            "getA,a",
-            "getÉ,É",
-            "getName,name",
-            "getURL,url",
-            "getETPhoneHome,etPhoneHome",
-            "getNICEFunction,niceFunction",
-            "getÉtoile,Étoile",
-            "getÉTOILE,ÉTOILE",
+            "getA,setA,a",
+            "getÉ,setÉ,É",
+            "getName,setName,name",
+            "getURL,setURL,url",
+            "getETPhoneHome,setETPhoneHome,etPhoneHome",
+            "getNICEFunction,setNICEFunction,niceFunction",
+            "getÉtoile,setÉtoile,Étoile",
+            "getÉTOILE,setÉTOILE,ÉTOILE",
     })
-    void testAddToMaybePropertiesIfEligible_GetterGet(String functionName, String expected) {
+    void testAddToMaybePropertiesIfEligible_GetterGetAndSetter(String getterName,
+                                                               String setterName,
+                                                               String expectedProperty) {
         final var maybeProperties = new HashMap<String, MaybeProperty>();
-        final var function = new Function((ExistingKlass) VOID_KLASS, functionName, PUBLIC, false,
-                false, false, STRING_KLASS, List.of());
-        FunctionPropertyUtils.addToMaybePropertiesIfEligible(function, maybeProperties);
-        assertThat(maybeProperties).containsKey(expected);
-        var maybeProperty = maybeProperties.get(expected);
+        final var getterFunction = new Function(VOID_KLASS, getterName, PUBLIC, false, false,
+                false, STRING_KLASS, List.of());
+        FunctionPropertyUtils.addToMaybePropertiesIfEligible(getterFunction, maybeProperties);
+        final var setterFunction = new Function(VOID_KLASS, setterName, PUBLIC, false, false,
+                false, VOID_KLASS, List.of(new Function.Parameter(expectedProperty, STRING_KLASS)));
+        FunctionPropertyUtils.addToMaybePropertiesIfEligible(setterFunction, maybeProperties);
+
+        assertThat(maybeProperties).containsKey(expectedProperty);
+        var maybeProperty = maybeProperties.get(expectedProperty);
         assertThat(maybeProperty.getter).isNull();
         assertThat(maybeProperty.oldSchoolGetter).isNotNull();
-        assertThat(maybeProperty.oldSchoolGetter).isEqualTo(function);
+        assertThat(maybeProperty.oldSchoolGetter).isEqualTo(getterFunction);
         assertThat(maybeProperty.setters).isEmpty();
-        assertThat(maybeProperty.oldSchoolSetters).isEmpty();
+        assertThat(maybeProperty.oldSchoolSetters).hasSize(1);
+        assertThat(maybeProperty.oldSchoolSetters).containsOnly(setterFunction);
     }
 
     @ParameterizedTest
     @CsvSource({
-            "isA,isA",
-            "isÉ,isÉ",
-            "isName,isName",
-            "isURL,isURL",
-            "isETPhoneHome,isETPhoneHome",
-            "isNICEFunction,isNICEFunction",
-            "isÉtoile,isÉtoile",
-            "isÉTOILE,isÉTOILE",
+            "isA,setA,isA",
+            "isÉ,setÉ,isÉ",
+            "isName,setName,isName",
+            "isURL,setURL,isURL",
+            "isETPhoneHome,setETPhoneHome,isETPhoneHome",
+            "isNICEFunction,setNICEFunction,isNICEFunction",
+            "isÉtoile,setÉtoile,isÉtoile",
+            "isÉTOILE,setÉTOILE,isÉTOILE",
     })
-    void testAddToMaybePropertiesIfEligible_GetterIs(String functionName, String expected) {
+    void testAddToMaybePropertiesIfEligible_GetterIsAndSetter(String getterName,
+                                                             String setterName,
+                                                             String expectedProperty) {
         final var maybeProperties = new HashMap<String, MaybeProperty>();
-        final var function = new Function((ExistingKlass) VOID_KLASS, functionName, PUBLIC, false,
-                false, false, BOOLEAN_PRIMITIVE_KLASS, List.of());
-        FunctionPropertyUtils.addToMaybePropertiesIfEligible(function, maybeProperties);
-        assertThat(maybeProperties).containsKey(expected);
-        var maybeProperty = maybeProperties.get(expected);
+        final var getterFunction = new Function(VOID_KLASS, getterName, PUBLIC, false, false,
+                false, BOOLEAN_PRIMITIVE_KLASS, List.of());
+        FunctionPropertyUtils.addToMaybePropertiesIfEligible(getterFunction, maybeProperties);
+        final var setterFunction = new Function(VOID_KLASS, setterName, PUBLIC, false, false,
+                false, VOID_KLASS, List.of(new Function.Parameter(expectedProperty, BOOLEAN_PRIMITIVE_KLASS)));
+        FunctionPropertyUtils.addToMaybePropertiesIfEligible(setterFunction, maybeProperties);
+
+        assertThat(maybeProperties).containsKey(expectedProperty);
+        var maybeProperty = maybeProperties.get(expectedProperty);
         assertThat(maybeProperty.getter).isNull();
         assertThat(maybeProperty.oldSchoolGetter).isNotNull();
-        assertThat(maybeProperty.oldSchoolGetter).isEqualTo(function);
+        assertThat(maybeProperty.oldSchoolGetter).isEqualTo(getterFunction);
         assertThat(maybeProperty.setters).isEmpty();
-        assertThat(maybeProperty.oldSchoolSetters).isEmpty();
+        assertThat(maybeProperty.oldSchoolSetters).hasSize(1);
+        assertThat(maybeProperty.oldSchoolSetters).containsOnly(setterFunction);
     }
 
 
     @ParameterizedTest
     @CsvSource({
-            "name, name",
-            "get,get",
-            "getr,getr",
-            "getter,getter",
-            "is,is",
-            "isa,isa",
-            "isabelle,isabelle",
-            "isA,isA",
-            "isÉ,isÉ",
-            "isName,isName",
-            "isURL,isURL",
-            "isETPhoneHome,isETPhoneHome",
-            "isNICEFunction,isNICEFunction",
-            "isÉtoile,isÉtoile",
-            "isÉTOILE,isÉTOILE",
+            "name,setName,name",
+            "get,setGet,get",
+            "getr,setGetr,getr",
+            "getter,setGetter,getter",
+            "is,setIs,is",
+            "isa,setIsa,isa",
+            "isabelle,setIsabelle,isabelle",
+            "isA,setA,isA",
+            "isÉ,setÉ,isÉ",
+            "isName,setName,isName",
+            "isURL,setURL,isURL",
+            "isETPhoneHome,setETPhoneHome,isETPhoneHome",
+            "isNICEFunction,setNICEFunction,isNICEFunction",
+            "isÉtoile,setÉtoile,isÉtoile",
+            "isÉTOILE,setÉTOILE,isÉTOILE",
     })
-    void testAddToMaybePropertiesIfEligible_GetterNoGetNorIs(String functionName, String expected) {
+    void testAddToMaybePropertiesIfEligible_GetterNoGetNorIsAndSetter(String getterName,
+                                                                      String setterName,
+                                                                      String expectedProperty) {
         final var maybeProperties = new HashMap<String, MaybeProperty>();
-        final var function = new Function((ExistingKlass) VOID_KLASS, functionName, PUBLIC, false,
-                false, false, STRING_KLASS, List.of());
-        FunctionPropertyUtils.addToMaybePropertiesIfEligible(function, maybeProperties);
-        assertThat(maybeProperties).containsKey(expected);
-        var maybeProperty = maybeProperties.get(expected);
+        final var getterFunction = new Function(VOID_KLASS, getterName, PUBLIC, false, false,
+                false, STRING_KLASS, List.of());
+        FunctionPropertyUtils.addToMaybePropertiesIfEligible(getterFunction, maybeProperties);
+        final var setterFunction = new Function(VOID_KLASS, setterName, PUBLIC, false, false,
+                false, VOID_KLASS, List.of(new Function.Parameter(expectedProperty, BOOLEAN_PRIMITIVE_KLASS)));
+        FunctionPropertyUtils.addToMaybePropertiesIfEligible(setterFunction, maybeProperties);
+
+        assertThat(maybeProperties).containsKey(expectedProperty);
+        var maybeProperty = maybeProperties.get(expectedProperty);
         assertThat(maybeProperty.getter).isNotNull();
-        assertThat(maybeProperty.getter).isEqualTo(function);
+        assertThat(maybeProperty.getter).isEqualTo(getterFunction);
         assertThat(maybeProperty.oldSchoolGetter).isNull();
         assertThat(maybeProperty.setters).isEmpty();
-        assertThat(maybeProperty.oldSchoolSetters).isEmpty();
+        assertThat(maybeProperty.oldSchoolSetters).hasSize(1);
+        assertThat(maybeProperty.oldSchoolSetters).containsOnly(setterFunction);
     }
 
     @ParameterizedTest
@@ -111,7 +132,7 @@ public class FunctionPropertyUtilsTest {
     })
     void testAddToMaybePropertiesIfEligible_NonGetterSpecificCases(String functionName) {
         final var maybeProperties = new HashMap<String, MaybeProperty>();
-        final var function = new Function((ExistingKlass) VOID_KLASS, functionName, PUBLIC, false,
+        final var function = new Function(VOID_KLASS, functionName, PUBLIC, false,
                 false, false, STRING_KLASS, List.of());
         FunctionPropertyUtils.addToMaybePropertiesIfEligible(function, maybeProperties);
         assertThat(maybeProperties).isEmpty();

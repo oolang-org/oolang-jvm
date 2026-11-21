@@ -10,13 +10,13 @@ import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.oolang.test.KlassesCacheInterceptor;
 import org.oolang.OolangPropCustomAttribute;
 import org.oolang.ast.AstFile;
 import org.oolang.parser.OolangAstVisitor;
 import org.oolang.parser.generated.OolangLexer;
 import org.oolang.parser.generated.OolangParser;
 import org.oolang.semantic.analyzer.OolangSemanticAnalyzer;
+import org.oolang.test.KlassesCacheInterceptor;
 
 import java.io.IOException;
 import java.lang.classfile.*;
@@ -449,6 +449,97 @@ public class OolangCompilerTest {
         var expression7 = (ReturnInstruction) codeElements.get(6);
         assertThat(expression7.opcode()).isEqualTo(Opcode.RETURN);
         assertThat(expression7.typeKind()).isEqualTo(TypeKind.VOID);
+    }
+
+    @Test
+    public void parseClassWithMainFunctionAndOolangFunctionPropertyAssignAndAccess() {
+        var astFile = astForCode("""
+                package com.example
+                import org.oolang.test.OldSchoolMutableFunctionProperty
+                class Example {
+                static fun main(args: Array<String>) {
+                val oolangInstance = new OldSchoolMutableFunctionProperty()
+                oolangInstance.name = "World!"
+                System.out.println("Hello, " + oolangInstance.name)
+                }
+                }""");
+        var codeElements = verifyMainUntilStatement(astFile);
+        assertThat(codeElements).hasSize(13);
+
+        var expression1 = (NewObjectInstruction) codeElements.get(0);
+        assertThat(expression1.opcode()).isEqualTo(Opcode.NEW);
+        assertThat(expression1.className().asInternalName())
+                .isEqualTo("org/oolang/test/OldSchoolMutableFunctionProperty");
+
+        var expression2 = (StackInstruction) codeElements.get(1);
+        assertThat(expression2.opcode()).isEqualTo(Opcode.DUP);
+
+        var expression3 = (InvokeInstruction) codeElements.get(2);
+        assertThat(expression3.opcode()).isEqualTo(Opcode.INVOKESPECIAL);
+        assertThat(expression3.name().stringValue()).isEqualTo(ConstantDescs.INIT_NAME);
+        assertThat(expression3.owner().asInternalName())
+                .isEqualTo("org/oolang/test/OldSchoolMutableFunctionProperty");
+        assertThat(expression3.typeSymbol().descriptorString()).isEqualTo("()V");
+
+        var expression4 = (StoreInstruction) codeElements.get(3);
+        assertThat(expression4.opcode()).isEqualTo(Opcode.ASTORE_0);
+        assertThat(expression4.typeKind()).isEqualTo(TypeKind.REFERENCE);
+
+        var expression5 = (LoadInstruction) codeElements.get(4);
+        assertThat(expression5.opcode()).isEqualTo(Opcode.ALOAD_0);
+        assertThat(expression5.typeKind()).isEqualTo(TypeKind.REFERENCE);
+
+        var expression6 = (ConstantInstruction.LoadConstantInstruction) codeElements.get(5);
+        assertThat(expression6.opcode()).isEqualTo(Opcode.LDC);
+        assertThat(expression6.typeKind()).isEqualTo(TypeKind.REFERENCE);
+        assertThat(expression6.constantValue()).isEqualTo("World!");
+
+        var expression7 = (InvokeInstruction) codeElements.get(6);
+        assertThat(expression7.opcode()).isEqualTo(Opcode.INVOKEVIRTUAL);
+        assertThat(expression7.name().stringValue()).isEqualTo("setName");
+        assertThat(expression7.owner().asInternalName())
+                .isEqualTo("org/oolang/test/OldSchoolMutableFunctionProperty");
+        assertThat(expression7.typeSymbol().descriptorString())
+                .isEqualTo("(Ljava/lang/String;)V");
+
+        var expression8 = (FieldInstruction) codeElements.get(7);
+        assertThat(expression8.opcode()).isEqualTo(Opcode.GETSTATIC);
+        assertThat(expression8.name().stringValue()).isEqualTo("out");
+        assertThat(expression8.owner().asInternalName()).isEqualTo("java/lang/System");
+        assertThat(expression8.typeSymbol().descriptorString()).isEqualTo("Ljava/io/PrintStream;");
+
+        var expression9 = (LoadInstruction) codeElements.get(8);
+        assertThat(expression9.opcode()).isEqualTo(Opcode.ALOAD_0);
+        assertThat(expression9.typeKind()).isEqualTo(TypeKind.REFERENCE);
+
+        var expression10 = (InvokeInstruction) codeElements.get(9);
+        assertThat(expression10.opcode()).isEqualTo(Opcode.INVOKEVIRTUAL);
+        assertThat(expression10.name().stringValue()).isEqualTo("getName");
+        assertThat(expression10.owner().asInternalName())
+                .isEqualTo("org/oolang/test/OldSchoolMutableFunctionProperty");
+        assertThat(expression10.typeSymbol().descriptorString())
+                .isEqualTo("()Ljava/lang/String;");
+
+        var expression11 = (InvokeDynamicInstruction) codeElements.get(10);
+        assertThat(expression11.opcode()).isEqualTo(Opcode.INVOKEDYNAMIC);
+        assertThat(expression11.name().stringValue()).isEqualTo("jvmDynamicStringConcat");
+        assertThat(expression11.typeSymbol().descriptorString())
+                .isEqualTo("(Ljava/lang/String;)Ljava/lang/String;");
+        var invokeDynamicBootstrapMethod = expression11.bootstrapMethod();
+        assertThat(invokeDynamicBootstrapMethod.methodName()).isEqualTo("makeConcatWithConstants");
+        assertThat(invokeDynamicBootstrapMethod.owner().descriptorString())
+                .isEqualTo("Ljava/lang/invoke/StringConcatFactory;");
+
+        var expression12 = (InvokeInstruction) codeElements.get(11);
+        assertThat(expression12.opcode()).isEqualTo(Opcode.INVOKEVIRTUAL);
+        assertThat(expression12.name().stringValue()).isEqualTo("println");
+        assertThat(expression12.owner().asInternalName()).isEqualTo("java/io/PrintStream");
+        assertThat(expression12.typeSymbol().descriptorString())
+                .isEqualTo("(Ljava/lang/String;)V");
+
+        var expression13 = (ReturnInstruction) codeElements.get(12);
+        assertThat(expression13.opcode()).isEqualTo(Opcode.RETURN);
+        assertThat(expression13.typeKind()).isEqualTo(TypeKind.VOID);
     }
 
     private @NonNull List<@NonNull CodeElement> verifyMainUntilStatement(AstFile astFile) {

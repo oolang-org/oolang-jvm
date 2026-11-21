@@ -720,21 +720,17 @@ public class OolangSemanticAnalyzerTest {
     }
 
     @Test
-    public void parseClassWithMainFunctionAndOolangFunctionPropertyAssignAndAccess3() {
-        var astFile = astForCodes("""
-                        package com.example
-                        class OolangFunctionProperty2 {
-                        var name: String
-                        }"""
-                , """
-                        package com.example
-                        class Example {
-                        static fun main(args: Array<String>) {
-                        val oolangInstance = new OolangFunctionProperty2()
-                        oolangInstance.name = "World!"
-                        System.out.println("Hello, " + oolangInstance.name)
-                        }
-                        }""");
+    public void parseClassWithMainFunctionAndOolangFunctionPropertyAssignAndAccess1() {
+        var astFile = astForCode("""
+                package com.example
+                import org.oolang.test.OldSchoolMutableFunctionProperty
+                class Example {
+                static fun main(args: Array<String>) {
+                val oolangInstance = new OldSchoolMutableFunctionProperty()
+                oolangInstance.name = "World!"
+                System.out.println("Hello, " + oolangInstance.name)
+                }
+                }""");
         var codeBlock = verifyMainUntilCodeBlock(astFile);
         assertThat(codeBlock.statements).hasSize(3);
 
@@ -752,21 +748,22 @@ public class OolangSemanticAnalyzerTest {
         var variableValueNew = (RealExpression) variableStoreChainable.content().get(0);
         assertThat(variableValueNew.expressionType).isEqualTo(NEW);
         assertThat(variableValueNew.parent).isEqualTo(variableStoreChainable);
-        assertThat(variableValueNew.descriptorString()).isEqualTo("Lcom/example/OolangFunctionProperty2;");
+        assertThat(variableValueNew.descriptorString())
+                .isEqualTo("Lorg/oolang/test/OldSchoolMutableFunctionProperty;");
 
         var variableValueInstantiation = (RealExpression) variableStoreChainable.content().get(1);
         assertThat(variableValueInstantiation.expressionType).isEqualTo(FUN_CALL);
         assertThat(variableValueInstantiation.parent).isEqualTo(variableStoreChainable);
         assertThat(variableValueInstantiation.type).isNotNull();
         assertThat(variableValueInstantiation.type.description())
-                .isEqualTo("Type(OolangFunctionProperty2)");
+                .isEqualTo("Type(OldSchoolMutableFunctionProperty)");
         assertThat(variableValueInstantiation.invocation).isEqualTo(INVOKE_SPECIAL);
         assertThat(variableValueInstantiation.ownerDescriptorString)
-                .isEqualTo("Lcom/example/OolangFunctionProperty2;");
+                .isEqualTo("Lorg/oolang/test/OldSchoolMutableFunctionProperty;");
         assertThat(variableValueInstantiation.identifiers).hasSize(1);
         assertThat(variableValueInstantiation.identifiers.getFirst().identifier).isEqualTo(ConstantDescs.INIT_NAME);
         assertThat(variableValueInstantiation.descriptorString())
-                .isEqualTo("Lcom/example/OolangFunctionProperty2;");
+                .isEqualTo("Lorg/oolang/test/OldSchoolMutableFunctionProperty;");
         assertThat(variableValueInstantiation.typeDescriptorString).isEqualTo("()V");
         assertThat(variableValueInstantiation.content()).isEmpty();
 
@@ -776,7 +773,8 @@ public class OolangSemanticAnalyzerTest {
         assertThat(variableStore.identifiers).hasSize(1);
         assertThat(variableStore.identifiers.getFirst().identifier).isEqualTo("oolangInstance");
         assertThat(variableStore.slot).isEqualTo(0);
-        assertThat(variableStore.descriptorString()).isEqualTo("Lcom/example/OolangFunctionProperty2;");
+        assertThat(variableStore.descriptorString())
+                .isEqualTo("Lorg/oolang/test/OldSchoolMutableFunctionProperty;");
         assertThat(variableStore.children).isEmpty();
 
         // statement 2: `oolangInstance.name = "World!"`
@@ -789,7 +787,8 @@ public class OolangSemanticAnalyzerTest {
         var loadVariable1 = (RealExpression) propAssignmentChainable.content().get(0);
         assertThat(loadVariable1.expressionType).isEqualTo(LOAD);
         assertThat(loadVariable1.description()).isEqualTo("Expression(load oolangInstance)");
-        assertThat(loadVariable1.descriptorString()).isEqualTo("Lcom/example/OolangFunctionProperty2;");
+        assertThat(loadVariable1.descriptorString())
+                .isEqualTo("Lorg/oolang/test/OldSchoolMutableFunctionProperty;");
         assertThat(loadVariable1.slot).isEqualTo(0);
         assertThat(loadVariable1.content()).isEmpty();
 
@@ -798,9 +797,10 @@ public class OolangSemanticAnalyzerTest {
 
         var propAssignment = (RealExpression) propAssignmentChainable.content().get(2);
         assertThat(propAssignment.expressionType).isEqualTo(FUN_CALL);
-        assertThat(propAssignment.description()).isEqualTo("Expression(fun_call name)");
-        assertThat(propAssignment.invocation).isEqualTo(INVOKE_SPECIAL);
-        assertThat(propAssignment.ownerDescriptorString).isEqualTo("Lcom/example/OolangFunctionProperty2;");
+        assertThat(propAssignment.description()).isEqualTo("Expression(fun_call setName)");
+        assertThat(propAssignment.invocation).isEqualTo(INVOKE_VIRTUAL);
+        assertThat(propAssignment.ownerDescriptorString)
+                .isEqualTo("Lorg/oolang/test/OldSchoolMutableFunctionProperty;");
         assertThat(propAssignment.descriptorString()).isEqualTo("V");
         assertThat(propAssignment.typeDescriptorString).isEqualTo("(Ljava/lang/String;)V");
         assertThat(propAssignment.content()).isEmpty();
@@ -857,7 +857,8 @@ public class OolangSemanticAnalyzerTest {
         var loadVariable2 = (RealExpression) funCallParamChainable2.content().getFirst();
         assertThat(loadVariable2.expressionType).isEqualTo(LOAD);
         assertThat(loadVariable2.description()).isEqualTo("Expression(load oolangInstance)");
-        assertThat(loadVariable2.descriptorString()).isEqualTo("Lcom/example/OolangFunctionProperty2;");
+        assertThat(loadVariable2.descriptorString())
+                .isEqualTo("Lorg/oolang/test/OldSchoolMutableFunctionProperty;");
         assertThat(loadVariable2.slot).isEqualTo(0);
         assertThat(loadVariable2.content()).isEmpty();
 
@@ -865,7 +866,162 @@ public class OolangSemanticAnalyzerTest {
         assertThat(funCallParamFunPropAccess2.expressionType).isEqualTo(FUN_CALL);
         assertThat(funCallParamFunPropAccess2.invocation).isEqualTo(INVOKE_VIRTUAL);
         assertThat(funCallParamFunPropAccess2.ownerDescriptorString)
-                .isEqualTo("Lcom/example/OolangFunctionProperty2;");
+                .isEqualTo("Lorg/oolang/test/OldSchoolMutableFunctionProperty;");
+        assertThat(funCallParamFunPropAccess2.identifiers).hasSize(1);
+        assertThat(funCallParamFunPropAccess2.identifiers.getFirst().identifier).isEqualTo("getName");
+        assertThat(funCallParamFunPropAccess2.descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(funCallParamFunPropAccess2.typeDescriptorString).isEqualTo("()Ljava/lang/String;");
+        assertThat(funCallParamFunPropAccess2.children).isEmpty();
+    }
+
+    @Test
+    public void parseClassWithMainFunctionAndOolangFunctionPropertyAssignAndAccess2() {
+        var astFile = astForCodes("""
+                        package com.example
+                        class OolangMutableFunctionProperty2 {
+                        var name: String
+                        }"""
+                , """
+                        package com.example
+                        class Example {
+                        static fun main(args: Array<String>) {
+                        val oolangInstance = new OolangMutableFunctionProperty2()
+                        oolangInstance.name = "World!"
+                        System.out.println("Hello, " + oolangInstance.name)
+                        }
+                        }""");
+        var codeBlock = verifyMainUntilCodeBlock(astFile);
+        assertThat(codeBlock.statements).hasSize(3);
+
+        // statement 1: `val oolangInstance = new OolangFunctionProperty2()`
+        var statement = codeBlock.statements.get(0);
+
+        var chainable = (RealExpression) statement.children.getFirst();
+        assertThat(chainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(chainable.children).hasSize(2);
+
+        var variableStoreChainable = (RealExpression) chainable.children.getFirst();
+        assertThat(variableStoreChainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(variableStoreChainable.content()).hasSize(2);
+
+        var variableValueNew = (RealExpression) variableStoreChainable.content().get(0);
+        assertThat(variableValueNew.expressionType).isEqualTo(NEW);
+        assertThat(variableValueNew.parent).isEqualTo(variableStoreChainable);
+        assertThat(variableValueNew.descriptorString()).isEqualTo("Lcom/example/OolangMutableFunctionProperty2;");
+
+        var variableValueInstantiation = (RealExpression) variableStoreChainable.content().get(1);
+        assertThat(variableValueInstantiation.expressionType).isEqualTo(FUN_CALL);
+        assertThat(variableValueInstantiation.parent).isEqualTo(variableStoreChainable);
+        assertThat(variableValueInstantiation.type).isNotNull();
+        assertThat(variableValueInstantiation.type.description())
+                .isEqualTo("Type(OolangMutableFunctionProperty2)");
+        assertThat(variableValueInstantiation.invocation).isEqualTo(INVOKE_SPECIAL);
+        assertThat(variableValueInstantiation.ownerDescriptorString)
+                .isEqualTo("Lcom/example/OolangMutableFunctionProperty2;");
+        assertThat(variableValueInstantiation.identifiers).hasSize(1);
+        assertThat(variableValueInstantiation.identifiers.getFirst().identifier).isEqualTo(ConstantDescs.INIT_NAME);
+        assertThat(variableValueInstantiation.descriptorString())
+                .isEqualTo("Lcom/example/OolangMutableFunctionProperty2;");
+        assertThat(variableValueInstantiation.typeDescriptorString).isEqualTo("()V");
+        assertThat(variableValueInstantiation.content()).isEmpty();
+
+        var variableStore = (RealExpression) chainable.children.getLast();
+        assertThat(variableStore.expressionType).isEqualTo(VARIABLE_STORE);
+        assertThat(variableStore.invocation).isNull();
+        assertThat(variableStore.identifiers).hasSize(1);
+        assertThat(variableStore.identifiers.getFirst().identifier).isEqualTo("oolangInstance");
+        assertThat(variableStore.slot).isEqualTo(0);
+        assertThat(variableStore.descriptorString()).isEqualTo("Lcom/example/OolangMutableFunctionProperty2;");
+        assertThat(variableStore.children).isEmpty();
+
+        // statement 2: `oolangInstance.name = "World!"`
+        statement = codeBlock.statements.get(1);
+
+        var propAssignmentChainable = (RealExpression) statement.children.getFirst();
+        assertThat(propAssignmentChainable.expressionType).isEqualTo(CHAINABLE);
+        assertThat(propAssignmentChainable.content()).hasSize(3);
+
+        var loadVariable1 = (RealExpression) propAssignmentChainable.content().get(0);
+        assertThat(loadVariable1.expressionType).isEqualTo(LOAD);
+        assertThat(loadVariable1.description()).isEqualTo("Expression(load oolangInstance)");
+        assertThat(loadVariable1.descriptorString()).isEqualTo("Lcom/example/OolangMutableFunctionProperty2;");
+        assertThat(loadVariable1.slot).isEqualTo(0);
+        assertThat(loadVariable1.content()).isEmpty();
+
+        var constant = (ConstantExpression) propAssignmentChainable.content().get(1);
+        assertThat(constant.value).isEqualTo("World!");
+
+        var propAssignment = (RealExpression) propAssignmentChainable.content().get(2);
+        assertThat(propAssignment.expressionType).isEqualTo(FUN_CALL);
+        assertThat(propAssignment.description()).isEqualTo("Expression(fun_call name)");
+        assertThat(propAssignment.invocation).isEqualTo(INVOKE_VIRTUAL);
+        assertThat(propAssignment.ownerDescriptorString)
+                .isEqualTo("Lcom/example/OolangMutableFunctionProperty2;");
+        assertThat(propAssignment.descriptorString()).isEqualTo("V");
+        assertThat(propAssignment.typeDescriptorString).isEqualTo("(Ljava/lang/String;)V");
+        assertThat(propAssignment.content()).isEmpty();
+
+        // statement 3: `System.out.println("Hello, " + oolangInstance.name)`
+        statement = codeBlock.statements.get(2);
+
+        var funCallParamChainable1 = (RealExpression) statement.children.getFirst();
+        assertThat(funCallParamChainable1.expressionType).isEqualTo(CHAINABLE);
+        assertThat(funCallParamChainable1.content()).hasSize(2);
+
+        var propAccess = (RealExpression) funCallParamChainable1.children.getFirst();
+        assertThat(propAccess.expressionType).isEqualTo(PROP_ACCESS);
+        assertThat(propAccess.invocation).isEqualTo(GET_STATIC);
+        assertThat(propAccess.ownerDescriptorString).isEqualTo("Ljava/lang/System;");
+        assertThat(propAccess.identifiers).hasSize(1);
+        assertThat(propAccess.identifiers.getFirst().identifier).isEqualTo("out");
+        assertThat(propAccess.descriptorString()).isEqualTo("Ljava/io/PrintStream;");
+        assertThat(propAccess.children).isEmpty();
+
+        var funCall = (RealExpression) funCallParamChainable1.children.getLast();
+        assertThat(funCall.expressionType).isEqualTo(FUN_CALL);
+        assertThat(funCall.invocation).isEqualTo(INVOKE_VIRTUAL);
+        assertThat(funCall.ownerDescriptorString).isEqualTo("Ljava/io/PrintStream;");
+        assertThat(funCall.identifiers).hasSize(1);
+        assertThat(funCall.identifiers.getFirst().identifier).isEqualTo("println");
+        assertThat(funCall.descriptorString()).isEqualTo("V");
+        assertThat(funCall.typeDescriptorString).isEqualTo("(Ljava/lang/String;)V");
+        assertThat(funCall.children).hasSize(1);
+
+        var funCallParam = (RealExpression) funCall.children.getFirst();
+        assertThat(funCallParam.expressionType).isEqualTo(FUN_CALL_PARAMETER);
+        assertThat(funCallParam.ownerDescriptorString).isNull();
+        assertThat(funCallParam.identifiers).isEmpty();
+        assertThat(funCallParam.typeDescriptorString).isNull();
+        assertThat(funCallParam.children).hasSize(1);
+
+        var funCallParamFunPropAccess1 = (RealExpression) funCallParam.content().getFirst();
+        assertThat(funCallParamFunPropAccess1.description()).isEqualTo("Expression(add)");
+        assertThat(funCallParamFunPropAccess1.expressionType).isEqualTo(ADD);
+        assertThat(funCallParamFunPropAccess1.ownerDescriptorString).isNull();
+        assertThat(funCallParamFunPropAccess1.descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(funCallParamFunPropAccess1.content()).hasSize(2);
+
+        var funCallParamConstant = (ConstantExpression) funCallParamFunPropAccess1.content().getFirst();
+        assertThat(funCallParamConstant.description()).isEqualTo("ConstantExpression(\"Hello, \")");
+        assertThat(funCallParamConstant.descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        var funCallParamChainable2 = (RealExpression) funCallParamFunPropAccess1.content().getLast();
+        assertThat(funCallParamChainable2.description()).isEqualTo("Expression(chainable)");
+        assertThat(funCallParamChainable2.expressionType).isEqualTo(CHAINABLE);
+        assertThat(funCallParamChainable2.content()).hasSize(2);
+
+        var loadVariable2 = (RealExpression) funCallParamChainable2.content().getFirst();
+        assertThat(loadVariable2.expressionType).isEqualTo(LOAD);
+        assertThat(loadVariable2.description()).isEqualTo("Expression(load oolangInstance)");
+        assertThat(loadVariable2.descriptorString()).isEqualTo("Lcom/example/OolangMutableFunctionProperty2;");
+        assertThat(loadVariable2.slot).isEqualTo(0);
+        assertThat(loadVariable2.content()).isEmpty();
+
+        var funCallParamFunPropAccess2 = (RealExpression) funCallParamChainable2.content().getLast();
+        assertThat(funCallParamFunPropAccess2.expressionType).isEqualTo(FUN_CALL);
+        assertThat(funCallParamFunPropAccess2.invocation).isEqualTo(INVOKE_VIRTUAL);
+        assertThat(funCallParamFunPropAccess2.ownerDescriptorString)
+                .isEqualTo("Lcom/example/OolangMutableFunctionProperty2;");
         assertThat(funCallParamFunPropAccess2.identifiers).hasSize(1);
         assertThat(funCallParamFunPropAccess2.identifiers.getFirst().identifier).isEqualTo("name");
         assertThat(funCallParamFunPropAccess2.descriptorString()).isEqualTo("Ljava/lang/String;");

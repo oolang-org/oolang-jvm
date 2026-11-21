@@ -12,7 +12,8 @@ import java.lang.invoke.TypeDescriptor;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 
-import static org.oolang.symbol.table.FunctionUtils.compatibleParameters;
+import static org.oolang.symbol.table.TypeUtils.compatibleParameters;
+import static org.oolang.symbol.table.TypeUtils.hasAssignableParent;
 
 @SuppressWarnings("preview")
 public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, ActualType
@@ -60,16 +61,6 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
         return this.descriptorString().equals(otherKlass.descriptorString())
                 || hasAssignableParent(allSuperKlasses(), otherKlass)
                 || hasAssignableParent(allInterfaces(), otherKlass);
-    }
-
-    private static boolean hasAssignableParent(final @NonNull SequencedCollection<@NonNull ActualType> parents,
-                                               final @NonNull Klass otherKlass) {
-        assert parents != null;
-        assert otherKlass != null;
-
-        return parents.stream()
-                .map(TypeResolver::getKlassFromType)
-                .anyMatch(superType -> superType.descriptorString().equals(otherKlass.descriptorString()));
     }
 
     public final @Nullable PropertyOrFunction accessiblePropertyOrFunctionProperty(final @NonNull String name,

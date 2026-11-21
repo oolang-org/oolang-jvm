@@ -32,6 +32,7 @@ import static org.oolang.ast.statement.RealStatement.StatementType.ASSIGNMENT;
 import static org.oolang.ast.statement.RealStatement.StatementType.RETURN;
 import static org.oolang.symbol.table.Klass.*;
 import static org.oolang.symbol.table.TypeResolver.*;
+import static org.oolang.symbol.table.TypeUtils.hasAssignableParent;
 import static org.oolang.symbol.table.Visibility.PRIVATE;
 
 public final class OolangSemanticAnalyzer {
@@ -988,9 +989,12 @@ public final class OolangSemanticAnalyzer {
         if (function.declaringKlass.isInterface()) {
             return INVOKE_INTERFACE;
         }
-        if (function.visibility() == PRIVATE
-                || !caller.equals(function.declaringKlass)
-                || function.name().equals(ConstantDescs.INIT_NAME)) {
+        if (function.visibility() == PRIVATE // 1) calling a private method or constructor
+                // 2) // calling an instance initialization method (<init>)
+                || function.name().equals(ConstantDescs.INIT_NAME)
+                // 3) calling a superclass method or constructor
+                || hasAssignableParent(caller.allSuperKlasses(), function.declaringKlass)
+        ) {
             return INVOKE_SPECIAL;
         }
         return INVOKE_VIRTUAL;

@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 
-import static org.oolang.symbol.table.FunctionUtils.compatibleParameters;
+import static org.oolang.symbol.table.TypeUtils.compatibleParameters;
 import static org.oolang.symbol.table.TypeResolver.DOUBLE_PRIMITIVE_KLASS;
 import static org.oolang.symbol.table.TypeResolver.LONG_PRIMITIVE_KLASS;
 import static org.oolang.symbol.table.Visibility.HIDDEN;

@@ -28,6 +28,10 @@ final class FunctionPropertyUtils {
 
     private static final byte @NonNull [] OOLANG_COMPILER_PREFIX = "compiler: Oolang".getBytes(StandardCharsets.UTF_8);
 
+    private static final @NonNull String GET = "get";
+    private static final @NonNull String IS = "is";
+    private static final @NonNull String SET = "set";
+
     private static final @NonNull Set<@NonNull String> NON_GETTER_FUNCTION_NAMES = Set.of(
             "toString",
             "hashCode",
@@ -56,19 +60,67 @@ final class FunctionPropertyUtils {
             // maybe a getter
             case 0 -> addGetterToMaybePropertiesIfEligible(function, maybeProperties);
             // maybe a setter
-            case 1 -> {
-                if (function.type() != VOID_KLASS) {
-                    return; // a setter must be void
+            case 1 -> addSetterToMaybePropertiesIfEligible(function, maybeProperties);
+        }
+    }
+
+    private static void addSetterToMaybePropertiesIfEligible(
+            final @NonNull Function function,
+            final @NonNull Map<@NonNull String, @NonNull MaybeProperty> maybeProperties
+    ) {
+        assert function != null;
+        assert maybeProperties != null;
+
+        if (function.type() != VOID_KLASS) {
+            return; // a setter must be void
+        }
+
+        var oldSchoolSetter = false;
+        var functionName = function.name();
+        String additionalBooleanPropertyName = null;
+        if (functionName.startsWith(SET)) {
+            final var propertyName = oldSchoolGetterSetterPropertyNameOrNull(functionName);
+
+            if (propertyName != null) {
+                oldSchoolSetter = true;
+                if (functionName.length() > 3
+                        && !propertyName.startsWith(IS)
+                        && isBoolean(function.parameters.getFirst().type())) {
+                    // add a `isXyz` property candidate from the current `setXyz` setter function
+                    additionalBooleanPropertyName = IS + functionName.substring(3);
                 }
-                final MaybeProperty maybeProperty;
-                if (maybeProperties.containsKey(function.name())) {
-                    maybeProperty = maybeProperties.get(function.name());
-                } else {
-                    maybeProperty = new MaybeProperty();
-                    maybeProperties.put(function.name(), maybeProperty);
-                }
-                maybeProperty.setters.add(function);
+                functionName = propertyName;
             }
+        }
+
+        addSetterToMaybeProperties(functionName, function, oldSchoolSetter, maybeProperties);
+        if (additionalBooleanPropertyName != null) {
+            addSetterToMaybeProperties(additionalBooleanPropertyName, function, true, maybeProperties);
+        }
+    }
+
+    private static void addSetterToMaybeProperties(
+            final @NonNull String propertyName,
+            final @NonNull Function function,
+            final boolean oldSchoolSetter,
+            final @NonNull Map<@NonNull String, @NonNull MaybeProperty> maybeProperties
+    ) {
+        assert propertyName != null;
+        assert function != null;
+        assert maybeProperties != null;
+
+        final MaybeProperty maybeProperty;
+        if (maybeProperties.containsKey(propertyName)) {
+            maybeProperty = maybeProperties.get(propertyName);
+        } else {
+            maybeProperty = new MaybeProperty();
+            maybeProperties.put(propertyName, maybeProperty);
+        }
+
+        if (oldSchoolSetter) {
+            maybeProperty.oldSchoolSetters.add(function);
+        } else {
+            maybeProperty.setters.add(function);
         }
     }
 
@@ -83,10 +135,6 @@ final class FunctionPropertyUtils {
             return;
         }
 
-        if (function.name().equals("name")) {
-            System.out.println("Found getter for name");
-        }
-
         final var returnType = function.type();
         if (returnType == VOID_KLASS) {
             return; // a getter cannot be void
@@ -94,14 +142,14 @@ final class FunctionPropertyUtils {
 
         var oldSchoolGetter = false;
         var functionName = function.name();
-        if (functionName.startsWith("get")) {
+        if (functionName.startsWith(GET)) {
             final var propertyName = oldSchoolGetterSetterPropertyNameOrNull(functionName);
             if (propertyName != null) {
                 functionName = propertyName;
                 oldSchoolGetter = true;
             }
-        } else if ((returnType == BOOLEAN_PRIMITIVE_KLASS || returnType == BOOLEAN_WRAPPER_KLASS)
-                && functionName.startsWith("is")) {
+        } else if (isBoolean(returnType)
+                && functionName.startsWith(IS)) {
             if (functionName.length() > 2 && Character.isUpperCase(functionName.charAt(2))) {
                 oldSchoolGetter = true;
             }
@@ -183,6 +231,11 @@ final class FunctionPropertyUtils {
                 // lowercase except the last capital, append the rest as-is
                 : functionName.substring(3, --lastCapitalIndex).toLowerCase(Locale.US)
                 + functionName.substring(lastCapitalIndex);
+    }
+
+    private static boolean isBoolean(final @NonNull ActualType type) {
+        assert type != null;
+        return type == BOOLEAN_PRIMITIVE_KLASS || type == BOOLEAN_WRAPPER_KLASS;
     }
 
     static void addFunctionProperties(final @NonNull PropertyCandidates propertyCandidates,
@@ -332,7 +385,8 @@ final class FunctionPropertyUtils {
         assert properties != null;
 
         for (final var oldSchoolPropertyCandidateEntry : oldSchoolPropertyCandidates.entrySet()) {
-            final var matchingGetterFunction = oldSchoolPropertyCandidateEntry.getValue().oldSchoolGetter;
+            final var propertyCandidate = oldSchoolPropertyCandidateEntry.getValue();
+            final var matchingGetterFunction = propertyCandidate.oldSchoolGetter;
             assert matchingGetterFunction != null;
             final var newProperty = new Property(
                     matchingGetterFunction.declaringKlass,
@@ -340,12 +394,14 @@ final class FunctionPropertyUtils {
                     PRIVATE,
                     false, // function properties cannot be static
                     matchingGetterFunction.isAbstract(),
-                    oldSchoolPropertyCandidateEntry.getValue().oldSchoolSetter.isPresent(),
+                    propertyCandidate.oldSchoolSetter.isEmpty(),
                     matchingGetterFunction.type());
             properties.put(newProperty.name(), newProperty);
 
             // add reference between the property and the associated function(s)
             newProperty.getter = matchingGetterFunction;
+            propertyCandidate.oldSchoolSetter.ifPresent(oldSchoolSetter ->
+                    newProperty.setter = oldSchoolSetter);
             matchingGetterFunction.property = newProperty;
         }
     }

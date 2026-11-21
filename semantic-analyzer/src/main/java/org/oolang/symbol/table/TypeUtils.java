@@ -6,11 +6,12 @@ package org.oolang.symbol.table;
 
 import org.jspecify.annotations.NonNull;
 
+import java.util.Collection;
 import java.util.List;
 
-public final class FunctionUtils {
+public final class TypeUtils {
     // un-instantiable
-    private FunctionUtils() {
+    private TypeUtils() {
     }
 
     public static boolean compatibleParameters(final @NonNull Function candidateFunction,
@@ -29,5 +30,15 @@ public final class FunctionUtils {
             }
         }
         return true;
+    }
+
+    public static boolean hasAssignableParent(final @NonNull Collection<@NonNull ActualType> parents,
+                                              final @NonNull Klass otherKlass) {
+        assert parents != null;
+        assert otherKlass != null;
+
+        return parents.stream()
+                .map(TypeResolver::getKlassFromType)
+                .anyMatch(superType -> superType.descriptorString().equals(otherKlass.descriptorString()));
     }
 }

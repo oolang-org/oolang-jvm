@@ -40,7 +40,7 @@ import static org.oolang.ast.element.RealElement.ElementType.PARAMETER;
 import static org.oolang.ast.element.RealElement.ElementType.PROPERTY_INITIALIZER;
 import static org.oolang.ast.expression.RealExpression.ExpressionType.PROP_ACCESS;
 import static org.oolang.ast.statement.RealStatement.StatementType.RETURN;
-import static org.oolang.compiler.Descriptors.*;
+import static org.oolang.compiler.Descriptors.STRING;
 import static org.oolang.compiler.StringCompilationUtils.stringConcatenation;
 
 public final class OolangCompiler {
@@ -306,6 +306,7 @@ public final class OolangCompiler {
             case ADD -> visitAdditiveExpression(realExpression, codeBuilder);
             case INDEXING -> visitIndexingExpression(realExpression, codeBuilder);
             case LOAD -> visitLoadExpression(realExpression, codeBuilder);
+            case VARIABLE_STORE -> visitVariableStoreExpression(realExpression, codeBuilder);
             case PROP_ACCESS -> visitPropAccess(realExpression, codeBuilder);
             case PROP_ASSIGNMENT -> visitPropAssignmentExpression(realExpression, codeBuilder);
             case FUN_CALL -> visitFunCallExpression(realExpression, codeBuilder);
@@ -376,15 +377,20 @@ public final class OolangCompiler {
         assert loadExpression != null;
         assert codeBuilder != null;
 
-        final var descriptorString = loadExpression.descriptorString();
-        assert descriptorString != null;
-        switch (descriptorString) {
-            case INTEGER -> codeBuilder.iload(loadExpression.slot);
-            case LONG -> codeBuilder.lload(loadExpression.slot);
-            case FLOAT -> codeBuilder.fload(loadExpression.slot);
-            case DOUBLE -> codeBuilder.dload(loadExpression.slot);
-            default -> codeBuilder.aload(loadExpression.slot);
-        }
+        final var loadDescriptorString = loadExpression.descriptorString();
+        assert loadDescriptorString != null;
+        codeBuilder.loadLocal(TypeKind.fromDescriptor(loadDescriptorString), loadExpression.slot);
+    }
+
+    private static void visitVariableStoreExpression(final @NonNull RealExpression variableStoreExpression,
+                                                     final @NonNull CodeBuilder codeBuilder) {
+        assert variableStoreExpression != null;
+        assert codeBuilder != null;
+        assert variableStoreExpression.children.isEmpty();
+
+        final var variableDescriptorString = variableStoreExpression.descriptorString();
+        assert variableDescriptorString != null;
+        codeBuilder.storeLocal(TypeKind.fromDescriptor(variableDescriptorString), variableStoreExpression.slot);
     }
 
     private static void visitPropAccess(final @NonNull RealExpression propAccessExpression,
