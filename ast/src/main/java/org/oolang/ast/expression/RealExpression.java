@@ -106,6 +106,9 @@ public non-sealed class RealExpression extends AbstractAst implements Expression
         /// - **variable access** = a [#LOAD] expression.
         VARIABLE_OR_PROP_ACCESS,
         PROP_ACCESS,
+        /// An expression that loads a value from a variable or a field into the operand stack.
+        /// It is set during the semantic analysis phase, and need a [slot][RealExpression#slot] number.
+        LOAD,
 
         /// A variable or property assignment from the parser phase that must be wrapped in a [#CHAINABLE] expression.
         /// Semantic analysis will replace this undetermined type with either a
@@ -116,10 +119,6 @@ public non-sealed class RealExpression extends AbstractAst implements Expression
         /// An expression that store a value into a local variable. It is set during the semantic analysis phase, and
         /// need a [slot][RealExpression#slot] number.
         VARIABLE_STORE,
-
-        /// An expression that loads a value from a variable or a field into the operand stack.
-        /// It is set during the semantic analysis phase, and need a [slot][RealExpression#slot] number.
-        LOAD,
 
         /// A function call expression that may have some [parameters][#FUN_CALL_PARAMETER].
         /// It must be wrapped in a [#CHAINABLE] expression.
