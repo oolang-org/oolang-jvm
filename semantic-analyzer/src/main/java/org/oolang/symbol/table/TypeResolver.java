@@ -336,6 +336,8 @@ public final class TypeResolver {
     private static final @NonNull String VOID_KLASS_NAME = "Void";
 
     private static @NonNull Klass initKlass(final @NonNull Class<?> javaClass) {
+        assert javaClass != null;
+
         final var klass = new ExistingKlass(javaClass);
         KLASSES_CACHE.get().put(javaClass.getName(), klass);
         return klass;

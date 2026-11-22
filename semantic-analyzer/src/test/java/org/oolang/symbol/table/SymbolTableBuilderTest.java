@@ -50,8 +50,8 @@ public class SymbolTableBuilderTest {
         assertThat(symbolTable.klasses).hasSize(1);
         var rootKlass = symbolTable.klasses.values().iterator().next();
         assertThat(rootKlass.name()).isEqualTo("Example");
-        assertThat(rootKlass.ancestors).hasSize(1);
-        var ancestor = rootKlass.ancestors.getFirst();
+        assertThat(rootKlass.rawAncestors).hasSize(1);
+        var ancestor = rootKlass.rawAncestors.getFirst();
         var ancestorKlass = (Klass) ancestor.type();
         assertThat(ancestorKlass.descriptorString()).isEqualTo("Ljava/io/Serializable;");
     }

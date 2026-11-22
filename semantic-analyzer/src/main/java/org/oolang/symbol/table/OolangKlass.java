@@ -43,70 +43,17 @@ public final class OolangKlass extends Klass implements Symbol {
     // Optional superclass/interfaces | properties | functions | nested/inner classes
     // ------------------------------------------------------------------------------
 
-    @NonNull List<Type.@NonNull Lazy> ancestors = new ArrayList<>();
+    @NonNull List<Type.@NonNull Lazy> rawAncestors = new ArrayList<>();
     public final @NonNull Map<@NonNull String, @NonNull Property> rawProperties = new HashMap<>();
     public final @NonNull List<@NonNull Function> rawFunctions = new ArrayList<>();
     public @Nullable Map<@NonNull String, @NonNull OolangKlass> klasses = null;
 
-
+    private final @NonNull LazyConstant<@NonNull Ancestors> ancestors =
+            LazyConstant.of(this::buildAncestors);
     private final @NonNull LazyConstant<@NonNull Properties> properties =
             LazyConstant.of(this::buildProperties);
     private final @NonNull LazyConstant<@NonNull Functions> functions =
             LazyConstant.of(this::buildFunctions);
-
-    private @NonNull Properties buildProperties() {
-        final var searchableProperties = new Properties();
-        for (final var property : rawProperties.values()) {
-            if (property.isStatic()) {
-                searchableProperties.staticProperties.put(property.name(), property);
-            } else {
-                searchableProperties.instanceProperties.put(property.name(), property);
-            }
-        }
-        return searchableProperties;
-    }
-
-    private @NonNull Functions buildFunctions() {
-        final var searchableFunctions = new Functions();
-        for (final var function : rawFunctions) {
-            if (function.isStatic()) {
-                searchableFunctions.staticFunctions.add(function);
-            } else {
-                searchableFunctions.instanceFunctions.add(function);
-            }
-        }
-        return searchableFunctions;
-    }
-
-    private final @NonNull LazyConstant<@NonNull Ancestors> resolvedAncestors =
-            LazyConstant.of(this::buildAncestors);
-
-    private @NonNull Ancestors buildAncestors() {
-        final var ancestorsIterator = ancestors.iterator();
-        ActualType superKlass = null;
-        final var interfaces = new ArrayList<@NonNull ActualType>();
-        if (ancestorsIterator.hasNext()) {
-            // the first ancestor may be a class, if so it is our superclass
-            final var firstAncestor = ancestorsIterator.next().type();
-            if (TypeResolver.getKlassFromType(firstAncestor).isInterface()) {
-                interfaces.add(firstAncestor);
-            } else {
-                superKlass = firstAncestor;
-            }
-        }
-        // loop on remaining ancestors, they are all interfaces
-        while (ancestorsIterator.hasNext()) {
-            interfaces.add(ancestorsIterator.next().type());
-        }
-
-        // manually add Object as superclass if none is specified and current Klass is a class.
-        if (superKlass == null && !isInterface) {
-            superKlass = OBJECT_KLASS;
-        }
-
-        return new Ancestors(superKlass, interfaces);
-    }
-
 
     OolangKlass(final @NonNull BaseSymbol baseSymbol,
                 final boolean isInterface,
@@ -139,6 +86,57 @@ public final class OolangKlass extends Klass implements Symbol {
         this.imports = imports;
 
         KLASSES_CACHE.get().put(fullName, this);
+    }
+
+    private @NonNull Ancestors buildAncestors() {
+        final var ancestorsIterator = rawAncestors.iterator();
+        ActualType superKlass = null;
+        final var interfaces = new ArrayList<@NonNull ActualType>();
+        // resolve the superclass
+        if (ancestorsIterator.hasNext()) {
+            // the first ancestor may be a class, if so it is our superclass
+            final var firstAncestor = ancestorsIterator.next().type();
+            if (TypeResolver.getKlassFromType(firstAncestor).isInterface()) {
+                interfaces.add(firstAncestor);
+            } else {
+                superKlass = firstAncestor;
+            }
+        }
+        // manually add Object as superclass if none is specified and current Klass is a class.
+        if (superKlass == null && !isInterface) {
+            superKlass = OBJECT_KLASS;
+        }
+
+        // loop on remaining ancestors, they are all interfaces
+        while (ancestorsIterator.hasNext()) {
+            interfaces.add(ancestorsIterator.next().type());
+        }
+
+        return new Ancestors(superKlass, interfaces);
+    }
+
+    private @NonNull Properties buildProperties() {
+        final var properties = new Properties();
+        for (final var property : rawProperties.values()) {
+            if (property.isStatic()) {
+                properties.staticProperties.put(property.name(), property);
+            } else {
+                properties.instanceProperties.put(property.name(), property);
+            }
+        }
+        return properties;
+    }
+
+    private @NonNull Functions buildFunctions() {
+        final var functions = new Functions();
+        for (final var function : rawFunctions) {
+            if (function.isStatic()) {
+                functions.staticFunctions.add(function);
+            } else {
+                functions.instanceFunctions.add(function);
+            }
+        }
+        return functions;
     }
 
     @NonNull OolangKlass addKlass(final @NonNull BaseSymbol baseSymbol, final boolean isInterface) {
@@ -189,12 +187,12 @@ public final class OolangKlass extends Klass implements Symbol {
 
     @Override
     @Nullable ActualType superKlass() {
-        return resolvedAncestors.get().superKlass;
+        return ancestors.get().superKlass;
     }
 
     @Override
     @NonNull List<@NonNull ActualType> interfaces() {
-        return resolvedAncestors.get().interfaces;
+        return ancestors.get().interfaces;
     }
 
     @Override
@@ -215,7 +213,7 @@ public final class OolangKlass extends Klass implements Symbol {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     public void resolveAncestors() {
-        resolvedAncestors.get();
+        ancestors.get();
     }
 
     private record Ancestors(@Nullable ActualType superKlass, @NonNull List<@NonNull ActualType> interfaces) {
