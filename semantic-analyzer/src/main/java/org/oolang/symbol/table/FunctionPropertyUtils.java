@@ -312,7 +312,7 @@ final class FunctionPropertyUtils {
                         PRIVATE,
                         false, // function properties cannot be static
                         matchingGetterFunction.isAbstract(),
-                        matchingPropertyCandidate.setter.isPresent(),
+                        matchingPropertyCandidate.setter.isEmpty(),
                         matchingGetterFunction.type());
                 instanceProperties.put(newProperty.name(), newProperty);
 
@@ -322,6 +322,12 @@ final class FunctionPropertyUtils {
                 if (matchingPropertyCandidate.oldSchoolGetter != null) {
                     matchingPropertyCandidate.oldSchoolGetter.property = newProperty;
                 }
+                matchingPropertyCandidate.setter.ifPresent(setter -> {
+                    newProperty.setter = setter;
+                    setter.property = newProperty;
+                });
+                matchingPropertyCandidate.oldSchoolSetter.ifPresent(oldSchoolSetter ->
+                        oldSchoolSetter.property = newProperty);
 
                 // we're done with this property candidate
                 oolangPropertyCandidates.remove(matchingGetterFunction.name());
@@ -400,9 +406,11 @@ final class FunctionPropertyUtils {
 
             // add reference between the property and the associated function(s)
             newProperty.getter = matchingGetterFunction;
-            propertyCandidate.oldSchoolSetter.ifPresent(oldSchoolSetter ->
-                    newProperty.setter = oldSchoolSetter);
             matchingGetterFunction.property = newProperty;
+            propertyCandidate.oldSchoolSetter.ifPresent(oldSchoolSetter -> {
+                newProperty.setter = oldSchoolSetter;
+                oldSchoolSetter.property = newProperty;
+            });
         }
     }
 

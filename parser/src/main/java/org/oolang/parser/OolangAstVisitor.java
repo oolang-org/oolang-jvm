@@ -667,9 +667,14 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
         } else if (atomicExpressionCtx.stringLiteral() != null) {
             expression = visitStringLiteral(atomicExpressionCtx.stringLiteral());
 
-        } else if (atomicExpressionCtx.simpleIdentifier() != null) {
+        } else if (atomicExpressionCtx.simpleIdentifier() != null || atomicExpressionCtx.thisExpression() != null) {
             final var realExpression = new RealExpression();
-            realExpression.identifiers.add(visitSimpleIdentifier(atomicExpressionCtx.simpleIdentifier()));
+            if (atomicExpressionCtx.thisExpression() != null) {
+                realExpression.identifiers.add(visitThisExpression(atomicExpressionCtx.thisExpression()));
+            } else {
+                realExpression.identifiers.add(visitSimpleIdentifier(atomicExpressionCtx.simpleIdentifier()));
+            }
+
             if (postfixUnarySuffixesCtx.isEmpty()) {
                 realExpression.expressionType = VARIABLE_OR_PROP_ACCESS;
                 // Always add a chainable expression as parent to the variable or property access,
@@ -1059,6 +1064,12 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
 
     @Override
     public @NonNull SimpleIdentifier visitSimpleIdentifier(final @NonNull SimpleIdentifierContext ctx) {
+        assert ctx != null;
+        return addAstInfo(new SimpleIdentifier(ctx.getText()), ctx, true);
+    }
+
+    @Override
+    public @NonNull SimpleIdentifier visitThisExpression(final @NonNull ThisExpressionContext ctx) {
         assert ctx != null;
         return addAstInfo(new SimpleIdentifier(ctx.getText()), ctx, true);
     }
