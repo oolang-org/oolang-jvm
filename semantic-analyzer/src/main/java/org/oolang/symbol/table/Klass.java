@@ -55,6 +55,8 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
 
     @Override
     public final boolean isAssignableFrom(final @NonNull ActualType otherType) {
+        assert otherType != null;
+
         if (!(otherType instanceof Klass otherKlass)) {
             return false;
         }
@@ -130,6 +132,8 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
     ) {
         assert name != null;
         assert properties != null;
+        assert klassPackageName != null;
+        assert klassDescriptoString != null;
 
         final var property = properties.get(name);
         if (property == null || (setter && property.isFinal())) {

@@ -36,7 +36,7 @@ public final class SymbolTableBuilder {
     private SymbolTableBuilder() {
     }
 
-    private static final @NonNull SimpleIdentifier THIS_IDENTIFIER = new SimpleIdentifier("this");
+    public static final @NonNull SimpleIdentifier THIS_IDENTIFIER = new SimpleIdentifier("this");
 
     /// @return a virtual [class][OolangKlass] representing the symbol table of the given [AstFile].
     public static @NonNull OolangKlass build(final @NonNull AstFile ast,
@@ -62,7 +62,7 @@ public final class SymbolTableBuilder {
 
         for (final var child : classElement.children) {
             switch (child) /* of mine */ {
-                case RealAstType realAstType -> klass.ancestors.add(new Type.Lazy(realAstType, klass));
+                case RealAstType realAstType -> klass.rawAncestors.add(new Type.Lazy(realAstType, klass));
                 case ClassBody classBody -> visitClassBody(classBody.children, klass);
                 default -> throw new IllegalStateException("Unexpected child type: " + child.getClass());
             }

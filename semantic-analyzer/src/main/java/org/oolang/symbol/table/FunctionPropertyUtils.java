@@ -19,7 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import static org.oolang.symbol.table.TypeResolver.*;
-import static org.oolang.symbol.table.Visibility.PRIVATE;
+import static org.oolang.symbol.table.Visibility.HIDDEN;
 
 final class FunctionPropertyUtils {
     // un-instantiable
@@ -131,7 +131,8 @@ final class FunctionPropertyUtils {
         assert function != null;
         assert maybeProperties != null;
 
-        if (NON_GETTER_FUNCTION_NAMES.contains(function.name())) {
+        var functionName = function.name();
+        if (NON_GETTER_FUNCTION_NAMES.contains(functionName)) {
             return;
         }
 
@@ -141,7 +142,6 @@ final class FunctionPropertyUtils {
         }
 
         var oldSchoolGetter = false;
-        var functionName = function.name();
         if (functionName.startsWith(GET)) {
             final var propertyName = oldSchoolGetterSetterPropertyNameOrNull(functionName);
             if (propertyName != null) {
@@ -309,7 +309,7 @@ final class FunctionPropertyUtils {
                 final var newProperty = new Property(
                         matchingGetterFunction.declaringKlass,
                         matchingGetterFunction.name(),
-                        PRIVATE,
+                        HIDDEN,
                         false, // function properties cannot be static
                         matchingGetterFunction.isAbstract(),
                         matchingPropertyCandidate.setter.isEmpty(),
@@ -386,7 +386,8 @@ final class FunctionPropertyUtils {
 
     private static void addOldSchoolFunctionProperties(
             final @NonNull Map<@NonNull String, @NonNull PropertyCandidate> oldSchoolPropertyCandidates,
-            final @NonNull Map<@NonNull String, @NonNull Property> properties) {
+            final @NonNull Map<@NonNull String, @NonNull Property> properties
+    ) {
         assert oldSchoolPropertyCandidates != null;
         assert properties != null;
 
@@ -397,7 +398,7 @@ final class FunctionPropertyUtils {
             final var newProperty = new Property(
                     matchingGetterFunction.declaringKlass,
                     oldSchoolPropertyCandidateEntry.getKey(),
-                    PRIVATE,
+                    HIDDEN,
                     false, // function properties cannot be static
                     matchingGetterFunction.isAbstract(),
                     propertyCandidate.oldSchoolSetter.isEmpty(),

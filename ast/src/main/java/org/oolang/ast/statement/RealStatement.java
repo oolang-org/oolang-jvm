@@ -18,7 +18,7 @@ import java.util.Objects;
 public final class RealStatement extends AbstractAst implements StatementNode {
     public @NonNull StatementType statementType;
     public @Nullable List<@NonNull Annotation> annotations = null;
-    public @NonNull List<@NonNull Ast> children = new ArrayList<>();
+    public final @NonNull List<@NonNull Ast> children = new ArrayList<>();
 
     public RealStatement(final @NonNull StatementType statementType) {
         this.statementType = Objects.requireNonNull(statementType);

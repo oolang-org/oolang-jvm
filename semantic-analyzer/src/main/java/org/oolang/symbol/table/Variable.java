@@ -10,7 +10,7 @@ import org.jspecify.annotations.NonNull;
 public final class Variable implements VariableOrProperty {
     private final @NonNull ActualType type;
     private final boolean isFinal;
-    final int slot;
+    private final int slot;
 
     private final @NonNull LazyConstant<@NonNull String> descriptorString =
             LazyConstant.of(this::buildDescriptorString);
