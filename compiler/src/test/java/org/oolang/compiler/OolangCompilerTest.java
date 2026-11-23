@@ -20,6 +20,7 @@ import org.oolang.test.KlassesCacheInterceptor;
 
 import java.io.IOException;
 import java.lang.classfile.*;
+import java.lang.classfile.attribute.MethodParametersAttribute;
 import java.lang.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
 import java.lang.classfile.instruction.*;
 import java.lang.constant.ConstantDescs;
@@ -300,7 +301,8 @@ public class OolangCompilerTest {
         assertThat(oldSchoolSetterModel.methodName().stringValue()).isEqualTo("setName");
         assertThat(oldSchoolSetterModel.methodTypeSymbol().descriptorString())
                 .isEqualTo("(Ljava/lang/String;)V");
-        assertThat(oldSchoolSetterModel.attributes()).hasSize(1);
+        assertThat(oldSchoolSetterModel.attributes()).hasSize(2);
+        assertThat(oldSchoolSetterModel.attributes().getFirst()).isInstanceOf(MethodParametersAttribute.class);
         var oldSchoolSetterCode = oldSchoolSetterModel.code().get();
         var oldSchoolSetterCodeElements = oldSchoolSetterCode.elementList();
         assertThat(oldSchoolSetterCodeElements).hasSize(4);
@@ -360,8 +362,9 @@ public class OolangCompilerTest {
         assertThat(setterModel.methodName().stringValue()).isEqualTo("name");
         assertThat(setterModel.methodTypeSymbol().descriptorString())
                 .isEqualTo("(Ljava/lang/String;)V");
-        assertThat(setterModel.attributes()).hasSize(2);
-        assertThat(setterModel.attributes().getFirst()).isInstanceOf(OolangPropCustomAttribute.class);
+        assertThat(setterModel.attributes()).hasSize(3);
+        assertThat(setterModel.attributes().get(0)).isInstanceOf(OolangPropCustomAttribute.class);
+        assertThat(setterModel.attributes().get(1)).isInstanceOf(MethodParametersAttribute.class);
         var setterCode = setterModel.code().get();
         var setterCodeElements = setterCode.elementList();
         assertThat(setterCodeElements).hasSize(4);

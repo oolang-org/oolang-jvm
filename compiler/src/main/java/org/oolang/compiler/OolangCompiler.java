@@ -23,9 +23,7 @@ import org.oolang.ast.statement.Statement;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.classfile.*;
-import java.lang.classfile.attribute.ConstantValueAttribute;
-import java.lang.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
-import java.lang.classfile.attribute.SourceDebugExtensionAttribute;
+import java.lang.classfile.attribute.*;
 import java.lang.constant.*;
 import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Modifier;
@@ -195,10 +193,15 @@ public final class OolangCompiler {
         assert funElement != null;
         assert classBuilder != null;
 
+
         final var paramDescs = new ArrayList<@NonNull ClassDesc>();
+        final var parameterInfos = new ArrayList<@NonNull MethodParameterInfo>();
         for (final var funChild : funElement.children) {
             if (funChild instanceof RealElement funChildElement && funChildElement.elementType == PARAMETER) {
                 paramDescs.add(computeType(funChildElement));
+                // We define name metadata info for each parameter in sequential order
+                assert funChildElement.identifier != null;
+                parameterInfos.add(MethodParameterInfo.of(Optional.of(funChildElement.identifier.identifier)));
             }
         }
 
@@ -210,15 +213,19 @@ public final class OolangCompiler {
                 MethodTypeDesc.of(/* returnDesc */ computeType(funElement), paramDescs),
                 flags,
                 methodBuilder -> {
-                    if (funElement.hasCustomAttribute) {
+                    if (funElement.hasCustomAttribute) { // an Oolang getter or setter
                         methodBuilder.with(new OolangPropCustomAttribute());
                     }
-                    if (modifiers.getValue()) {
+                    if (modifiers.getValue()) { // an @Override function
                         methodBuilder.with(RuntimeVisibleAnnotationsAttribute.of(OVERRIDE_ANNOTATION));
+                    }
+                    if (!parameterInfos.isEmpty()) {
+                        // Inject the attribute that holds parameters' names into the method metadata
+                        methodBuilder.with(MethodParametersAttribute.of(parameterInfos));
                     }
                     if (!Modifier.isAbstract(flags)) {
                         methodBuilder.withCode(codeBuilder -> {
-                            // code block is the last child of a non-abstract function
+                            // code block is always the last child of a non-abstract function
                             visitCodeBlock((CodeBlock) funElement.children.getLast(), codeBuilder);
                         });
                     }
