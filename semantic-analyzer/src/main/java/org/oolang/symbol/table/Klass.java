@@ -12,8 +12,8 @@ import java.lang.invoke.TypeDescriptor;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 
-import static org.oolang.symbol.table.TypeUtils.compatibleParameters;
-import static org.oolang.symbol.table.TypeUtils.hasAssignableParent;
+import static org.oolang.symbol.table.SemanticAnalysisUtils.compatibleParameters;
+import static org.oolang.symbol.table.SemanticAnalysisUtils.hasAssignableParent;
 
 @SuppressWarnings("preview")
 public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, ActualType
@@ -66,31 +66,29 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
     }
 
     public final @Nullable PropertyOrFunction accessiblePropertyOrFunctionProperty(final @NonNull String name,
-                                                                                   final boolean includeSelf,
                                                                                    final boolean includeProtected,
                                                                                    final boolean includePrivate,
                                                                                    final boolean setter,
                                                                                    final byte access) {
         assert name != null;
 
-        if (includeSelf) {
-            final var property = accessiblePropertyOrFunctionProperty(name, includeProtected, includePrivate, setter,
-                    access, this);
-            if (property != null) {
-                return property;
-            }
+        // try read in current class
+        var property = accessiblePropertyOrFunctionProperty(name, includeProtected, includePrivate, setter,
+                access, this);
+        if (property != null) {
+            return property;
         }
 
         // Try all superclasses, then all superinterfaces
         for (final var superKlass : allSuperKlasses()) {
-            final var property = accessiblePropertyOrFunctionProperty(name, includeProtected, false, setter,
+            property = accessiblePropertyOrFunctionProperty(name, includeProtected, false, setter,
                     access, TypeResolver.getKlassFromType(superKlass));
             if (property != null) {
                 return property;
             }
         }
         for (final var superInterface : allInterfaces()) {
-            final var property = accessiblePropertyOrFunctionProperty(name, includeProtected, false, setter,
+            property = accessiblePropertyOrFunctionProperty(name, includeProtected, false, setter,
                     access, TypeResolver.getKlassFromType(superInterface));
             if (property != null) {
                 return property;
@@ -194,31 +192,29 @@ public sealed abstract class Klass implements TypeDescriptor.OfField<Klass>, Act
 
     public final @Nullable Function accessibleFunction(final @NonNull String name,
                                                        final @NonNull List<@NonNull ActualType> parameterTypes,
-                                                       final boolean includeSelf,
                                                        final boolean includeProtected,
                                                        final boolean includePrivate,
                                                        final byte access) {
         assert name != null;
         assert parameterTypes != null;
 
-        if (includeSelf) {
-            final var function = accessibleFunction(name, parameterTypes, includeProtected, includePrivate, access,
-                    this);
-            if (function != null) {
-                return function;
-            }
+        // try read in current class
+        var function = accessibleFunction(name, parameterTypes, includeProtected, includePrivate, access,
+                this);
+        if (function != null) {
+            return function;
         }
 
         // Try all superclasses, then all superinterfaces
         for (final var superKlass : allSuperKlasses()) {
-            final var function = accessibleFunction(name, parameterTypes, includeProtected, false, access,
+            function = accessibleFunction(name, parameterTypes, includeProtected, false, access,
                     TypeResolver.getKlassFromType(superKlass));
             if (function != null) {
                 return function;
             }
         }
         for (final var superInterface : allInterfaces()) {
-            final var function = accessibleFunction(name, parameterTypes, includeProtected, false, access,
+            function = accessibleFunction(name, parameterTypes, includeProtected, false, access,
                     TypeResolver.getKlassFromType(superInterface));
             if (function != null) {
                 return function;

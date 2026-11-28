@@ -18,6 +18,7 @@ import org.oolang.ast.expression.Expression;
 import org.oolang.ast.expression.RealExpression;
 import org.oolang.ast.expression.RealExpression.ExpressionType;
 import org.oolang.ast.statement.CodeBlock;
+import org.oolang.ast.statement.ConstructorCodeBlock;
 import org.oolang.ast.statement.RealStatement;
 import org.oolang.parser.generated.OolangParser.*;
 import org.oolang.parser.generated.OolangParserBaseVisitor;
@@ -31,7 +32,6 @@ import java.util.Objects;
 
 import static org.oolang.ast.element.RealElement.ElementType.*;
 import static org.oolang.ast.element.RealElement.ElementType.CLASS;
-import static org.oolang.ast.element.RealElement.ElementType.CONSTRUCTOR;
 import static org.oolang.ast.element.RealElement.ElementType.FUN;
 import static org.oolang.ast.element.RealElement.ElementType.VAL;
 import static org.oolang.ast.element.RealElement.ElementType.VAR;
@@ -111,11 +111,6 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
 
         addModifiersAndAnnotations(ctx.modifiers(), clazz);
 
-        final var primaryConstructorCtx = ctx.primaryConstructor();
-        if (primaryConstructorCtx != null) {
-            clazz.children.add(visitPrimaryConstructor(primaryConstructorCtx));
-        }
-
         // annotatedDelegationSpecifier (NL* COMMA NL* annotatedDelegationSpecifier)*
         final var delegationSpecifiersCtx = ctx.delegationSpecifiers();
         if (delegationSpecifiersCtx != null) {
@@ -124,9 +119,24 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
             }
         }
 
+        final var primaryConstructorCtx = ctx.primaryConstructor();
         final var classBodyCtx = ctx.classBody();
-        if (classBodyCtx != null) {
-            clazz.children.add(visitClassBody(classBodyCtx));
+        if (primaryConstructorCtx != null || classBodyCtx != null) {
+            final var classBody = new ClassBody();
+
+            if (primaryConstructorCtx != null) {
+                classBody.children.add(visitPrimaryConstructor(primaryConstructorCtx));
+            }
+
+            // ```
+            // LCURL NL* classMemberDeclaration* NL* RCURL
+            // ```
+            if (classBodyCtx != null) {
+                for (final var classMemberDeclarationCtx : classBodyCtx.classMemberDeclaration()) {
+                    classBody.children.add(visitClassMemberDeclaration(classMemberDeclarationCtx));
+                }
+            }
+            clazz.children.add(classBody);
         }
 
         return addAstInfo(clazz, ctx);
@@ -139,13 +149,14 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
     public @NonNull RealElement visitPrimaryConstructor(final @NonNull PrimaryConstructorContext ctx) {
         assert ctx != null;
 
-        final var constructor = new RealElement(CONSTRUCTOR);
+        final var constructor = new RealElement(PRIMARY_CONSTRUCTOR);
         addModifiersAndAnnotations(ctx.modifiers(), constructor);
         constructor.identifier = new Identifier.SimpleIdentifier(ConstantDescs.INIT_NAME);
 
         for (final var classParamCtx : ctx.classParameters().classParameter()) {
             constructor.children.add(visitClassParameter(classParamCtx));
         }
+        constructor.children.add(new ConstructorCodeBlock());
 
         return addAstInfo(constructor, ctx);
     }
@@ -218,21 +229,6 @@ public final class OolangAstVisitor extends OolangParserBaseVisitor<Ast> {
             return visitConstructorInvocation(constructorInvocationCtx);
         }
         throw new UnsupportedOperationException();
-    }
-
-
-    /// ```
-    /// LCURL NL* classMemberDeclaration* NL* RCURL
-    /// ```
-    @Override
-    public @NonNull ClassBody visitClassBody(final @NonNull ClassBodyContext ctx) {
-        assert ctx != null;
-
-        final var classBody = new ClassBody();
-        for (final var classMemberDeclarationCtx : ctx.classMemberDeclaration()) {
-            classBody.children.add(visitClassMemberDeclaration(classMemberDeclarationCtx));
-        }
-        return addAstInfo(classBody, ctx);
     }
 
     /// ```

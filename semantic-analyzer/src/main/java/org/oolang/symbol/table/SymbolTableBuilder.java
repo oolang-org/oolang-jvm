@@ -16,7 +16,6 @@ import org.oolang.ast.expression.Expression;
 import org.oolang.ast.expression.RealExpression;
 import org.oolang.ast.statement.CodeBlock;
 import org.oolang.ast.statement.ConstructorCodeBlock;
-import org.oolang.ast.statement.RealStatement;
 import org.oolang.symbol.table.Function.Parameter;
 
 import java.lang.constant.ConstantDescs;
@@ -27,16 +26,15 @@ import java.util.Map;
 import static org.oolang.ast.element.ElementModifier.ModifierType.VISIBILITY;
 import static org.oolang.ast.element.RealElement.ElementType.*;
 import static org.oolang.ast.expression.ExpressionUtils.addExpressionToChain;
-import static org.oolang.ast.expression.RealExpression.ExpressionType.*;
-import static org.oolang.ast.statement.RealStatement.StatementType.ASSIGNMENT;
+import static org.oolang.ast.expression.RealExpression.ExpressionType.CHAINABLE;
+import static org.oolang.ast.expression.RealExpression.ExpressionType.VARIABLE_OR_PROP_ACCESS;
+import static org.oolang.symbol.table.SemanticAnalysisUtils.propAssignment;
 import static org.oolang.symbol.table.TypeResolver.VOID_KLASS;
 
 public final class SymbolTableBuilder {
     // un-instantiable
     private SymbolTableBuilder() {
     }
-
-    public static final @NonNull SimpleIdentifier THIS_IDENTIFIER = new SimpleIdentifier("this");
 
     /// @return a virtual [class][OolangKlass] representing the symbol table of the given [AstFile].
     public static @NonNull OolangKlass build(final @NonNull AstFile ast,
@@ -48,7 +46,8 @@ public final class SymbolTableBuilder {
         for (final var element : ast.rootElements) {
             switch (element.elementType) {
                 case CLASS -> visitClass(element,
-                        symbolTable.addKlass(baseSymbol(element, true, true), false));
+                        symbolTable.addKlass(baseSymbol(element, /* defaultStatic */ true, /* defaultFinal */ true),
+                                /* isInterface */ false));
                 case INTERFACE -> throw new UnsupportedOperationException("interface");
             }
         }
@@ -76,12 +75,22 @@ public final class SymbolTableBuilder {
 
         var hasConstructor = false;
         var hasInstanceFunOrProp = false;
-        // first iteration without properties
-        for (final var child : children) {
+        // iterate on a copy of children, because this list may be updated with new functions while iterating
+        for (final var child : List.copyOf(children)) {
             switch (child.elementType) {
+                case PRIMARY_CONSTRUCTOR -> {
+                    hasConstructor = true;
+                    visitPrimaryConstructor(child, children, klass);
+                }
                 case CONSTRUCTOR -> {
                     hasConstructor = true;
                     visitFunction(child, klass, klass);
+                }
+                case VAL, VAR -> {
+                    final var property = visitProperty(child, children, klass);
+                    if (!property.isStatic()) {
+                        hasInstanceFunOrProp = true;
+                    }
                 }
                 case FUN -> {
                     final var function = visitFunction(child, klass, null);
@@ -90,31 +99,51 @@ public final class SymbolTableBuilder {
                     }
                 }
                 case CLASS -> visitClass(child,
-                        klass.addKlass(baseSymbol(child, true, true), false));
+                        klass.addKlass(baseSymbol(child, /* defaultStatic */ true, /* defaultFinal */ true),
+                                /* isInterface */ false));
                 case INTERFACE -> throw new UnsupportedOperationException("interface");
             }
         }
-        // second iteration for properties only on a copy of children, because this list may be updated with new
-        // functions while iterating
-        for (final var child : List.copyOf(children)) {
-            switch (child.elementType) {
-                case VAL, VAR -> {
-                    final var property = visitProperty(child, children, klass);
-                    if (!property.isStatic()) {
-                        hasInstanceFunOrProp = true;
+
+        // if no explicit constructor was found, we must create a default constructor
+        if (!klass.isInterface() && !hasConstructor && hasInstanceFunOrProp) {
+            // create a public empty default constructor and visit it
+            final var defaultConstructor = new RealElement(CONSTRUCTOR);
+            defaultConstructor.identifier = new SimpleIdentifier(ConstantDescs.INIT_NAME);
+            defaultConstructor.children.add(new ConstructorCodeBlock());
+            visitPrimaryConstructor(defaultConstructor, children, klass);
+            // This default constructor is first in the class body
+            children.addFirst(defaultConstructor);
+        }
+    }
+
+    private static void visitPrimaryConstructor(final @NonNull RealElement funElement,
+                                                final @NonNull List<@NonNull RealElement> children,
+                                                final @NonNull OolangKlass klass) {
+        assert funElement != null;
+        assert children != null;
+        assert klass != null;
+
+        final var parameters = new ArrayList<@NonNull Parameter>();
+        for (final var child : funElement.children) {
+            if (child instanceof RealElement realElement) {
+                switch (realElement.elementType) {
+                    case PARAMETER -> addFunctionParameter(realElement, klass, parameters);
+                    case VAL, VAR -> {
+                        // add both the property and the function parameter
+                        visitProperty(realElement, children, klass);
+                        addFunctionParameter(realElement, klass, parameters);
                     }
                 }
             }
         }
 
-        // if no explicit constructor was found, add a public empty default constructor and visit it
-        if (!hasConstructor && hasInstanceFunOrProp) {
-            final var defaultConstructor = new RealElement(CONSTRUCTOR);
-            defaultConstructor.identifier = new SimpleIdentifier(ConstantDescs.INIT_NAME);
-            defaultConstructor.children.add(new ConstructorCodeBlock());
-            children.add(defaultConstructor);
-            visitFunction(defaultConstructor, klass, klass);
-        }
+        final var function = new Function(
+                klass,
+                baseSymbol(funElement, false, true),
+                klass,
+                parameters);
+        klass.rawFunctions.addFirst(function); // primary constructor is always the first function in the class body
     }
 
     private static @NonNull Function visitFunction(final @NonNull RealElement funElement,
@@ -138,11 +167,7 @@ public final class SymbolTableBuilder {
             switch (child) /* of mine */ {
                 case RealElement element -> {
                     if (element.elementType == PARAMETER) {
-                        assert element.identifier != null;
-                        // a function parameter has a simple identifier
-                        final var paramName = element.identifier.identifier;
-                        assert element.type != null;
-                        parameters.add(new Parameter(paramName, TypeResolver.getTypeFromAstType(element.type, klass)));
+                        addFunctionParameter(element, klass, parameters);
                     }
                 }
                 case Expression expression -> {
@@ -165,6 +190,19 @@ public final class SymbolTableBuilder {
                 parameters);
         klass.rawFunctions.add(function);
         return function;
+    }
+
+    private static void addFunctionParameter(final @NonNull RealElement element,
+                                             final @NonNull OolangKlass klass,
+                                             final @NonNull List<@NonNull Parameter> parameters) {
+        assert element != null;
+        assert klass != null;
+        assert parameters != null;
+        assert element.identifier != null;
+        assert element.type != null;
+
+        final var paramName = element.identifier.identifier; // a function parameter has a simple identifier
+        parameters.add(new Parameter(paramName, TypeResolver.getTypeFromAstType(element.type, klass)));
     }
 
     /// Visit a property, optionally adding functions for getter and setter
@@ -205,15 +243,19 @@ public final class SymbolTableBuilder {
 
         // if not private and not static, we add a getter function and visit it
         if (!property.isStatic() && property.visibility() != Visibility.PRIVATE) {
+            var getterIndex = children.indexOf(propertyElement) + 1;
+            if (getterIndex == 0) {
+                getterIndex = children.size();
+            }
             final var getterFunction = buildGetterFunction(property);
             property.getter = visitFunction(getterFunction, klass, propType);
-            children.add(getterFunction);
+            children.add(getterIndex, getterFunction);
 
             if (!property.isFinal()) {
                 // non-final, also add the setter function and visit it
                 final var setterFunction = buildSetterFunction(property);
                 property.setter = visitFunction(setterFunction, klass, null);
-                children.add(setterFunction);
+                children.add(getterIndex + 1, setterFunction);
             }
 
             // the property becomes private. We do it also in the AST
@@ -251,22 +293,8 @@ public final class SymbolTableBuilder {
         funParam.type = new LazyAstType(property.type);
         setterFunction.children.add(funParam);
 
-        final var assignmentChainableExpression = new RealExpression(CHAINABLE);
-        final var assignmentExpression = new RealExpression(VARIABLE_OR_PROP_ASSIGNMENT);
-        assignmentExpression.identifiers.add(THIS_IDENTIFIER);
-        assignmentExpression.identifiers.add(new SimpleIdentifier(property.name()));
-        addExpressionToChain(assignmentChainableExpression, assignmentExpression);
-
-        final var variableChainableExpression = new RealExpression(CHAINABLE);
-        final var variableExpression = new RealExpression(VARIABLE_OR_PROP_ACCESS);
-        variableExpression.identifiers.add(new SimpleIdentifier(property.name()));
-        addExpressionToChain(variableChainableExpression, variableExpression);
-        assignmentExpression.children.add(variableChainableExpression);
-
         final var functionBody = new CodeBlock();
-        final var assignment = new RealStatement(ASSIGNMENT);
-        assignment.children.add(assignmentChainableExpression);
-        functionBody.statements.add(assignment);
+        functionBody.statements.add(propAssignment(property.name()));
         setterFunction.children.add(functionBody);
         return setterFunction;
     }

@@ -14,6 +14,7 @@ import org.oolang.ast.element.ClassBody;
 import org.oolang.ast.element.ElementModifier;
 import org.oolang.ast.element.RealElement;
 import org.oolang.ast.expression.ConstantExpression;
+import org.oolang.ast.expression.DelegateExpression;
 import org.oolang.ast.expression.Expression;
 import org.oolang.ast.expression.RealExpression;
 import org.oolang.ast.statement.CodeBlock;
@@ -31,9 +32,8 @@ import static org.oolang.ast.expression.RealExpression.ExpressionType.*;
 import static org.oolang.ast.statement.RealStatement.StatementType.ASSIGNMENT;
 import static org.oolang.ast.statement.RealStatement.StatementType.RETURN;
 import static org.oolang.symbol.table.Klass.*;
-import static org.oolang.symbol.table.SymbolTableBuilder.THIS_IDENTIFIER;
+import static org.oolang.symbol.table.SemanticAnalysisUtils.*;
 import static org.oolang.symbol.table.TypeResolver.*;
-import static org.oolang.symbol.table.TypeUtils.hasAssignableParent;
 import static org.oolang.symbol.table.Visibility.PRIVATE;
 
 public final class OolangSemanticAnalyzer {
@@ -75,7 +75,7 @@ public final class OolangSemanticAnalyzer {
             return;
         }
 
-        currentKlass.resolveAncestors(); // resolve all ancestor lazy types
+        currentKlass.resolveAncestors(); // resolve all ancestors' lazy types
         for (final var child : classElement.children) {
             if (child instanceof ClassBody classBody) {
                 effectiveScopes.pushKlass(currentKlass);
@@ -94,9 +94,20 @@ public final class OolangSemanticAnalyzer {
 
         // the inline assignments for constructors
         final var initializedPropAssignments = new ArrayList<@NonNull RealStatement>();
-        // first loop to resolve all properties and add them to the current scope
+        RealElement primaryConstructor = null;
+        // first loop: visit properties. Each can return a constructor assignment statement
         for (final var child : classBody.children) {
             switch (child.elementType) {
+                case PRIMARY_CONSTRUCTOR -> {
+                    for (final var constructorChild : child.children) {
+                        if (constructorChild instanceof RealElement realElement
+                                && (realElement.elementType == VAL || realElement.elementType == VAR)) {
+                            visitProperty(realElement, scopes, currentKlass);
+                            initializedPropAssignments.add(propAssignment(elementName(realElement)));
+                        }
+                    }
+                    primaryConstructor = child;
+                }
                 case VAL, VAR -> {
                     final var propAssignment = visitProperty(child, scopes, currentKlass);
                     if (propAssignment != null) {
@@ -106,12 +117,20 @@ public final class OolangSemanticAnalyzer {
             }
         }
 
+        // complete primary constructor with property assignments
+        if (primaryConstructor != null && !initializedPropAssignments.isEmpty()) {
+            ((ConstructorCodeBlock) primaryConstructor.children.getLast())
+                    .initBlock.statements.addAll(initializedPropAssignments);
+            initializedPropAssignments.clear();
+        }
+
         // then loop for everything else
         var funIndex = 0;
         for (final var child : classBody.children) {
             switch (child.elementType) {
-                case CONSTRUCTOR, FUN ->
-                        visitFunction(child, scopes, currentKlass, funIndex++, initializedPropAssignments);
+                case PRIMARY_CONSTRUCTOR, CONSTRUCTOR ->
+                        visitConstructor(child, scopes, currentKlass, funIndex++, initializedPropAssignments);
+                case FUN -> visitFunction(child, scopes, currentKlass, funIndex++);
                 case CLASS -> {
                     assert currentKlass.klasses != null;
                     visitClass(child, scopes, currentKlass.klasses.get(elementName(child)));
@@ -132,12 +151,14 @@ public final class OolangSemanticAnalyzer {
 
         final var property = currentKlass.rawProperties.get(elementName(propertyElement));
 
-        Expression propertyExpression = null;
+        Expression propertyValueExpression = null;
         try {
             for (final var child : propertyElement.children) {
                 if (child instanceof RealElement realElement && realElement.elementType == PROPERTY_INITIALIZER) {
-                    propertyExpression = (Expression) realElement.children.getFirst();
-                    final var propertyType = visitExpression(propertyExpression, scopes, currentKlass, null);
+                    final var realPropValueExpression = (Expression) realElement.children.getFirst();
+                    // visit the value expression and replace it with an already visited one
+                    final var propertyType = visitExpression(realPropValueExpression, scopes, currentKlass,
+                            null);
 
                     // only set the descriptor string if type was not explicit or inferred
                     final var lateinitType = property.lateinitTypeOrNull();
@@ -147,8 +168,8 @@ public final class OolangSemanticAnalyzer {
 
                     // if property is not static (= instance), we must build and return the inline assignment to
                     // initialize this prop in constructors
-                    if (property.isStatic()) {
-                        propertyExpression = null;
+                    if (!property.isStatic()) {
+                        propertyValueExpression = new AlreadyVisitedExpression(realPropValueExpression, propertyType);
                     }
                     break;
                 }
@@ -159,40 +180,9 @@ public final class OolangSemanticAnalyzer {
             propertyElement.descriptorString(getKlassFromType(type).descriptorString());
         }
 
-        return (propertyExpression != null)
-                ? buildPropertyAssignment(propertyExpression, propertyElement, scopes, currentKlass)
+        return (propertyValueExpression != null)
+                ? propAssignment(elementName(propertyElement), propertyValueExpression)
                 : null;
-    }
-
-    private static @NonNull RealStatement buildPropertyAssignment(final @NonNull Expression propertyExpression,
-                                                                  final @NonNull RealElement propertyElement,
-                                                                  final @NonNull Scopes scopes,
-                                                                  final @NonNull OolangKlass currentKlass) {
-        assert propertyExpression != null;
-        assert propertyElement != null;
-        assert scopes != null;
-        assert currentKlass != null;
-
-        // build the assigned property
-        final var assignmentExpression = new RealExpression(CHAINABLE);
-        // 1) load this
-        loadThis(assignmentExpression, scopes);
-        // 2) resolve value to assign to the property = the initializer expression
-        assignmentExpression.children.add(propertyExpression);
-        // 3) assign property to its value
-        final var propAssignmentExpression = new RealExpression(PROP_ASSIGNMENT);
-        propAssignmentExpression.identifiers.add(new SimpleIdentifier(elementName(propertyElement)));
-        propAssignmentExpression.ownerDescriptorString = currentKlass.descriptorString();
-        propAssignmentExpression.invocation = PUT_FIELD;
-        final var propDescriptorString = propertyElement.descriptorString();
-        assert propDescriptorString != null;
-        propAssignmentExpression.descriptorString(propDescriptorString);
-        propAssignmentExpression.parent = assignmentExpression;
-        assignmentExpression.children.add(propAssignmentExpression);
-
-        final var assignment = new RealStatement(ASSIGNMENT);
-        assignment.children.add(assignmentExpression);
-        return assignment;
     }
 
     private static @NonNull RealExpression buildVariableStore(final @NonNull Expression variableExpression,
@@ -220,75 +210,105 @@ public final class OolangSemanticAnalyzer {
         return storeExpression;
     }
 
-    private static void visitFunction(final @NonNull RealElement functionElement,
-                                      final @NonNull Scopes scopes,
-                                      final @NonNull OolangKlass currentKlass,
-                                      final int funIndex,
-                                      final @NonNull List<@NonNull RealStatement> initializedPropAssignments) {
-        assert functionElement != null;
+    private static void visitConstructor(final @NonNull RealElement constructorElement,
+                                         final @NonNull Scopes scopes,
+                                         final @NonNull OolangKlass currentKlass,
+                                         final int funIndex,
+                                         final @NonNull List<@NonNull RealStatement> initializedPropAssignments) {
+        assert constructorElement != null;
         assert scopes != null;
         assert currentKlass != null;
         assert initializedPropAssignments != null;
+
+        final var constructorFunction = currentKlass.rawFunctions.get(funIndex);
+        assert !constructorFunction.isAbstract();
+        assert !constructorFunction.isStatic();
+
+        // add the "open" inheritance modifier, a constructor cannot be final
+        constructorElement.modifiers.add(new ElementModifier(INHERITANCE, "open"));
+
+        scopes.pushFunction(false, true);
+
+        visitParameters(constructorFunction, scopes);
+
+        final var constructorCodeBlock = ((ConstructorCodeBlock) constructorElement.children.getLast());
+        // add initialized property assignments upfront in init phase, if any
+        if (!initializedPropAssignments.isEmpty()) {
+            constructorCodeBlock.initBlock.statements.addAll(initializedPropAssignments);
+        }
+        visitConstructorCodeBlock(constructorCodeBlock, scopes, currentKlass);
+
+        constructorFunction.type(); // resolve the constructor's type
+        constructorElement.descriptorString(currentKlass.descriptorString());
+
+        scopes.popFunction(false);
+    }
+
+    private static void visitFunction(final @NonNull RealElement functionElement,
+                                      final @NonNull Scopes scopes,
+                                      final @NonNull OolangKlass currentKlass,
+                                      final int funIndex) {
+        assert functionElement != null;
+        assert scopes != null;
+        assert currentKlass != null;
 
         final var function = currentKlass.rawFunctions.get(funIndex);
 
         final Scopes effectiveScopes = (function.isStatic())
                 ? scopes.enterStatic() // static function = start a new fresh Scopes
                 : scopes;
+        if (!function.isAbstract()) {
+            effectiveScopes.pushFunction(function.isStatic(), false);
+        }
+
+        visitParameters(function, effectiveScopes);
 
         if (!function.isAbstract()) {
-            effectiveScopes.pushFunction(function.isStatic());
+            // code block is the last child of a non-abstract function
+            switch (functionElement.children.getLast()) {
+                case CodeBlock codeBlock -> visitCodeBlock(codeBlock, effectiveScopes, currentKlass);
+                case Expression expression -> {
+                    // 1) visit the expression
+                    final var functionReturnType =
+                            visitExpression(expression, effectiveScopes, currentKlass, null);
+
+                    // only set the descriptor string if type was not explicit or inferred
+                    final var lateinitType = function.lateinitTypeOrNull();
+                    if (lateinitType != null) { // infer type from the function's expression
+                        lateinitType.setType(functionReturnType);
+                    }
+
+                    // 2) add a body function with a single return expression
+                    final var codeBlock = new CodeBlock();
+                    final var statement = new RealStatement(RETURN);
+                    codeBlock.statements.add(statement);
+                    statement.children.add(expression);
+                    // replace the single expression with the new code block
+                    functionElement.children.set(functionElement.children.size() - 1, codeBlock);
+                }
+                default -> throw new IllegalStateException("Unexpected value: " + functionElement.children.getLast());
+            }
         }
+
+        final var returnType = function.type(); // resolve the function's type
+        functionElement.descriptorString(getKlassFromType(returnType).descriptorString());
+
+        if (!function.isAbstract()) {
+            effectiveScopes.popFunction(function.isStatic());
+        }
+    }
+
+    private static void visitParameters(final @NonNull Function function, final @NonNull Scopes scopes) {
+        assert function != null;
+        assert scopes != null;
 
         for (final var parameter : function.parameters) {
             final var parameterType = parameter.type(); // resolve function param type
             if (!function.isAbstract()) {
                 assert parameter.name != null;
-                effectiveScopes.putVariable(parameter.name, parameterType,
+                scopes.putVariable(parameter.name, parameterType,
                         /* isFinal */ true, function.isStatic(), /* noDuplicate */ false);
             }
-        }
-
-        try {
-            if (!function.isAbstract()) {
-                // code block is the last child of a non-abstract function
-                switch (functionElement.children.getLast()) {
-                    case CodeBlock codeBlock -> visitCodeBlock(codeBlock, effectiveScopes, currentKlass);
-                    case ConstructorCodeBlock constructorCodeBlock -> {
-                        // add the "open" inheritance modifier, a constructor cannot be final
-                        functionElement.modifiers.add(new ElementModifier(INHERITANCE, "open"));
-                        visitConstructorCodeBlock(constructorCodeBlock, effectiveScopes, currentKlass);
-                        // add initialized property assignments upfront in init phase
-                        constructorCodeBlock.initBlock.statements.addAll(0, initializedPropAssignments);
-                    }
-                    case Expression expression -> {
-                        // 1) visit the expression
-                        final var functionReturnType =
-                                visitExpression(expression, effectiveScopes, currentKlass, null);
-
-                        // only set the descriptor string if type was not explicit or inferred
-                        final var lateinitType = function.lateinitTypeOrNull();
-                        if (lateinitType != null) { // infer type from the function's expression
-                            lateinitType.setType(functionReturnType);
-                        }
-
-                        // 2) add a body function with a single return expression
-                        final var codeBlock = new CodeBlock();
-                        final var statement = new RealStatement(RETURN);
-                        codeBlock.statements.add(statement);
-                        statement.children.add(expression);
-                        // replace the single expression with the new code block
-                        functionElement.children.set(functionElement.children.size() - 1, codeBlock);
-                    }
-                    default ->
-                            throw new IllegalStateException("Unexpected value: " + functionElement.children.getLast());
-                }
-                effectiveScopes.popFunction(function.isStatic());
-            }
-        } finally {
-            // always resolve the function's type
-            final var returnType = function.type();
-            functionElement.descriptorString(getKlassFromType(returnType).descriptorString());
         }
     }
 
@@ -443,6 +463,7 @@ public final class OolangSemanticAnalyzer {
                 constantExpression.descriptorString(constantKlass.descriptorString());
                 yield constantKlass;
             }
+            case DelegateExpression delegateExpression -> ((AlreadyVisitedExpression) delegateExpression).type;
         };
     }
 
@@ -603,7 +624,6 @@ public final class OolangSemanticAnalyzer {
             if (scopeElement == null) {
                 // 2) else, first identifier may refer to a property / function property from a parent
                 scopeElement = currentKlass.accessiblePropertyOrFunctionProperty(identifier,
-                        /* includeSelf */ false, // currentKlass properties are in the scope, don't scan it twice
                         /* includeProtected */  true,
                         /* includePrivate */ false,
                         /* setter */ true,
@@ -611,17 +631,17 @@ public final class OolangSemanticAnalyzer {
             }
         } else {
             final var callerKlass = caller.klass;
+            final var setter = caller.isStatic || !scopes.inConstructor();
             scopeElement = callerKlass.accessiblePropertyOrFunctionProperty(identifier,
-                    /* includeSelf */ true,
                     /* includeProtected */  canAccessProtected(callerKlass, currentKlass),
                     /* includePrivate */ callerKlass == currentKlass,
-                    /* setter */ true,
+                    /* setter */ setter,
                     /* access */ caller.isStatic ? ACCESS_STATIC : ACCESS_INSTANCE);
         }
 
 
         if (scopeElement == null) {
-            throw new OolangSemanticException("Could not resolve variable or property '" + identifier);
+            throw new OolangSemanticException("Could not resolve variable or property: " + identifier);
         }
 
         return switch (scopeElement) {
@@ -729,7 +749,6 @@ public final class OolangSemanticAnalyzer {
             if (function == null) {
                 // 2) else, first identifier may refer to a function from a parent
                 function = callerKlass.accessibleFunction(funName, funParameters,
-                        /* includeSelf */ false, // currentKlass functions are in the scope, don't scan it twice
                         /* includeProtected */ true,
                         /* includePrivate */ true,
                         /* access */ ACCESS_BOTH);
@@ -740,7 +759,6 @@ public final class OolangSemanticAnalyzer {
         } else {
             callerKlass = caller.klass;
             function = callerKlass.accessibleFunction(funName, funParameters,
-                    /* includeSelf */ true,
                     /* includeProtected */ canAccessProtected(callerKlass, currentKlass),
                     /* includePrivate */ callerKlass == currentKlass,
                     /* access */ caller.isStatic ? ACCESS_STATIC : ACCESS_INSTANCE);
@@ -809,7 +827,6 @@ public final class OolangSemanticAnalyzer {
         final var id = expression.identifiers.get(idIndex.value++);
 
         final var propOrFunProp = callerKlass.accessiblePropertyOrFunctionProperty(id.identifier,
-                /* includeSelf */ true,
                 /* includeProtected */  canAccessProtected(callerKlass, currentKlass),
                 /* includePrivate */ callerKlass == currentKlass,
                 /* setter */ false,
@@ -854,7 +871,6 @@ public final class OolangSemanticAnalyzer {
             // 2) else, first identifier may refer to a property / function property from a parent
             scopeElement = currentKlass
                     .accessiblePropertyOrFunctionProperty(identifier,
-                            /* includeSelf */ false, // currentKlass properties are in the scope, don't scan it twice
                             /* includeProtected */  true,
                             /* includePrivate */ false,
                             /* setter */ true,

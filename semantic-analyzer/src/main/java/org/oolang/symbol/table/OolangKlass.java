@@ -43,7 +43,7 @@ public final class OolangKlass extends Klass implements Symbol {
     // Optional superclass/interfaces | properties | functions | nested/inner classes
     // ------------------------------------------------------------------------------
 
-    @NonNull List<Type.@NonNull Lazy> rawAncestors = new ArrayList<>();
+    public @NonNull List<Type.@NonNull Lazy> rawAncestors = new ArrayList<>();
     public final @NonNull Map<@NonNull String, @NonNull Property> rawProperties = new HashMap<>();
     public final @NonNull List<@NonNull Function> rawFunctions = new ArrayList<>();
     public @Nullable Map<@NonNull String, @NonNull OolangKlass> klasses = null;

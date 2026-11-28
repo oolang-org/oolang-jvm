@@ -14,6 +14,7 @@ import org.oolang.ast.element.RealElement;
 import org.oolang.ast.expression.ConstantExpression;
 import org.oolang.ast.expression.RealExpression;
 import org.oolang.ast.statement.CodeBlock;
+import org.oolang.ast.statement.ConstructorCodeBlock;
 import org.oolang.ast.statement.RealStatement;
 import org.oolang.parser.OolangAstVisitor;
 import org.oolang.parser.generated.OolangLexer;
@@ -205,14 +206,17 @@ public class OolangAstVisitorTest {
         assertThat(root.identifier.identifier).isEqualTo("Example");
         assertThat(root.description()).isEqualTo("Element(class Example)");
         assertThat(root.children).hasSize(1);
-        var constructor = (RealElement) root.children.getFirst();
-        assertThat(constructor.elementType).isEqualTo(CONSTRUCTOR);
+        var classBody = (ClassBody) root.children.getFirst();
+        assertThat(classBody.children).hasSize(1);
+        var constructor = classBody.children.getFirst();
+        assertThat(constructor.elementType).isEqualTo(PRIMARY_CONSTRUCTOR);
         assertThat(constructor.identifier).isNotNull();
         assertThat(constructor.identifier.identifier).isEqualTo(ConstantDescs.INIT_NAME);
-        assertThat(constructor.children).hasSize(1);
+        assertThat(constructor.children).hasSize(2);
         var constructorParam = (RealElement) constructor.children.getFirst();
         assertThat(constructorParam.elementType).isEqualTo(VAL);
         assertThat(constructorParam.description()).isEqualTo("Element(val foo:String)");
+        assertThat(constructor.children.getLast()).isInstanceOf(ConstructorCodeBlock.class);
         print(astFile);
     }
 
@@ -229,12 +233,15 @@ public class OolangAstVisitorTest {
         assertThat(root.identifier.identifier).isEqualTo("Example");
         assertThat(root.description()).isEqualTo("Element(class Example)");
         assertThat(root.children).hasSize(1);
-        var constructor = (RealElement) root.children.getFirst();
-        assertThat(constructor.children).hasSize(1);
+        var classBody = (ClassBody) root.children.getFirst();
+        assertThat(classBody.children).hasSize(1);
+        var constructor = classBody.children.getFirst();
+        assertThat(constructor.children).hasSize(2);
         var constructorParam = (RealElement) constructor.children.getFirst();
         assertThat(constructorParam.annotations).hasSize(1);
         var annotation = constructorParam.annotations.getFirst();
         assertThat(annotation.description()).isEqualTo("Annotation(get:JsonIgnore)");
+        assertThat(constructor.children.getLast()).isInstanceOf(ConstructorCodeBlock.class);
         print(astFile);
     }
 
@@ -251,8 +258,10 @@ public class OolangAstVisitorTest {
         assertThat(root.identifier.identifier).isEqualTo("Example");
         assertThat(root.description()).isEqualTo("Element(class Example)");
         assertThat(root.children).hasSize(1);
-        var constructor = (RealElement) root.children.getFirst();
-        assertThat(constructor.children).hasSize(1);
+        var classBody = (ClassBody) root.children.getFirst();
+        assertThat(classBody.children).hasSize(1);
+        var constructor = classBody.children.getFirst();
+        assertThat(constructor.children).hasSize(2);
         var constructorParam = (RealElement) constructor.children.getFirst();
         assertThat(constructorParam.annotations).hasSize(2);
         // Inject

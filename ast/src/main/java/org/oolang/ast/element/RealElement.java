@@ -80,7 +80,7 @@ public final class RealElement extends AbstractAst implements Element.Node, Type
         CLASS,
         INTERFACE,
         // fun & constructor elements
-        CONSTRUCTOR, FUN, PARAMETER,
+        PRIMARY_CONSTRUCTOR, CONSTRUCTOR, FUN, PARAMETER,
         // property elements
         VAR, VAL, PROPERTY_INITIALIZER, PROPERTY_GETTER, PROPERTY_SETTER
     }

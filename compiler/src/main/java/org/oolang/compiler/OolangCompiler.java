@@ -13,6 +13,7 @@ import org.oolang.ast.element.ClassBody;
 import org.oolang.ast.element.ElementModifier;
 import org.oolang.ast.element.RealElement;
 import org.oolang.ast.expression.ConstantExpression;
+import org.oolang.ast.expression.DelegateExpression;
 import org.oolang.ast.expression.Expression;
 import org.oolang.ast.expression.RealExpression;
 import org.oolang.ast.statement.CodeBlock;
@@ -293,6 +294,8 @@ public final class OolangCompiler {
         switch (expression) {
             case ConstantExpression constantExpression -> visitConstantExpression(constantExpression, codeBuilder);
             case RealExpression realExpression -> visitRealExpression(realExpression, codeBuilder);
+            case DelegateExpression delegateExpression -> visitExpression(delegateExpression.delegate, codeBuilder);
+            default -> throw new UnsupportedOperationException("Unknown Expression: " + expression.getClass());
         }
     }
 

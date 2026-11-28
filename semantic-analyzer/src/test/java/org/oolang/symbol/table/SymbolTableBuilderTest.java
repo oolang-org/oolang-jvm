@@ -92,7 +92,10 @@ public class SymbolTableBuilderTest {
         assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
 
         assertThat(rootKlass.rawFunctions).hasSize(2);
-        var propertyGetter = rootKlass.rawFunctions.getFirst();
+
+        verifyDefaultConstructor(rootKlass);
+
+        var propertyGetter = rootKlass.rawFunctions.getLast();
         assertThat(propertyGetter.name()).isEqualTo("foo");
         assertThat(propertyGetter.visibility()).isEqualTo(PUBLIC);
         assertThat(propertyGetter.isStatic()).isFalse();
@@ -102,8 +105,6 @@ public class SymbolTableBuilderTest {
         assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
         assertThat(propertyGetter.parameters).isEmpty();
         assertThat(childProperty.getter).isEqualTo(propertyGetter);
-
-        verifyDefaultConstructor(rootKlass);
     }
 
     @Test
@@ -131,15 +132,7 @@ public class SymbolTableBuilderTest {
 
         assertThat(rootKlass.rawFunctions).hasSize(3);
 
-        var oldSchoolPropertyGetter = rootKlass.rawFunctions.get(0);
-        assertThat(oldSchoolPropertyGetter.name()).isEqualTo("getName");
-        assertThat(oldSchoolPropertyGetter.visibility()).isEqualTo(PUBLIC);
-        assertThat(oldSchoolPropertyGetter.isStatic()).isFalse();
-        assertThat(oldSchoolPropertyGetter.isAbstract()).isFalse();
-        assertThat(oldSchoolPropertyGetter.isFinal()).isTrue();
-        klass = (Klass) oldSchoolPropertyGetter.type();
-        assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
-        assertThat(oldSchoolPropertyGetter.parameters).isEmpty();
+        verifyDefaultConstructor(rootKlass);
 
         var propertyGetter = rootKlass.rawFunctions.get(1);
         assertThat(propertyGetter.name()).isEqualTo("name");
@@ -152,7 +145,15 @@ public class SymbolTableBuilderTest {
         assertThat(propertyGetter.parameters).isEmpty();
         assertThat(childProperty.getter).isEqualTo(propertyGetter);
 
-        verifyDefaultConstructor(rootKlass);
+        var oldSchoolPropertyGetter = rootKlass.rawFunctions.get(2);
+        assertThat(oldSchoolPropertyGetter.name()).isEqualTo("getName");
+        assertThat(oldSchoolPropertyGetter.visibility()).isEqualTo(PUBLIC);
+        assertThat(oldSchoolPropertyGetter.isStatic()).isFalse();
+        assertThat(oldSchoolPropertyGetter.isAbstract()).isFalse();
+        assertThat(oldSchoolPropertyGetter.isFinal()).isTrue();
+        klass = (Klass) oldSchoolPropertyGetter.type();
+        assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
+        assertThat(oldSchoolPropertyGetter.parameters).isEmpty();
     }
 
     @Test
@@ -176,7 +177,10 @@ public class SymbolTableBuilderTest {
         assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
 
         assertThat(rootKlass.rawFunctions).hasSize(3);
-        var propertyGetter = rootKlass.rawFunctions.getFirst();
+
+        verifyDefaultConstructor(rootKlass);
+
+        var propertyGetter = rootKlass.rawFunctions.get(1);
         assertThat(propertyGetter.name()).isEqualTo("foo");
         assertThat(propertyGetter.visibility()).isEqualTo(PUBLIC);
         assertThat(propertyGetter.isStatic()).isFalse();
@@ -187,7 +191,7 @@ public class SymbolTableBuilderTest {
         assertThat(propertyGetter.parameters).isEmpty();
         assertThat(childProperty.getter).isEqualTo(propertyGetter);
 
-        var propertySetter = rootKlass.rawFunctions.get(1);
+        var propertySetter = rootKlass.rawFunctions.get(2);
         assertThat(propertySetter.name()).isEqualTo("foo");
         assertThat(propertySetter.visibility()).isEqualTo(PUBLIC);
         assertThat(propertySetter.isStatic()).isFalse();
@@ -200,8 +204,6 @@ public class SymbolTableBuilderTest {
         assertThat(parameter.name).isEqualTo("foo");
         klass = (Klass) parameter.type();
         assertThat(klass.descriptorString()).isEqualTo("Ljava/lang/String;");
-
-        verifyDefaultConstructor(rootKlass);
     }
 
     @Test
@@ -236,7 +238,10 @@ public class SymbolTableBuilderTest {
         assertThat(childProperty2.lateinitTypeOrNull()).isNotNull();
 
         assertThat(rootKlass.rawFunctions).hasSize(2);
-        var propertyGetter = rootKlass.rawFunctions.getFirst();
+
+        verifyDefaultConstructor(rootKlass);
+
+        var propertyGetter = rootKlass.rawFunctions.getLast();
         assertThat(propertyGetter.name()).isEqualTo("foo");
         assertThat(propertyGetter.visibility()).isEqualTo(PUBLIC);
         assertThat(propertyGetter.isStatic()).isFalse();
@@ -244,8 +249,6 @@ public class SymbolTableBuilderTest {
         assertThat(propertyGetter.isFinal()).isTrue();
         assertThat(propertyGetter.parameters).isEmpty();
         assertThat(childProperty2.getter).isEqualTo(propertyGetter);
-
-        verifyDefaultConstructor(rootKlass);
     }
 
     @Test
@@ -283,7 +286,10 @@ public class SymbolTableBuilderTest {
         var rootKlass = symbolTable.klasses.values().iterator().next();
         assertThat(rootKlass.name()).isEqualTo("Example");
         assertThat(rootKlass.rawFunctions).hasSize(2);
-        var childFunction = rootKlass.rawFunctions.getFirst();
+
+        verifyDefaultConstructor(rootKlass);
+
+        var childFunction = rootKlass.rawFunctions.getLast();
         assertThat(childFunction.name()).isEqualTo("foo");
         assertThat(childFunction.visibility()).isEqualTo(PRIVATE);
         assertThat(childFunction.isStatic()).isFalse();
@@ -292,8 +298,6 @@ public class SymbolTableBuilderTest {
         var klass = (Klass) childFunction.type();
         assertThat(klass.descriptorString()).isEqualTo("V");
         assertThat(childFunction.parameters).isEmpty();
-
-        verifyDefaultConstructor(rootKlass);
     }
 
     @Test
@@ -307,7 +311,10 @@ public class SymbolTableBuilderTest {
         var rootKlass = symbolTable.klasses.values().iterator().next();
         assertThat(rootKlass.name()).isEqualTo("Example");
         assertThat(rootKlass.rawFunctions).hasSize(2);
-        var childFunction = rootKlass.rawFunctions.getFirst();
+
+        verifyDefaultConstructor(rootKlass);
+
+        var childFunction = rootKlass.rawFunctions.getLast();
         assertThat(childFunction.name()).isEqualTo("foo");
         assertThat(childFunction.visibility()).isEqualTo(PRIVATE);
         assertThat(childFunction.isStatic()).isFalse();
@@ -316,8 +323,6 @@ public class SymbolTableBuilderTest {
         var klass = (Klass) childFunction.type();
         assertThat(klass.descriptorString()).isEqualTo("V");
         assertThat(childFunction.parameters).isEmpty();
-
-        verifyDefaultConstructor(rootKlass);
     }
 
     @Test
@@ -331,7 +336,10 @@ public class SymbolTableBuilderTest {
         var rootKlass = symbolTable.klasses.values().iterator().next();
         assertThat(rootKlass.name()).isEqualTo("Example");
         assertThat(rootKlass.rawFunctions).hasSize(2);
-        var childFunction = rootKlass.rawFunctions.getFirst();
+
+        verifyDefaultConstructor(rootKlass);
+
+        var childFunction = rootKlass.rawFunctions.getLast();
         assertThat(childFunction.name()).isEqualTo("foo");
         assertThat(childFunction.visibility()).isEqualTo(PUBLIC);
         assertThat(childFunction.isStatic()).isFalse();
@@ -344,8 +352,6 @@ public class SymbolTableBuilderTest {
         assertThat(parameter.name).isEqualTo("bar");
         klass = (Klass) parameter.type();
         assertThat(klass.descriptorString()).isEqualTo("I");
-
-        verifyDefaultConstructor(rootKlass);
     }
 
     @Test
@@ -375,7 +381,7 @@ public class SymbolTableBuilderTest {
     }
 
     private void verifyDefaultConstructor(OolangKlass rootKlass) {
-        var defaultConstructor = rootKlass.rawFunctions.getLast();
+        var defaultConstructor = rootKlass.rawFunctions.getFirst();
         assertThat(defaultConstructor.name()).isEqualTo(ConstantDescs.INIT_NAME);
         assertThat(defaultConstructor.visibility()).isEqualTo(PUBLIC);
         assertThat(defaultConstructor.isStatic()).isFalse();

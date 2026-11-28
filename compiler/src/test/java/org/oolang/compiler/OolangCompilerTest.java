@@ -111,92 +111,7 @@ public class OolangCompilerTest {
         assertThat(fieldModel.fieldName().stringValue()).isEqualTo("name");
         assertThat(fieldModel.fieldTypeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
 
-        var createModel = classModel.methods().getFirst();
-        assertThat(createModel.flags().flags()).containsExactlyInAnyOrder(
-                AccessFlag.PUBLIC,
-                AccessFlag.STATIC,
-                AccessFlag.FINAL
-        );
-        assertThat(createModel.methodName().stringValue()).isEqualTo("createPrincipal");
-        assertThat(createModel.methodTypeSymbol().descriptorString()).isEqualTo("()Ljava/security/Principal;");
-        var createMethodCode = createModel.code().get();
-        var createCodeElements = createMethodCode.elementList();
-        assertThat(createCodeElements).hasSize(4);
-
-        var createExpression1 = (NewObjectInstruction) createCodeElements.get(0);
-        assertThat(createExpression1.opcode()).isEqualTo(Opcode.NEW);
-        assertThat(createExpression1.className().asInternalName())
-                .isEqualTo("com/example/OolangFunctionProperty");
-
-        var createExpression2 = (StackInstruction) createCodeElements.get(1);
-        assertThat(createExpression2.opcode()).isEqualTo(Opcode.DUP);
-
-        var createExpression3 = (InvokeInstruction) createCodeElements.get(2);
-        assertThat(createExpression3.opcode()).isEqualTo(Opcode.INVOKESPECIAL);
-        assertThat(createExpression3.name().stringValue()).isEqualTo(ConstantDescs.INIT_NAME);
-        assertThat(createExpression3.owner().asInternalName()).isEqualTo("com/example/OolangFunctionProperty");
-        assertThat(createExpression3.typeSymbol().descriptorString()).isEqualTo("()V");
-
-        var createExpression4 = (ReturnInstruction) createCodeElements.get(3);
-        assertThat(createExpression4.opcode()).isEqualTo(Opcode.ARETURN);
-        assertThat(createExpression4.typeKind()).isEqualTo(TypeKind.REFERENCE);
-
-        var oldSchoolGetterModel = classModel.methods().get(1);
-        assertThat(oldSchoolGetterModel.flags().flags()).containsExactlyInAnyOrder(
-                AccessFlag.PUBLIC,
-                AccessFlag.FINAL
-        );
-        assertThat(oldSchoolGetterModel.methodName().stringValue()).isEqualTo("getName");
-        assertThat(oldSchoolGetterModel.methodTypeSymbol().descriptorString())
-                .isEqualTo("()Ljava/lang/String;");
-        assertThat(oldSchoolGetterModel.attributes()).hasSize(2);
-        var runtimeAnnotationsAttr = (RuntimeVisibleAnnotationsAttribute) oldSchoolGetterModel.attributes().getFirst();
-        assertThat(runtimeAnnotationsAttr.annotations()).containsOnly(OVERRIDE_ANNOTATION);
-        var oldSchoolGetterMethodCode = oldSchoolGetterModel.code().get();
-        var oldSchoolGetterCodeElements = oldSchoolGetterMethodCode.elementList();
-        assertThat(oldSchoolGetterCodeElements).hasSize(3);
-
-        var oldSchoolGetterExpression1 = (LoadInstruction) oldSchoolGetterCodeElements.get(0);
-        assertThat(oldSchoolGetterExpression1.opcode()).isEqualTo(Opcode.ALOAD_0);
-        assertThat(oldSchoolGetterExpression1.typeKind()).isEqualTo(TypeKind.REFERENCE);
-
-        var oldSchoolGetterExpression2 = (FieldInstruction) oldSchoolGetterCodeElements.get(1);
-        assertThat(oldSchoolGetterExpression2.opcode()).isEqualTo(Opcode.GETFIELD);
-        assertThat(oldSchoolGetterExpression2.name().stringValue()).isEqualTo("name");
-        assertThat(oldSchoolGetterExpression2.owner().asInternalName())
-                .isEqualTo("com/example/OolangFunctionProperty");
-        assertThat(oldSchoolGetterExpression2.typeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
-
-        var oldSchoolGetterExpression3 = (ReturnInstruction) oldSchoolGetterCodeElements.get(2);
-        assertThat(oldSchoolGetterExpression3.opcode()).isEqualTo(Opcode.ARETURN);
-        assertThat(oldSchoolGetterExpression3.typeKind()).isEqualTo(TypeKind.REFERENCE);
-
-        var getterModel = classModel.methods().get(2);
-        assertThat(getterModel.flags().flags()).containsExactlyInAnyOrder(
-                AccessFlag.PUBLIC,
-                AccessFlag.FINAL
-        );
-        assertThat(getterModel.methodName().stringValue()).isEqualTo("name");
-        assertThat(getterModel.methodTypeSymbol().descriptorString()).isEqualTo("()Ljava/lang/String;");
-        var getterMethodCode = getterModel.code().get();
-        var getterCodeElements = getterMethodCode.elementList();
-        assertThat(getterCodeElements).hasSize(3);
-
-        var getterExpression1 = (LoadInstruction) getterCodeElements.get(0);
-        assertThat(getterExpression1.opcode()).isEqualTo(Opcode.ALOAD_0);
-        assertThat(getterExpression1.typeKind()).isEqualTo(TypeKind.REFERENCE);
-
-        var getterExpression2 = (FieldInstruction) getterCodeElements.get(1);
-        assertThat(getterExpression2.opcode()).isEqualTo(Opcode.GETFIELD);
-        assertThat(getterExpression2.name().stringValue()).isEqualTo("name");
-        assertThat(getterExpression2.owner().asInternalName()).isEqualTo("com/example/OolangFunctionProperty");
-        assertThat(getterExpression2.typeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
-
-        var getterExpression3 = (ReturnInstruction) getterCodeElements.get(2);
-        assertThat(getterExpression3.opcode()).isEqualTo(Opcode.ARETURN);
-        assertThat(getterExpression3.typeKind()).isEqualTo(TypeKind.REFERENCE);
-
-        var constructorMethodModel = classModel.methods().getLast();
+        var constructorMethodModel = classModel.methods().get(0);
         assertThat(constructorMethodModel.flags().flags()).containsExactly(
                 AccessFlag.PUBLIC
         );
@@ -234,6 +149,91 @@ public class OolangCompilerTest {
         var constructorExpression6 = (ReturnInstruction) constructorCodeElements.get(5);
         assertThat(constructorExpression6.opcode()).isEqualTo(Opcode.RETURN);
         assertThat(constructorExpression6.typeKind()).isEqualTo(TypeKind.VOID);
+
+        var createModel = classModel.methods().get(1);
+        assertThat(createModel.flags().flags()).containsExactlyInAnyOrder(
+                AccessFlag.PUBLIC,
+                AccessFlag.STATIC,
+                AccessFlag.FINAL
+        );
+        assertThat(createModel.methodName().stringValue()).isEqualTo("createPrincipal");
+        assertThat(createModel.methodTypeSymbol().descriptorString()).isEqualTo("()Ljava/security/Principal;");
+        var createMethodCode = createModel.code().get();
+        var createCodeElements = createMethodCode.elementList();
+        assertThat(createCodeElements).hasSize(4);
+
+        var createExpression1 = (NewObjectInstruction) createCodeElements.get(0);
+        assertThat(createExpression1.opcode()).isEqualTo(Opcode.NEW);
+        assertThat(createExpression1.className().asInternalName())
+                .isEqualTo("com/example/OolangFunctionProperty");
+
+        var createExpression2 = (StackInstruction) createCodeElements.get(1);
+        assertThat(createExpression2.opcode()).isEqualTo(Opcode.DUP);
+
+        var createExpression3 = (InvokeInstruction) createCodeElements.get(2);
+        assertThat(createExpression3.opcode()).isEqualTo(Opcode.INVOKESPECIAL);
+        assertThat(createExpression3.name().stringValue()).isEqualTo(ConstantDescs.INIT_NAME);
+        assertThat(createExpression3.owner().asInternalName()).isEqualTo("com/example/OolangFunctionProperty");
+        assertThat(createExpression3.typeSymbol().descriptorString()).isEqualTo("()V");
+
+        var createExpression4 = (ReturnInstruction) createCodeElements.get(3);
+        assertThat(createExpression4.opcode()).isEqualTo(Opcode.ARETURN);
+        assertThat(createExpression4.typeKind()).isEqualTo(TypeKind.REFERENCE);
+
+        var getterModel = classModel.methods().get(2);
+        assertThat(getterModel.flags().flags()).containsExactlyInAnyOrder(
+                AccessFlag.PUBLIC,
+                AccessFlag.FINAL
+        );
+        assertThat(getterModel.methodName().stringValue()).isEqualTo("name");
+        assertThat(getterModel.methodTypeSymbol().descriptorString()).isEqualTo("()Ljava/lang/String;");
+        var getterMethodCode = getterModel.code().get();
+        var getterCodeElements = getterMethodCode.elementList();
+        assertThat(getterCodeElements).hasSize(3);
+
+        var getterExpression1 = (LoadInstruction) getterCodeElements.get(0);
+        assertThat(getterExpression1.opcode()).isEqualTo(Opcode.ALOAD_0);
+        assertThat(getterExpression1.typeKind()).isEqualTo(TypeKind.REFERENCE);
+
+        var getterExpression2 = (FieldInstruction) getterCodeElements.get(1);
+        assertThat(getterExpression2.opcode()).isEqualTo(Opcode.GETFIELD);
+        assertThat(getterExpression2.name().stringValue()).isEqualTo("name");
+        assertThat(getterExpression2.owner().asInternalName()).isEqualTo("com/example/OolangFunctionProperty");
+        assertThat(getterExpression2.typeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        var getterExpression3 = (ReturnInstruction) getterCodeElements.get(2);
+        assertThat(getterExpression3.opcode()).isEqualTo(Opcode.ARETURN);
+        assertThat(getterExpression3.typeKind()).isEqualTo(TypeKind.REFERENCE);
+
+        var oldSchoolGetterModel = classModel.methods().get(3);
+        assertThat(oldSchoolGetterModel.flags().flags()).containsExactlyInAnyOrder(
+                AccessFlag.PUBLIC,
+                AccessFlag.FINAL
+        );
+        assertThat(oldSchoolGetterModel.methodName().stringValue()).isEqualTo("getName");
+        assertThat(oldSchoolGetterModel.methodTypeSymbol().descriptorString())
+                .isEqualTo("()Ljava/lang/String;");
+        assertThat(oldSchoolGetterModel.attributes()).hasSize(2);
+        var runtimeAnnotationsAttr = (RuntimeVisibleAnnotationsAttribute) oldSchoolGetterModel.attributes().getFirst();
+        assertThat(runtimeAnnotationsAttr.annotations()).containsOnly(OVERRIDE_ANNOTATION);
+        var oldSchoolGetterMethodCode = oldSchoolGetterModel.code().get();
+        var oldSchoolGetterCodeElements = oldSchoolGetterMethodCode.elementList();
+        assertThat(oldSchoolGetterCodeElements).hasSize(3);
+
+        var oldSchoolGetterExpression1 = (LoadInstruction) oldSchoolGetterCodeElements.get(0);
+        assertThat(oldSchoolGetterExpression1.opcode()).isEqualTo(Opcode.ALOAD_0);
+        assertThat(oldSchoolGetterExpression1.typeKind()).isEqualTo(TypeKind.REFERENCE);
+
+        var oldSchoolGetterExpression2 = (FieldInstruction) oldSchoolGetterCodeElements.get(1);
+        assertThat(oldSchoolGetterExpression2.opcode()).isEqualTo(Opcode.GETFIELD);
+        assertThat(oldSchoolGetterExpression2.name().stringValue()).isEqualTo("name");
+        assertThat(oldSchoolGetterExpression2.owner().asInternalName())
+                .isEqualTo("com/example/OolangFunctionProperty");
+        assertThat(oldSchoolGetterExpression2.typeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        var oldSchoolGetterExpression3 = (ReturnInstruction) oldSchoolGetterCodeElements.get(2);
+        assertThat(oldSchoolGetterExpression3.opcode()).isEqualTo(Opcode.ARETURN);
+        assertThat(oldSchoolGetterExpression3.typeKind()).isEqualTo(TypeKind.REFERENCE);
     }
 
     @Test
@@ -265,68 +265,30 @@ public class OolangCompilerTest {
         assertThat(fieldModel.fieldName().stringValue()).isEqualTo("name");
         assertThat(fieldModel.fieldTypeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
 
-        var oldSchoolGetterModel = classModel.methods().get(0);
-        assertThat(oldSchoolGetterModel.flags().flags()).containsExactlyInAnyOrder(
-                AccessFlag.PUBLIC,
-                AccessFlag.FINAL
+        var constructorMethodModel = classModel.methods().get(0);
+        assertThat(constructorMethodModel.flags().flags()).containsExactly(
+                AccessFlag.PUBLIC
         );
-        assertThat(oldSchoolGetterModel.methodName().stringValue()).isEqualTo("getName");
-        assertThat(oldSchoolGetterModel.methodTypeSymbol().descriptorString())
-                .isEqualTo("()Ljava/lang/String;");
-        assertThat(oldSchoolGetterModel.attributes()).hasSize(1);
-        var oldSchoolGetterCode = oldSchoolGetterModel.code().get();
-        var oldSchoolGetterCodeElements = oldSchoolGetterCode.elementList();
-        assertThat(oldSchoolGetterCodeElements).hasSize(3);
+        assertThat(constructorMethodModel.methodName().stringValue()).isEqualTo(ConstantDescs.INIT_NAME);
+        var constructorMethodCode = constructorMethodModel.code().get();
+        var constructorCodeElements = constructorMethodCode.elementList();
+        assertThat(constructorCodeElements).hasSize(3);
 
-        var oldSchoolGetterExpression1 = (LoadInstruction) oldSchoolGetterCodeElements.get(0);
-        assertThat(oldSchoolGetterExpression1.opcode()).isEqualTo(Opcode.ALOAD_0);
-        assertThat(oldSchoolGetterExpression1.typeKind()).isEqualTo(TypeKind.REFERENCE);
+        var constructorExpression1 = (LoadInstruction) constructorCodeElements.get(0);
+        assertThat(constructorExpression1.opcode()).isEqualTo(Opcode.ALOAD_0);
+        assertThat(constructorExpression1.typeKind()).isEqualTo(TypeKind.REFERENCE);
 
-        var oldSchoolGetterExpression2 = (FieldInstruction) oldSchoolGetterCodeElements.get(1);
-        assertThat(oldSchoolGetterExpression2.opcode()).isEqualTo(Opcode.GETFIELD);
-        assertThat(oldSchoolGetterExpression2.name().stringValue()).isEqualTo("name");
-        assertThat(oldSchoolGetterExpression2.owner().asInternalName())
-                .isEqualTo("com/example/OolangMutableFunctionProperty");
-        assertThat(oldSchoolGetterExpression2.typeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
+        var constructorExpression2 = (InvokeInstruction) constructorCodeElements.get(1);
+        assertThat(constructorExpression2.opcode()).isEqualTo(Opcode.INVOKESPECIAL);
+        assertThat(constructorExpression2.name().stringValue()).isEqualTo(ConstantDescs.INIT_NAME);
+        assertThat(constructorExpression2.owner().asInternalName()).isEqualTo("java/lang/Object");
+        assertThat(constructorExpression2.typeSymbol().descriptorString()).isEqualTo("()V");
 
-        var oldSchoolGetterExpression3 = (ReturnInstruction) oldSchoolGetterCodeElements.get(2);
-        assertThat(oldSchoolGetterExpression3.opcode()).isEqualTo(Opcode.ARETURN);
-        assertThat(oldSchoolGetterExpression3.typeKind()).isEqualTo(TypeKind.REFERENCE);
+        var constructorExpression3 = (ReturnInstruction) constructorCodeElements.get(2);
+        assertThat(constructorExpression3.opcode()).isEqualTo(Opcode.RETURN);
+        assertThat(constructorExpression3.typeKind()).isEqualTo(TypeKind.VOID);
 
-        var oldSchoolSetterModel = classModel.methods().get(1);
-        assertThat(oldSchoolSetterModel.flags().flags()).containsExactly(
-                AccessFlag.PUBLIC,
-                AccessFlag.FINAL
-        );
-        assertThat(oldSchoolSetterModel.methodName().stringValue()).isEqualTo("setName");
-        assertThat(oldSchoolSetterModel.methodTypeSymbol().descriptorString())
-                .isEqualTo("(Ljava/lang/String;)V");
-        assertThat(oldSchoolSetterModel.attributes()).hasSize(2);
-        assertThat(oldSchoolSetterModel.attributes().getFirst()).isInstanceOf(MethodParametersAttribute.class);
-        var oldSchoolSetterCode = oldSchoolSetterModel.code().get();
-        var oldSchoolSetterCodeElements = oldSchoolSetterCode.elementList();
-        assertThat(oldSchoolSetterCodeElements).hasSize(4);
-
-        var oldSchoolSetterExpression1 = (LoadInstruction) oldSchoolSetterCodeElements.get(0);
-        assertThat(oldSchoolSetterExpression1.opcode()).isEqualTo(Opcode.ALOAD_0);
-        assertThat(oldSchoolSetterExpression1.typeKind()).isEqualTo(TypeKind.REFERENCE);
-
-        var oldSchoolSetterExpression2 = (LoadInstruction) oldSchoolSetterCodeElements.get(1);
-        assertThat(oldSchoolSetterExpression2.opcode()).isEqualTo(Opcode.ALOAD_1);
-        assertThat(oldSchoolSetterExpression2.typeKind()).isEqualTo(TypeKind.REFERENCE);
-
-        var oldSchoolSetterExpression3 = (FieldInstruction) oldSchoolSetterCodeElements.get(2);
-        assertThat(oldSchoolSetterExpression3.opcode()).isEqualTo(Opcode.PUTFIELD);
-        assertThat(oldSchoolSetterExpression3.name().stringValue()).isEqualTo("name");
-        assertThat(oldSchoolSetterExpression3.owner().asInternalName())
-                .isEqualTo("com/example/OolangMutableFunctionProperty");
-        assertThat(oldSchoolSetterExpression3.typeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
-
-        var oldSchoolSetterExpression4 = (ReturnInstruction) oldSchoolSetterCodeElements.get(3);
-        assertThat(oldSchoolSetterExpression4.opcode()).isEqualTo(Opcode.RETURN);
-        assertThat(oldSchoolSetterExpression4.typeKind()).isEqualTo(TypeKind.VOID);
-
-        var getterModel = classModel.methods().get(2);
+        var getterModel = classModel.methods().get(1);
         assertThat(getterModel.flags().flags()).containsExactlyInAnyOrder(
                 AccessFlag.PUBLIC,
                 AccessFlag.FINAL
@@ -354,7 +316,7 @@ public class OolangCompilerTest {
         assertThat(getterExpression3.opcode()).isEqualTo(Opcode.ARETURN);
         assertThat(getterExpression3.typeKind()).isEqualTo(TypeKind.REFERENCE);
 
-        var setterModel = classModel.methods().get(3);
+        var setterModel = classModel.methods().get(2);
         assertThat(setterModel.flags().flags()).containsExactly(
                 AccessFlag.PUBLIC,
                 AccessFlag.FINAL
@@ -388,28 +350,66 @@ public class OolangCompilerTest {
         assertThat(setterExpression4.opcode()).isEqualTo(Opcode.RETURN);
         assertThat(setterExpression4.typeKind()).isEqualTo(TypeKind.VOID);
 
-        var constructorMethodModel = classModel.methods().getLast();
-        assertThat(constructorMethodModel.flags().flags()).containsExactly(
-                AccessFlag.PUBLIC
+        var oldSchoolGetterModel = classModel.methods().get(3);
+        assertThat(oldSchoolGetterModel.flags().flags()).containsExactlyInAnyOrder(
+                AccessFlag.PUBLIC,
+                AccessFlag.FINAL
         );
-        assertThat(constructorMethodModel.methodName().stringValue()).isEqualTo(ConstantDescs.INIT_NAME);
-        var constructorMethodCode = constructorMethodModel.code().get();
-        var constructorCodeElements = constructorMethodCode.elementList();
-        assertThat(constructorCodeElements).hasSize(3);
+        assertThat(oldSchoolGetterModel.methodName().stringValue()).isEqualTo("getName");
+        assertThat(oldSchoolGetterModel.methodTypeSymbol().descriptorString())
+                .isEqualTo("()Ljava/lang/String;");
+        assertThat(oldSchoolGetterModel.attributes()).hasSize(1);
+        var oldSchoolGetterCode = oldSchoolGetterModel.code().get();
+        var oldSchoolGetterCodeElements = oldSchoolGetterCode.elementList();
+        assertThat(oldSchoolGetterCodeElements).hasSize(3);
 
-        var constructorExpression1 = (LoadInstruction) constructorCodeElements.get(0);
-        assertThat(constructorExpression1.opcode()).isEqualTo(Opcode.ALOAD_0);
-        assertThat(constructorExpression1.typeKind()).isEqualTo(TypeKind.REFERENCE);
+        var oldSchoolGetterExpression1 = (LoadInstruction) oldSchoolGetterCodeElements.get(0);
+        assertThat(oldSchoolGetterExpression1.opcode()).isEqualTo(Opcode.ALOAD_0);
+        assertThat(oldSchoolGetterExpression1.typeKind()).isEqualTo(TypeKind.REFERENCE);
 
-        var constructorExpression2 = (InvokeInstruction) constructorCodeElements.get(1);
-        assertThat(constructorExpression2.opcode()).isEqualTo(Opcode.INVOKESPECIAL);
-        assertThat(constructorExpression2.name().stringValue()).isEqualTo(ConstantDescs.INIT_NAME);
-        assertThat(constructorExpression2.owner().asInternalName()).isEqualTo("java/lang/Object");
-        assertThat(constructorExpression2.typeSymbol().descriptorString()).isEqualTo("()V");
+        var oldSchoolGetterExpression2 = (FieldInstruction) oldSchoolGetterCodeElements.get(1);
+        assertThat(oldSchoolGetterExpression2.opcode()).isEqualTo(Opcode.GETFIELD);
+        assertThat(oldSchoolGetterExpression2.name().stringValue()).isEqualTo("name");
+        assertThat(oldSchoolGetterExpression2.owner().asInternalName())
+                .isEqualTo("com/example/OolangMutableFunctionProperty");
+        assertThat(oldSchoolGetterExpression2.typeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
 
-        var constructorExpression3 = (ReturnInstruction) constructorCodeElements.get(2);
-        assertThat(constructorExpression3.opcode()).isEqualTo(Opcode.RETURN);
-        assertThat(constructorExpression3.typeKind()).isEqualTo(TypeKind.VOID);
+        var oldSchoolGetterExpression3 = (ReturnInstruction) oldSchoolGetterCodeElements.get(2);
+        assertThat(oldSchoolGetterExpression3.opcode()).isEqualTo(Opcode.ARETURN);
+        assertThat(oldSchoolGetterExpression3.typeKind()).isEqualTo(TypeKind.REFERENCE);
+
+        var oldSchoolSetterModel = classModel.methods().get(4);
+        assertThat(oldSchoolSetterModel.flags().flags()).containsExactly(
+                AccessFlag.PUBLIC,
+                AccessFlag.FINAL
+        );
+        assertThat(oldSchoolSetterModel.methodName().stringValue()).isEqualTo("setName");
+        assertThat(oldSchoolSetterModel.methodTypeSymbol().descriptorString())
+                .isEqualTo("(Ljava/lang/String;)V");
+        assertThat(oldSchoolSetterModel.attributes()).hasSize(2);
+        assertThat(oldSchoolSetterModel.attributes().getFirst()).isInstanceOf(MethodParametersAttribute.class);
+        var oldSchoolSetterCode = oldSchoolSetterModel.code().get();
+        var oldSchoolSetterCodeElements = oldSchoolSetterCode.elementList();
+        assertThat(oldSchoolSetterCodeElements).hasSize(4);
+
+        var oldSchoolSetterExpression1 = (LoadInstruction) oldSchoolSetterCodeElements.get(0);
+        assertThat(oldSchoolSetterExpression1.opcode()).isEqualTo(Opcode.ALOAD_0);
+        assertThat(oldSchoolSetterExpression1.typeKind()).isEqualTo(TypeKind.REFERENCE);
+
+        var oldSchoolSetterExpression2 = (LoadInstruction) oldSchoolSetterCodeElements.get(1);
+        assertThat(oldSchoolSetterExpression2.opcode()).isEqualTo(Opcode.ALOAD_1);
+        assertThat(oldSchoolSetterExpression2.typeKind()).isEqualTo(TypeKind.REFERENCE);
+
+        var oldSchoolSetterExpression3 = (FieldInstruction) oldSchoolSetterCodeElements.get(2);
+        assertThat(oldSchoolSetterExpression3.opcode()).isEqualTo(Opcode.PUTFIELD);
+        assertThat(oldSchoolSetterExpression3.name().stringValue()).isEqualTo("name");
+        assertThat(oldSchoolSetterExpression3.owner().asInternalName())
+                .isEqualTo("com/example/OolangMutableFunctionProperty");
+        assertThat(oldSchoolSetterExpression3.typeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        var oldSchoolSetterExpression4 = (ReturnInstruction) oldSchoolSetterCodeElements.get(3);
+        assertThat(oldSchoolSetterExpression4.opcode()).isEqualTo(Opcode.RETURN);
+        assertThat(oldSchoolSetterExpression4.typeKind()).isEqualTo(TypeKind.VOID);
     }
 
     @Test
@@ -807,21 +807,8 @@ public class OolangCompilerTest {
                 }""");
         var classModel = compileAst(astFile);
 
-        assertThat(classModel.fields()).hasSize(1);
-        var fieldModel = classModel.fields().getFirst();
-        assertThat(fieldModel.flags().flags()).containsExactlyInAnyOrder(
-                AccessFlag.PRIVATE,
-                AccessFlag.FINAL
-        );
-        assertThat(fieldModel.fieldName().stringValue()).isEqualTo("prop");
-        assertThat(fieldModel.fieldTypeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
-
-        assertThat(classModel.methods()).hasSize(3);
-
-        verifyMainWithPropUsageAndPropGetter(classModel);
-
-        // default constructor is added after everything
-        var constructorMethodModel = classModel.methods().getLast();
+        // default constructor is first
+        var constructorMethodModel = classModel.methods().get(0);
         assertThat(constructorMethodModel.flags().flags()).containsExactly(
                 AccessFlag.PUBLIC
         );
@@ -858,6 +845,19 @@ public class OolangCompilerTest {
         var constructorExpression6 = (ReturnInstruction) constructorCodeElements.get(5);
         assertThat(constructorExpression6.opcode()).isEqualTo(Opcode.RETURN);
         assertThat(constructorExpression6.typeKind()).isEqualTo(TypeKind.VOID);
+
+        assertThat(classModel.fields()).hasSize(1);
+        var fieldModel = classModel.fields().getFirst();
+        assertThat(fieldModel.flags().flags()).containsExactlyInAnyOrder(
+                AccessFlag.PRIVATE,
+                AccessFlag.FINAL
+        );
+        assertThat(fieldModel.fieldName().stringValue()).isEqualTo("prop");
+        assertThat(fieldModel.fieldTypeSymbol().descriptorString()).isEqualTo("Ljava/lang/String;");
+
+        assertThat(classModel.methods()).hasSize(3);
+
+        verifyMainWithPropUsageAndPropGetter(classModel);
     }
 
     @Test
@@ -892,10 +892,8 @@ public class OolangCompilerTest {
 
         assertThat(classModel.methods()).hasSize(3);
 
-        verifyMainWithPropUsageAndPropGetter(classModel);
-
-        // default constructor is added after everything
-        var constructorMethodModel = classModel.methods().getLast();
+        // default constructor is first
+        var constructorMethodModel = classModel.methods().get(0);
         assertThat(constructorMethodModel.flags().flags()).containsExactly(
                 AccessFlag.PUBLIC
         );
@@ -943,6 +941,8 @@ public class OolangCompilerTest {
         var constructorExpression7 = (ReturnInstruction) constructorCodeElements.get(6);
         assertThat(constructorExpression7.opcode()).isEqualTo(Opcode.RETURN);
         assertThat(constructorExpression7.typeKind()).isEqualTo(TypeKind.VOID);
+
+        verifyMainWithPropUsageAndPropGetter(classModel);
     }
 
     private void verifyMainWithPropUsageAndPropGetter(ClassModel classModel) {
@@ -971,7 +971,7 @@ public class OolangCompilerTest {
     }
 
     private void verifyMainWithPropUsage(ClassModel classModel) {
-        var methodModel = classModel.methods().getFirst();
+        var methodModel = classModel.methods().get(2);
         var methodCode = methodModel.code().get();
         var codeElements = methodCode.elementList();
         assertThat(codeElements).hasSize(7);

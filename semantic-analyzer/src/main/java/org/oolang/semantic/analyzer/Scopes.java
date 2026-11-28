@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 
-import static org.oolang.symbol.table.TypeUtils.compatibleParameters;
+import static org.oolang.symbol.table.SemanticAnalysisUtils.compatibleParameters;
 import static org.oolang.symbol.table.TypeResolver.DOUBLE_PRIMITIVE_KLASS;
 import static org.oolang.symbol.table.TypeResolver.LONG_PRIMITIVE_KLASS;
 import static org.oolang.symbol.table.Visibility.HIDDEN;
@@ -26,7 +26,7 @@ final class Scopes {
     @NonNull Scopes enterStatic() {
         final var newScopes = new Scopes();
         newScopes.currentStaticScope = currentStaticScope;
-        newScopes.currentInstanceScope = new Scope(null);
+        newScopes.currentInstanceScope = new Scope(/* previous */ null, /* inConstructor */ false);
         return newScopes;
     }
 
@@ -34,9 +34,9 @@ final class Scopes {
         assert oolangKlass != null;
 
         currentStaticScope = new Scope(currentStaticScope, oolangKlass.properties().staticProperties,
-                oolangKlass.functions().staticFunctions);
+                oolangKlass.functions().staticFunctions, /* inConstructor */ false);
         currentInstanceScope = new Scope(currentInstanceScope, oolangKlass.properties().instanceProperties,
-                oolangKlass.functions().instanceFunctions);
+                oolangKlass.functions().instanceFunctions, /* inConstructor */ false);
 
         if (!oolangKlass.isInterface()) {
             currentInstanceScope.putVariable("this", oolangKlass, /* isFinal */ true);
@@ -48,11 +48,12 @@ final class Scopes {
         currentInstanceScope = currentInstanceScope.previous;
     }
 
-    void pushFunction(final boolean isStatic) {
+    void pushFunction(final boolean isStatic, final boolean inConstructor) {
         if (isStatic) {
-            currentStaticScope = new Scope(currentStaticScope);
+            assert !inConstructor;
+            currentStaticScope = new Scope(currentStaticScope, /* inConstructor */ false);
         } else {
-            currentInstanceScope = new Scope(currentInstanceScope);
+            currentInstanceScope = new Scope(currentInstanceScope, /* inConstructor */ inConstructor);
         }
     }
 
@@ -62,6 +63,10 @@ final class Scopes {
         } else {
             currentInstanceScope = currentInstanceScope.previous;
         }
+    }
+
+    boolean inConstructor() {
+        return currentInstanceScope.inConstructor;
     }
 
     int putVariable(final @NonNull String name,
@@ -178,21 +183,24 @@ final class Scopes {
     static final class Scope {
         private int slot;
         private final @Nullable Scope previous;
+        private final boolean inConstructor;
 
         private final @NonNull Map<@NonNull String, @NonNull VariableOrProperty> varsAndProps;
         private final @Nullable SortedSet<@NonNull BaseFunction> functions;
 
-        private Scope(final @Nullable Scope previous) {
-            this(previous, null, null);
+        private Scope(final @Nullable Scope previous, final boolean inConstructor) {
+            this(previous, null, null, inConstructor);
         }
 
         private Scope(final @Nullable Scope previous,
                       final @Nullable Map<@NonNull String, @NonNull Property> properties,
-                      final @Nullable SortedSet<@NonNull BaseFunction> functions) {
+                      final @Nullable SortedSet<@NonNull BaseFunction> functions,
+                      final boolean inConstructor) {
             this.slot = (previous != null) ? previous.slot : 0;
             this.previous = previous;
             this.varsAndProps = (properties != null) ? new HashMap<>(properties) : new HashMap<>();
             this.functions = functions;
+            this.inConstructor = inConstructor;
         }
 
         private int putVariable(final @NonNull String name,
